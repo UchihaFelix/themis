@@ -1,4 +1,4 @@
 flask
 gunicorn
 authlib
-my-sql-connector
+mysql-connector-python
