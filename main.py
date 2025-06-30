@@ -94,17 +94,9 @@ def get_staff_info(discord_id):
         discord_id = str(discord_id)
         
         # If bot owner, return special info
-        if discord_id == str(BOT_OWNER_ID):
-            return {
-                'discord_id': discord_id,
-                'role': 'owner',
-                'username': 'Bot Owner'
-            }
-            
         connection = get_db_connection()
         if connection is None:
             return None
-            
         cursor = connection.cursor(dictionary=True)
         
         # Get staff member info (assuming there might be more columns in the future)
@@ -118,7 +110,7 @@ def get_staff_info(discord_id):
         if result:
             return {
                 'discord_id': discord_id,
-                'role': result.get('role', 'staff'),  # Default to 'staff' if no role column
+                'role': result.get('rank', 'staff'),  # Default to 'staff' if no role column
                 'username': result.get('username', 'Staff Member')  # Default username
             }
         
