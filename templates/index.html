@@ -470,7 +470,7 @@
             </div>
             <div class="nav-links">
                 <!-- Show login button if not logged in -->
-                <a href="#" onclick="openLoginModal()" class="login-btn" id="loginBtn">Login</a>
+                <a href="#" onclick="event.preventDefault(); openLoginModal()" class="hero-login" id="heroLoginBtn">Access Administration</a>
                 
                 <!-- Show user info if logged in -->
                 <div class="user-profile hidden" id="userProfile">
