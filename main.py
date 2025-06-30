@@ -15,7 +15,7 @@ app.secret_key = "ehwodbwelenwkshyuxisid"
 
 # Discord OAuth2 Configuration
 DISCORD_CLIENT_ID = 138934705743266211
-DISCORD_CLIENT_SECRET = Bb9wrx5aQWGFL0sa020AtqKJu4uMa_Sr
+DISCORD_CLIENT_SECRET = "Bb9wrx5aQWGFL0sa020AtqKJu4uMa_Sr"
 DISCORD_REDIRECT_URI = os.environ.get('DISCORD_REDIRECT_URI', 'https://fxs-host.xyz/auth/discord/callback')
 
 # Database Configuration
