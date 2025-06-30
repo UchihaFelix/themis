@@ -35,11 +35,14 @@ discord = oauth.register(
     name='discord',
     client_id=DISCORD_CLIENT_ID,
     client_secret=DISCORD_CLIENT_SECRET,
-    server_metadata_url='https://discord.com/.well-known/openid_configuration',
+    access_token_url='https://discord.com/api/oauth2/token',
+    authorize_url='https://discord.com/api/oauth2/authorize',
+    api_base_url='https://discord.com/api/',
     client_kwargs={
         'scope': 'identify guilds'
     }
 )
+
 
 # Database Functions
 def get_db_connection():
@@ -193,12 +196,15 @@ def discord_callback():
     """Handle Discord OAuth2 callback"""
     try:
         token = discord.authorize_access_token()
-        user_info = token.get('userinfo')
         
-        if not user_info:
+        # Fetch user information from Discord
+        resp = discord.get('users/@me', token=token)
+        discord_user = resp.json()
+        
+        if not discord_user:
             return jsonify({'error': 'Failed to get user information'}), 400
             
-        discord_id = user_info.get('sub')
+        discord_id = discord_user.get('id')
         
         # Check if user is authorized staff
         if not is_staff(discord_id):
