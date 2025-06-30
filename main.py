@@ -72,7 +72,7 @@ def is_staff(discord_id):
         cursor = connection.cursor()
         
         # Check if the discord_id exists in staff_members table
-        query = "SELECT userid FROM staff_members WHERE user_id = %s"
+        query = "SELECT user_id FROM staff_members WHERE user_id = %s"
         cursor.execute(query, (discord_id,))
         result = cursor.fetchone()
         
