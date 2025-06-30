@@ -2,3 +2,4 @@ flask
 gunicorn
 authlib
 mysql-connector-python
+requests
