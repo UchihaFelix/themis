@@ -189,7 +189,7 @@ def index():
 @app.route('/auth/discord')
 def discord_login():
     """Initiate Discord OAuth2 login"""
-    redirect_uri = url_for('discord_callback', _external=True)
+    redirect_uri = url_for('discord_callback', _external=True, _scheme='https')
     return discord.authorize_redirect(redirect_uri)
 
 @app.route('/auth/discord/callback')
