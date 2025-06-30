@@ -11,7 +11,7 @@ from mysql.connector import Error
 
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = Bb9wrx5aQWGFL0sa020AtqKJu4uMa_Sr
+app.secret_key = "ehwodbwelenwkshyuxisid"
 
 # Discord OAuth2 Configuration
 DISCORD_CLIENT_ID = 138934705743266211
