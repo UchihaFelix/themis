@@ -44,6 +44,7 @@ discord = oauth.register(
 )
 
 
+
 # Database Functions
 def get_db_connection():
     """Create a database connection"""
