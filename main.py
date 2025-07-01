@@ -294,7 +294,7 @@ def admin_panel():
             if connection is None:
                 return []
             cursor = connection.cursor(dictionary=True)
-            cursor.execute(f"SELECT id, reference_id, created_at FROM {proj}_cases ORDER BY created_at DESC")
+            cursor.execute(f"SELECT * FROM {proj}_cases ORDER BY created_at DESC")
             cases = cursor.fetchall()
             cursor.close()
             connection.close()
@@ -305,170 +305,680 @@ def admin_panel():
 
     cases = get_cases(project)
 
+    # Build cases HTML with enhanced styling
     cases_html = ""
     for case in cases:
         created = case['created_at'].strftime('%Y-%m-%d %H:%M') if case['created_at'] else ''
-        cases_html += '''
-        <div class="case-item" data-id="{id}">
-            <strong>#{ref}</strong><br>
-            <small>{created}</small>
+        appealed_badge = '<span class="appealed-badge">APPEALED</span>' if case.get('appealed') == 1 else ''
+        
+        cases_html += f'''
+        <div class="case-item" data-id="{case['user_id']}" data-reference="{case.get('reference_id', case['user_id'])}">
+            <div class="case-header">
+                <div class="case-id">#{case.get('reference_id', case['user_id'])}</div>
+                {appealed_badge}
+            </div>
+            <div class="case-meta">
+                <div class="case-type">{case.get('punishment_type', 'Unknown')}</div>
+                <div class="case-date">{created}</div>
+            </div>
         </div>
-        '''.format(id=case['user_id'], ref=case['reference_id'], created=created)
+        '''
 
-    project_selector = '''
-    <form id="projectForm" method="get" action="/admin">
-        <label for="project">Select Project:</label><br>
-        <select name="project" id="project" onchange="document.getElementById('projectForm').submit()">
-            <option value="discord" {discord_selected}>Discord</option>
-            <option value="roblox" {roblox_selected}>Roblox</option>
+    # Enhanced project selector
+    project_selector = f'''
+    <div class="project-selector">
+        <label for="project">Project:</label>
+        <select name="project" id="project" onchange="changeProject(this.value)">
+            <option value="discord" {'selected' if project == 'discord' else ''}>Discord</option>
+            <option value="roblox" {'selected' if project == 'roblox' else ''}>Roblox</option>
         </select>
-    </form>
-    '''.format(
-        discord_selected='selected' if project == 'discord' else '',
-        roblox_selected='selected' if project == 'roblox' else ''
-    )
+    </div>
+    '''
 
-    html = '''
+    html = f'''
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
-        <title>Themis Admin Panel - Cases</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Themis Admin Panel - Case Management</title>
         <style>
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+
             body {{
-                margin: 0; font-family: Arial, sans-serif; background: #0a0a0a; color: white;
-                display: flex; height: 100vh; overflow: hidden;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+                color: #ffffff;
+                display: flex;
+                height: 100vh;
+                overflow: hidden;
             }}
+
+            /* Sidebar Styles */
             #sidebar {{
-                width: 320px; background: #121212; padding: 1rem; box-sizing: border-box;
-                display: flex; flex-direction: column;
+                width: 380px;
+                background: rgba(18, 18, 18, 0.95);
+                backdrop-filter: blur(10px);
+                border-right: 1px solid rgba(169, 119, 248, 0.2);
+                display: flex;
+                flex-direction: column;
+                box-shadow: 2px 0 20px rgba(0, 0, 0, 0.5);
             }}
-            #sidebar h2 {{
-                margin-top: 0; margin-bottom: 1rem; color: #a977f8;
+
+            .sidebar-header {{
+                padding: 2rem 1.5rem 1rem;
+                background: linear-gradient(135deg, #a977f8 0%, #5e3ce2 100%);
+                border-bottom: 1px solid rgba(169, 119, 248, 0.3);
             }}
-            #projectSelector {{
-                margin-bottom: 1rem;
-            }}
-            #caseList {{
-                flex-grow: 1; overflow-y: auto; border-top: 1px solid #333; padding-top: 1rem;
-            }}
-            .case-item {{
-                padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer;
-                border: 1px solid transparent;
+
+            .sidebar-header h1 {{
+                font-size: 1.5rem;
+                font-weight: 700;
                 margin-bottom: 0.5rem;
-                background: #1a1a1a;
-                transition: background 0.2s, border-color 0.2s;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             }}
-            .case-item:hover {{
-                background: #2d1a5f;
-                border-color: #a977f8;
+
+            .sidebar-header .subtitle {{
+                opacity: 0.9;
+                font-size: 0.9rem;
             }}
-            .case-item.selected {{
-                background: #5e3ce2;
-                border-color: #a977f8;
+
+            .project-selector {{
+                padding: 1.5rem;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             }}
-            #detailPanel {{
-                flex-grow: 1; background: #1a1a1a; padding: 1.5rem; overflow-y: auto;
-            }}
-            #detailPanel h2 {{
+
+            .project-selector label {{
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
                 color: #a977f8;
-                margin-top: 0;
             }}
-            #detailPanel p {{
-                margin: 0.25rem 0;
-                white-space: pre-wrap;
+
+            .project-selector select {{
+                width: 100%;
+                padding: 0.75rem;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(169, 119, 248, 0.3);
+                border-radius: 8px;
+                color: white;
+                font-size: 1rem;
+                transition: all 0.3s ease;
             }}
-            .label {{
-                font-weight: bold; color: #999;
+
+            .project-selector select:focus {{
+                outline: none;
+                border-color: #a977f8;
+                box-shadow: 0 0 0 3px rgba(169, 119, 248, 0.2);
             }}
-            #logout {{
-                margin-top: auto; text-align: center;
+
+            .search-bar {{
+                padding: 0 1.5rem 1rem;
             }}
-            #logout a {{
-                color: #e04e4e; text-decoration: none; font-weight: bold;
+
+            .search-bar input {{
+                width: 100%;
+                padding: 0.75rem;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 8px;
+                color: white;
+                font-size: 0.9rem;
+                transition: all 0.3s ease;
             }}
-            #logout a:hover {{
+
+            .search-bar input::placeholder {{
+                color: rgba(255, 255, 255, 0.5);
+            }}
+
+            .search-bar input:focus {{
+                outline: none;
+                border-color: #a977f8;
+                box-shadow: 0 0 0 3px rgba(169, 119, 248, 0.2);
+            }}
+
+            .filters {{
+                padding: 0 1.5rem 1rem;
+                display: flex;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }}
+
+            .filter-btn {{
+                padding: 0.4rem 0.8rem;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 20px;
+                color: white;
+                font-size: 0.8rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }}
+
+            .filter-btn:hover, .filter-btn.active {{
+                background: #a977f8;
+                border-color: #a977f8;
+            }}
+
+            #caseList {{
+                flex: 1;
+                overflow-y: auto;
+                padding: 0 1.5rem 1.5rem;
+            }}
+
+            .case-item {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }}
+
+            .case-item::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, #a977f8, #5e3ce2);
+                transform: scaleX(0);
+                transition: transform 0.3s ease;
+            }}
+
+            .case-item:hover {{
+                background: rgba(169, 119, 248, 0.1);
+                border-color: rgba(169, 119, 248, 0.3);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 20px rgba(169, 119, 248, 0.2);
+            }}
+
+            .case-item:hover::before {{
+                transform: scaleX(1);
+            }}
+
+            .case-item.selected {{
+                background: rgba(169, 119, 248, 0.2);
+                border-color: #a977f8;
+                box-shadow: 0 0 0 2px rgba(169, 119, 248, 0.3);
+            }}
+
+            .case-item.selected::before {{
+                transform: scaleX(1);
+            }}
+
+            .case-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.5rem;
+            }}
+
+            .case-id {{
+                font-weight: 700;
+                font-size: 1.1rem;
+                color: #a977f8;
+            }}
+
+            .appealed-badge {{
+                background: #e04e4e;
+                color: white;
+                padding: 0.2rem 0.5rem;
+                border-radius: 12px;
+                font-size: 0.7rem;
+                font-weight: 600;
+                text-transform: uppercase;
+            }}
+
+            .case-meta {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 0.85rem;
+                opacity: 0.8;
+            }}
+
+            .case-type {{
+                background: rgba(255, 255, 255, 0.1);
+                padding: 0.2rem 0.6rem;
+                border-radius: 8px;
+                font-weight: 500;
+            }}
+
+            .case-date {{
+                color: rgba(255, 255, 255, 0.6);
+            }}
+
+            .logout-section {{
+                padding: 1.5rem;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                text-align: center;
+            }}
+
+            .logout-btn {{
+                color: #e04e4e;
+                text-decoration: none;
+                font-weight: 600;
+                padding: 0.5rem 1rem;
+                border: 1px solid #e04e4e;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+                display: inline-block;
+            }}
+
+            .logout-btn:hover {{
+                background: #e04e4e;
+                color: white;
+            }}
+
+            /* Main Panel Styles */
+            #detailPanel {{
+                flex: 1;
+                background: rgba(26, 26, 26, 0.95);
+                backdrop-filter: blur(10px);
+                padding: 2rem;
+                overflow-y: auto;
+                position: relative;
+            }}
+
+            .detail-header {{
+                margin-bottom: 2rem;
+                padding-bottom: 1rem;
+                border-bottom: 2px solid rgba(169, 119, 248, 0.2);
+            }}
+
+            .detail-header h2 {{
+                color: #a977f8;
+                font-size: 2rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }}
+
+            .detail-header .case-status {{
+                display: flex;
+                gap: 1rem;
+                align-items: center;
+            }}
+
+            .status-badge {{
+                padding: 0.5rem 1rem;
+                border-radius: 20px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                text-transform: uppercase;
+            }}
+
+            .status-badge.appealed {{
+                background: rgba(224, 78, 78, 0.2);
+                color: #e04e4e;
+                border: 1px solid #e04e4e;
+            }}
+
+            .status-badge.active {{
+                background: rgba(34, 197, 94, 0.2);
+                color: #22c55e;
+                border: 1px solid #22c55e;
+            }}
+
+            .detail-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }}
+
+            .detail-card {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 1.5rem;
+                transition: all 0.3s ease;
+            }}
+
+            .detail-card:hover {{
+                background: rgba(255, 255, 255, 0.08);
+                border-color: rgba(169, 119, 248, 0.3);
+            }}
+
+            .detail-card h3 {{
+                color: #a977f8;
+                font-size: 1rem;
+                font-weight: 600;
+                margin-bottom: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }}
+
+            .detail-card p {{
+                color: rgba(255, 255, 255, 0.9);
+                line-height: 1.6;
+                word-wrap: break-word;
+            }}
+
+            .evidence-list {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 1.5rem;
+            }}
+
+            .evidence-list h3 {{
+                color: #a977f8;
+                margin-bottom: 1rem;
+                font-size: 1.1rem;
+            }}
+
+            .evidence-item {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                padding: 0.75rem;
+                margin-bottom: 0.5rem;
+                word-break: break-all;
+            }}
+
+            .evidence-item a {{
+                color: #a977f8;
+                text-decoration: none;
+                transition: color 0.3s ease;
+            }}
+
+            .evidence-item a:hover {{
+                color: #5e3ce2;
                 text-decoration: underline;
             }}
-            /* Scrollbar styling */
+
+            .empty-state {{
+                text-align: center;
+                padding: 4rem 2rem;
+                color: rgba(255, 255, 255, 0.6);
+            }}
+
+            .empty-state h3 {{
+                font-size: 1.5rem;
+                margin-bottom: 1rem;
+                color: #a977f8;
+            }}
+
+            /* Scrollbar Styling */
             #caseList::-webkit-scrollbar, #detailPanel::-webkit-scrollbar {{
                 width: 8px;
             }}
+
+            #caseList::-webkit-scrollbar-track, #detailPanel::-webkit-scrollbar-track {{
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 4px;
+            }}
+
             #caseList::-webkit-scrollbar-thumb, #detailPanel::-webkit-scrollbar-thumb {{
-                background-color: #444; border-radius: 4px;
+                background: rgba(169, 119, 248, 0.5);
+                border-radius: 4px;
+                transition: background 0.3s ease;
+            }}
+
+            #caseList::-webkit-scrollbar-thumb:hover, #detailPanel::-webkit-scrollbar-thumb:hover {{
+                background: rgba(169, 119, 248, 0.7);
+            }}
+
+            /* Loading Animation */
+            .loading {{
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 2rem;
+            }}
+
+            .loading::after {{
+                content: '';
+                width: 20px;
+                height: 20px;
+                border: 2px solid rgba(169, 119, 248, 0.3);
+                border-top: 2px solid #a977f8;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }}
+
+            @keyframes spin {{
+                0% {{ transform: rotate(0deg); }}
+                100% {{ transform: rotate(360deg); }}
+            }}
+
+            /* Responsive Design */
+            @media (max-width: 768px) {{
+                body {{
+                    flex-direction: column;
+                }}
+
+                #sidebar {{
+                    width: 100%;
+                    height: 50vh;
+                }}
+
+                #detailPanel {{
+                    height: 50vh;
+                }}
+
+                .detail-grid {{
+                    grid-template-columns: 1fr;
+                }}
             }}
         </style>
     </head>
     <body>
         <div id="sidebar">
-            <h2>Cases - {project_name}</h2>
-            <div id="projectSelector">
-                {project_selector}
+            <div class="sidebar-header">
+                <h1>Case Management</h1>
+                <div class="subtitle">{project.capitalize()} Cases</div>
             </div>
+            
+            {project_selector}
+            
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search cases..." oninput="filterCases()">
+            </div>
+            
+            <div class="filters">
+                <button class="filter-btn active" onclick="filterByType('all')">All</button>
+                <button class="filter-btn" onclick="filterByType('ban')">Bans</button>
+                <button class="filter-btn" onclick="filterByType('kick')">Kicks</button>
+                <button class="filter-btn" onclick="filterByType('mute')">Mutes</button>
+                <button class="filter-btn" onclick="filterByType('appealed')">Appealed</button>
+            </div>
+            
             <div id="caseList">
                 {cases_html}
             </div>
-            <div id="logout">
-                <a href="/logout">Logout</a>
+            
+            <div class="logout-section">
+                <a href="/logout" class="logout-btn">Logout</a>
             </div>
         </div>
+        
         <div id="detailPanel">
-            <h2>Select a case to view details</h2>
-            <p>Case details will appear here when you select a case from the list.</p>
+            <div class="empty-state">
+                <h3>Select a Case</h3>
+                <p>Choose a case from the sidebar to view detailed information including evidence, moderator notes, and case history.</p>
+            </div>
         </div>
 
         <script>
-            const caseList = document.getElementById('caseList');
-            const detailPanel = document.getElementById('detailPanel');
             let selectedCaseId = null;
+            let allCases = [];
+            const currentProject = '{project}';
 
-            caseList.addEventListener('click', async e => {{
+            // Store all cases for filtering
+            document.querySelectorAll('.case-item').forEach(item => {{
+                allCases.push({{
+                    element: item,
+                    id: item.dataset.id,
+                    reference: item.dataset.reference,
+                    type: item.querySelector('.case-type').textContent.toLowerCase(),
+                    appealed: item.querySelector('.appealed-badge') !== null
+                }});
+            }});
+
+            function changeProject(project) {{
+                window.location.href = `/admin?project=${{project}}`;
+            }}
+
+            function filterCases() {{
+                const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+                allCases.forEach(caseObj => {{
+                    const matchesSearch = caseObj.reference.toLowerCase().includes(searchTerm) || 
+                                        caseObj.id.toLowerCase().includes(searchTerm);
+                    caseObj.element.style.display = matchesSearch ? 'block' : 'none';
+                }});
+            }}
+
+            function filterByType(type) {{
+                // Update filter buttons
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+
+                allCases.forEach(caseObj => {{
+                    let show = false;
+                    switch(type) {{
+                        case 'all':
+                            show = true;
+                            break;
+                        case 'appealed':
+                            show = caseObj.appealed;
+                            break;
+                        default:
+                            show = caseObj.type.includes(type);
+                    }}
+                    caseObj.element.style.display = show ? 'block' : 'none';
+                }});
+            }}
+
+            // Case selection handler
+            document.getElementById('caseList').addEventListener('click', async (e) => {{
                 const caseItem = e.target.closest('.case-item');
                 if (!caseItem) return;
+
                 const caseId = caseItem.dataset.id;
                 if (caseId === selectedCaseId) return;
 
-                // Clear previous selection highlight
+                // Update selection
                 document.querySelectorAll('.case-item.selected').forEach(el => el.classList.remove('selected'));
                 caseItem.classList.add('selected');
                 selectedCaseId = caseId;
 
-                detailPanel.innerHTML = '<p>Loading...</p>';
+                // Show loading state
+                document.getElementById('detailPanel').innerHTML = '<div class="loading"></div>';
+
                 try {{
-                    const response = await fetch(`/api/case/{project}/` + caseId);
-                    if (!response.ok) throw new Error('Failed to load case details');
+                    const response = await fetch(`/api/case/${{currentProject}}/${{caseId}}`);
+                    if (!response.ok) throw new Error('Failed to load case');
+                    
                     const caseData = await response.json();
                     if (caseData.error) {{
-                        detailPanel.innerHTML = `<p style="color: #e04e4e;">Error: ${{caseData.error}}</p>`;
-                        return;
+                        throw new Error(caseData.error);
                     }}
 
-                    detailPanel.innerHTML = `
-                        <h2>Case #${{caseData.reference_id}}</h2>
-                        <p><span class="label">Created At:</span> ${{caseData.created_at}}</p>
-                        <p><span class="label">User ID:</span> ${{caseData.user_id}}</p>
-                        <p><span class="label">Staff ID:</span> ${{caseData.staff_id}}</p>
-                        <p><span class="label">Punishment Type:</span> ${{caseData.punishment_type}}</p>
-                        <p><span class="label">Length:</span> ${{caseData.length || 'N/A'}}</p>
-                        <p><span class="label">Reason:</span> ${{caseData.reason}}</p>
-                        <p><span class="label">Appealed:</span> ${{caseData.appealed == 1 ? 'Yes' : 'No'}}</p>
-                        <p><span class="label">Evidence:</span><br> ${{caseData.evidence ? caseData.evidence.replace(/\\n/g, '<br>') : 'None'}}</p>
-                        <p><span class="label">Moderator Note:</span><br> ${{caseData.moderator_note ? caseData.moderator_note.replace(/\\n/g, '<br>') : 'None'}}</p>
+                    displayCaseDetails(caseData);
+                }} catch (error) {{
+                    document.getElementById('detailPanel').innerHTML = `
+                        <div class="empty-state">
+                            <h3>Error Loading Case</h3>
+                            <p>${{error.message}}</p>
+                        </div>
                     `;
-                }} catch(err) {{
-                    detailPanel.innerHTML = `<p style="color: #e04e4e;">Error loading case details.</p>`;
                 }}
             }});
+
+            function displayCaseDetails(caseData) {{
+                const evidenceList = caseData.evidence ? 
+                    caseData.evidence.split('\\n').filter(url => url.trim()).map(url => 
+                        `<div class="evidence-item"><a href="${{url.trim()}}" target="_blank">${{url.trim()}}</a></div>`
+                    ).join('') : '<p>No evidence provided</p>';
+
+                const appealedStatus = caseData.appealed == 1 ? 
+                    '<div class="status-badge appealed">Appealed</div>' : 
+                    '<div class="status-badge active">Active</div>';
+
+                document.getElementById('detailPanel').innerHTML = `
+                    <div class="detail-header">
+                        <h2>Case #${{caseData.reference_id || caseData.user_id}}</h2>
+                        <div class="case-status">
+                            ${{appealedStatus}}
+                        </div>
+                    </div>
+
+                    <div class="detail-grid">
+                        <div class="detail-card">
+                            <h3>Case Information</h3>
+                            <p><strong>User ID:</strong> ${{caseData.user_id}}</p>
+                            <p><strong>Staff ID:</strong> ${{caseData.staff_id}}</p>
+                            <p><strong>Created:</strong> ${{caseData.created_at}}</p>
+                            <p><strong>Type:</strong> ${{caseData.punishment_type}}</p>
+                            <p><strong>Length:</strong> ${{caseData.length || 'Permanent/N/A'}}</p>
+                        </div>
+
+                        <div class="detail-card">
+                            <h3>Reason</h3>
+                            <p>${{caseData.reason || 'No reason provided'}}</p>
+                        </div>
+
+                        <div class="detail-card">
+                            <h3>Moderator Notes</h3>
+                            <p>${{caseData.moderator_note || 'No notes provided'}}</p>
+                        </div>
+                    </div>
+
+                    <div class="evidence-list">
+                        <h3>Evidence</h3>
+                        ${{evidenceList}}
+                    </div>
+                `;
+            }}
         </script>
     </body>
     </html>
-    '''.format(
-        project=project,
-        project_name=project.capitalize(),
-        project_selector=project_selector,
-        cases_html=cases_html
-    )
+    '''
 
     return render_template_string(html)
+
+@app.route('/api/case/<project>/<case_id>')
+@login_required
+@staff_required
+def api_case_detail(project, case_id):
+    """Get detailed case information"""
+    try:
+        connection = get_db_connection()
+        if connection is None:
+            return jsonify({'error': 'Database connection failed'}), 500
+            
+        cursor = connection.cursor(dictionary=True)
+        
+        # Query the specific case by user_id (which seems to be the identifier used)
+        query = f"SELECT * FROM {project}_cases WHERE user_id = %s"
+        cursor.execute(query, (case_id,))
+        case = cursor.fetchone()
+        
+        cursor.close()
+        connection.close()
+        
+        if not case:
+            return jsonify({'error': 'Case not found'}), 404
+            
+        # Convert datetime to string for JSON serialization
+        if case.get('created_at'):
+            case['created_at'] = case['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            
+        return jsonify(case)
+        
+    except Exception as e:
+        print(f"Error fetching case details: {e}")
+        return jsonify({'error': f'Failed to fetch case: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
