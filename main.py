@@ -960,21 +960,23 @@ def admin_panel():
 
     return render_template_string(html)
 
-@app.route('/api/case/<project>/<case_id>')
+@app.route('/api/case/<project>/<int:case_id>')
 @login_required
 @staff_required
-def api_case_detail(project, case_id):
-    """Get detailed case information"""
+def get_case_detail(project, case_id):
     try:
+        # Validate project parameter to prevent SQL injection
+        if project not in ['discord', 'arenamadness']:
+            return jsonify({'error': 'Invalid project'}), 400
+            
         connection = get_db_connection()
         if connection is None:
-            return jsonify({'error': 'Database connection failed'}), 500
+            return jsonify({'error': 'DB connection error'}), 500
             
         cursor = connection.cursor(dictionary=True)
         
-        # Query the specific case by user_id (which seems to be the identifier used)
-        query = f"SELECT * FROM {project}_cases WHERE user_id = %s"
-        cursor.execute(query, (case_id,))
+        # Use reference_id in the WHERE clause
+        cursor.execute(f"SELECT * FROM {project} WHERE reference_id = %s", (case_id,))
         case = cursor.fetchone()
         
         cursor.close()
@@ -986,12 +988,17 @@ def api_case_detail(project, case_id):
         # Convert datetime to string for JSON serialization
         if case.get('created_at'):
             case['created_at'] = case['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Handle evidence field if it exists
+        if case.get('evidence'):
+            # If evidence is stored as a multi-line string, convert to list
+            if isinstance(case['evidence'], str):
+                case['evidence'] = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
             
         return jsonify(case)
         
     except Exception as e:
-        print(f"Error fetching case details: {e}")
-        return jsonify({'error': f'Failed to fetch case: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
