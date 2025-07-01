@@ -931,27 +931,35 @@ def admin_panel():
 @login_required
 @staff_required
 def get_case_detail(project, case_id):
+    print(f"API called with project: {project}, case_id: {case_id}")  # Debug log
     try:
         # Validate project parameter to prevent SQL injection
         if project not in ['discord', 'arenamadness']:
+            print(f"Invalid project: {project}")  # Debug log
             return jsonify({'error': 'Invalid project'}), 400
             
         connection = get_db_connection()
         if connection is None:
+            print("Database connection failed")  # Debug log
             return jsonify({'error': 'DB connection error'}), 500
             
         cursor = connection.cursor(dictionary=True)
         
         # Use reference_id in the WHERE clause
-        cursor.execute(f"SELECT * FROM {project} WHERE reference_id = %s", (case_id,))
+        query = f"SELECT * FROM {project} WHERE reference_id = %s"
+        print(f"Executing query: {query} with case_id: {case_id}")  # Debug log
+        cursor.execute(query, (case_id,))
         case = cursor.fetchone()
         
         cursor.close()
         connection.close()
         
         if not case:
+            print(f"No case found for reference_id: {case_id}")  # Debug log
             return jsonify({'error': 'Case not found'}), 404
             
+        print(f"Case found: {case}")  # Debug log
+        
         # Convert datetime to string for JSON serialization
         if case.get('created_at'):
             case['created_at'] = case['created_at'].strftime('%Y-%m-%d %H:%M:%S')
@@ -962,9 +970,11 @@ def get_case_detail(project, case_id):
             if isinstance(case['evidence'], str):
                 case['evidence'] = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
             
+        print(f"Returning case data: {case}")  # Debug log
         return jsonify(case)
         
     except Exception as e:
+        print(f"Exception in get_case_detail: {str(e)}")  # Debug log
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
