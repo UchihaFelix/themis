@@ -300,26 +300,41 @@ def admin_panel():
         created = str(case['created_at'])[:16] if case['created_at'] else ''
         appealed_badge = '<span class="appealed-badge">APPEALED</span>' if case.get('appealed') == 1 else ''
         
+        # Determine punishment type color
+        punishment_color = {
+            'ban': '#ef4444',
+            'kick': '#f59e0b', 
+            'mute': '#8b5cf6',
+            'warn': '#10b981'
+        }.get(case.get('punishment_type', '').lower(), '#6b7280')
+        
         cases_html += f'''
-        <div class="case-item" data-id="{case.get('reference_id', case['user_id'])}" data-reference="{case.get('reference_id', case['user_id'])}">
+        <div class="case-item" data-id="{case.get('reference_id', case['user_id'])}" data-reference="{case.get('reference_id', case['user_id'])}" data-type="{case.get('punishment_type', '').lower()}">
             <div class="case-header">
                 <div class="case-id">#{case.get('reference_id', case['user_id'])}</div>
                 {appealed_badge}
             </div>
-            <div class="case-meta">
-                <div class="case-type">{case.get('punishment_type', 'Unknown')}</div>
+            <div class="case-body">
+                <div class="case-type" style="background-color: {punishment_color}20; color: {punishment_color}; border: 1px solid {punishment_color}40;">
+                    {case.get('punishment_type', 'Unknown')}
+                </div>
+                <div class="case-user">User: {case.get('user_id', 'Unknown')}</div>
+                <div class="case-reason">{case.get('reason', 'No reason provided')[:50]}{'...' if len(case.get('reason', '')) > 50 else ''}</div>
+            </div>
+            <div class="case-footer">
                 <div class="case-date">{created}</div>
+                <div class="case-staff">by {case.get('staff_id', 'Unknown')}</div>
             </div>
         </div>
         '''
 
     # Enhanced project selector
     project_selector = f'''
-    <div class="project-selector">
-        <label for="project">Project:</label>
+    <div class="project-selector-container">
+        <label for="project">Active Project:</label>
         <select name="project" id="project" onchange="changeProject(this.value)">
-            <option value="discord" {'selected' if project == 'discord' else ''}>Discord</option>
-            <option value="roblox" {'selected' if project == 'roblox' else ''}>Roblox</option>
+            <option value="discord" {'selected' if project == 'discord' else ''}>🎮 Discord</option>
+            <option value="roblox" {'selected' if project == 'roblox' else ''}>🎯 Roblox</option>
         </select>
     </div>
     '''
@@ -330,8 +345,26 @@ def admin_panel():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Themis Admin Panel - Case Management</title>
+        <title>Themis Admin Dashboard</title>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
         <style>
+            :root {{
+                --primary: #6366f1;
+                --primary-dark: #4f46e5;
+                --secondary: #8b5cf6;
+                --success: #10b981;
+                --warning: #f59e0b;
+                --danger: #ef4444;
+                --dark: #111827;
+                --dark-light: #1f2937;
+                --dark-lighter: #374151;
+                --text: #f9fafb;
+                --text-muted: #9ca3af;
+                --border: #374151;
+                --card-bg: #1f2937;
+                --glass: rgba(31, 41, 55, 0.8);
+            }}
+
             * {{
                 margin: 0;
                 padding: 0;
@@ -339,132 +372,297 @@ def admin_panel():
             }}
 
             body {{
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
-                color: #ffffff;
-                display: flex;
-                height: 100vh;
-                overflow: hidden;
+                font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+                color: var(--text);
+                min-height: 100vh;
+                overflow-x: hidden;
             }}
 
-            /* Sidebar Styles */
-            #sidebar {{
-                width: 380px;
-                background: rgba(18, 18, 18, 0.95);
-                backdrop-filter: blur(10px);
-                border-right: 1px solid rgba(169, 119, 248, 0.2);
+            /* Navigation Header */
+            .nav-header {{
+                background: var(--glass);
+                backdrop-filter: blur(20px);
+                border-bottom: 1px solid var(--border);
+                padding: 1rem 2rem;
                 display: flex;
-                flex-direction: column;
-                box-shadow: 2px 0 20px rgba(0, 0, 0, 0.5);
+                justify-content: space-between;
+                align-items: center;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            }}
+
+            .nav-left {{
+                display: flex;
+                align-items: center;
+                gap: 1.5rem;
+            }}
+
+            .nav-logo {{
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--primary);
+            }}
+
+            .nav-logo i {{
+                font-size: 1.75rem;
+            }}
+
+            .breadcrumb {{
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                color: var(--text-muted);
+                font-size: 0.9rem;
+            }}
+
+            .breadcrumb a {{
+                color: var(--primary);
+                text-decoration: none;
+                transition: color 0.2s;
+            }}
+
+            .breadcrumb a:hover {{
+                color: var(--primary-dark);
+            }}
+
+            .nav-right {{
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }}
+
+            .user-info {{
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.5rem 1rem;
+                background: var(--card-bg);
+                border-radius: 50px;
+                border: 1px solid var(--border);
+            }}
+
+            .user-avatar {{
+                width: 32px;
+                height: 32px;
+                background: linear-gradient(135deg, var(--primary), var(--secondary));
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 600;
+                font-size: 0.9rem;
+            }}
+
+            .btn {{
+                padding: 0.5rem 1rem;
+                border: none;
+                border-radius: 8px;
+                font-weight: 600;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-size: 0.9rem;
+            }}
+
+            .btn-primary {{
+                background: var(--primary);
+                color: white;
+            }}
+
+            .btn-primary:hover {{
+                background: var(--primary-dark);
+                transform: translateY(-1px);
+            }}
+
+            .btn-danger {{
+                background: var(--danger);
+                color: white;
+            }}
+
+            .btn-danger:hover {{
+                background: #dc2626;
+                transform: translateY(-1px);
+            }}
+
+            .btn-ghost {{
+                background: transparent;
+                color: var(--text-muted);
+                border: 1px solid var(--border);
+            }}
+
+            .btn-ghost:hover {{
+                background: var(--card-bg);
+                color: var(--text);
+            }}
+
+            /* Main Layout */
+            .admin-container {{
+                display: flex;
+                min-height: calc(100vh - 80px);
+                max-width: 1400px;
+                margin: 2rem auto;
+                gap: 2rem;
+                padding: 0 2rem;
+            }}
+
+            /* Sidebar */
+            .sidebar {{
+                width: 400px;
+                background: var(--glass);
+                backdrop-filter: blur(20px);
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                overflow: hidden;
+                height: fit-content;
+                position: sticky;
+                top: 100px;
             }}
 
             .sidebar-header {{
-                padding: 2rem 1.5rem 1rem;
-                background: linear-gradient(135deg, #a977f8 0%, #5e3ce2 100%);
-                border-bottom: 1px solid rgba(169, 119, 248, 0.3);
+                padding: 2rem;
+                background: linear-gradient(135deg, var(--primary), var(--secondary));
+                text-align: center;
             }}
 
-            .sidebar-header h1 {{
+            .sidebar-header h2 {{
                 font-size: 1.5rem;
-                font-weight: 700;
                 margin-bottom: 0.5rem;
-                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             }}
 
-            .sidebar-header .subtitle {{
+            .sidebar-header p {{
                 opacity: 0.9;
                 font-size: 0.9rem;
             }}
 
-            .project-selector {{
+            .project-selector-container {{
                 padding: 1.5rem;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                border-bottom: 1px solid var(--border);
             }}
 
-            .project-selector label {{
+            .project-selector-container label {{
                 display: block;
-                margin-bottom: 0.5rem;
+                margin-bottom: 0.75rem;
                 font-weight: 600;
-                color: #a977f8;
+                color: var(--primary);
             }}
 
-            .project-selector select {{
+            .project-selector-container select {{
                 width: 100%;
                 padding: 0.75rem;
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(169, 119, 248, 0.3);
+                background: var(--card-bg);
+                border: 1px solid var(--border);
                 border-radius: 8px;
-                color: white;
+                color: var(--text);
                 font-size: 1rem;
-                transition: all 0.3s ease;
+                transition: all 0.2s;
             }}
 
-            .project-selector select:focus {{
+            .project-selector-container select:focus {{
                 outline: none;
-                border-color: #a977f8;
-                box-shadow: 0 0 0 3px rgba(169, 119, 248, 0.2);
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
             }}
 
-            .search-bar {{
-                padding: 0 1.5rem 1rem;
+            .controls {{
+                padding: 1.5rem;
+                border-bottom: 1px solid var(--border);
             }}
 
-            .search-bar input {{
+            .search-container {{
+                position: relative;
+                margin-bottom: 1rem;
+            }}
+
+            .search-container input {{
                 width: 100%;
-                padding: 0.75rem;
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.2);
+                padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+                background: var(--card-bg);
+                border: 1px solid var(--border);
                 border-radius: 8px;
-                color: white;
+                color: var(--text);
                 font-size: 0.9rem;
-                transition: all 0.3s ease;
+                transition: all 0.2s;
             }}
 
-            .search-bar input::placeholder {{
-                color: rgba(255, 255, 255, 0.5);
-            }}
-
-            .search-bar input:focus {{
+            .search-container input:focus {{
                 outline: none;
-                border-color: #a977f8;
-                box-shadow: 0 0 0 3px rgba(169, 119, 248, 0.2);
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            }}
+
+            .search-container i {{
+                position: absolute;
+                left: 0.75rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: var(--text-muted);
             }}
 
             .filters {{
-                padding: 0 1.5rem 1rem;
                 display: flex;
-                gap: 0.5rem;
                 flex-wrap: wrap;
+                gap: 0.5rem;
             }}
 
-            .filter-btn {{
+            .filter-tag {{
                 padding: 0.4rem 0.8rem;
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.2);
+                background: var(--card-bg);
+                border: 1px solid var(--border);
                 border-radius: 20px;
-                color: white;
+                color: var(--text-muted);
                 font-size: 0.8rem;
                 cursor: pointer;
-                transition: all 0.3s ease;
+                transition: all 0.2s;
+                text-transform: capitalize;
             }}
 
-            .filter-btn:hover, .filter-btn.active {{
-                background: #a977f8;
-                border-color: #a977f8;
+            .filter-tag:hover {{
+                background: var(--primary);
+                color: white;
+                border-color: var(--primary);
             }}
 
-            #caseList {{
-                flex: 1;
+            .filter-tag.active {{
+                background: var(--primary);
+                color: white;
+                border-color: var(--primary);
+            }}
+
+            .cases-container {{
+                max-height: 60vh;
                 overflow-y: auto;
-                padding: 0 1.5rem 1.5rem;
+                scrollbar-width: thin;
+                scrollbar-color: var(--primary) transparent;
+            }}
+
+            .cases-container::-webkit-scrollbar {{
+                width: 6px;
+            }}
+
+            .cases-container::-webkit-scrollbar-track {{
+                background: transparent;
+            }}
+
+            .cases-container::-webkit-scrollbar-thumb {{
+                background: var(--primary);
+                border-radius: 3px;
             }}
 
             .case-item {{
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                margin: 1rem 1.5rem;
+                background: var(--card-bg);
+                border: 1px solid var(--border);
                 border-radius: 12px;
                 padding: 1rem;
-                margin-bottom: 0.75rem;
                 cursor: pointer;
                 transition: all 0.3s ease;
                 position: relative;
@@ -478,16 +676,16 @@ def admin_panel():
                 left: 0;
                 right: 0;
                 height: 3px;
-                background: linear-gradient(90deg, #a977f8, #5e3ce2);
+                background: linear-gradient(90deg, var(--primary), var(--secondary));
                 transform: scaleX(0);
                 transition: transform 0.3s ease;
             }}
 
             .case-item:hover {{
-                background: rgba(169, 119, 248, 0.1);
-                border-color: rgba(169, 119, 248, 0.3);
+                background: rgba(99, 102, 241, 0.1);
+                border-color: var(--primary);
                 transform: translateY(-2px);
-                box-shadow: 0 4px 20px rgba(169, 119, 248, 0.2);
+                box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2);
             }}
 
             .case-item:hover::before {{
@@ -495,9 +693,9 @@ def admin_panel():
             }}
 
             .case-item.selected {{
-                background: rgba(169, 119, 248, 0.2);
-                border-color: #a977f8;
-                box-shadow: 0 0 0 2px rgba(169, 119, 248, 0.3);
+                background: rgba(99, 102, 241, 0.15);
+                border-color: var(--primary);
+                box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
             }}
 
             .case-item.selected::before {{
@@ -508,113 +706,123 @@ def admin_panel():
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 0.5rem;
+                margin-bottom: 0.75rem;
             }}
 
             .case-id {{
                 font-weight: 700;
                 font-size: 1.1rem;
-                color: #a977f8;
+                color: var(--primary);
             }}
 
             .appealed-badge {{
-                background: #e04e4e;
+                background: var(--danger);
                 color: white;
-                padding: 0.2rem 0.5rem;
+                padding: 0.25rem 0.5rem;
                 border-radius: 12px;
                 font-size: 0.7rem;
                 font-weight: 600;
                 text-transform: uppercase;
+                animation: pulse 2s infinite;
             }}
 
-            .case-meta {{
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                font-size: 0.85rem;
-                opacity: 0.8;
+            @keyframes pulse {{
+                0%, 100% {{ opacity: 1; }}
+                50% {{ opacity: 0.7; }}
+            }}
+
+            .case-body {{
+                margin-bottom: 0.75rem;
             }}
 
             .case-type {{
-                background: rgba(255, 255, 255, 0.1);
-                padding: 0.2rem 0.6rem;
-                border-radius: 8px;
-                font-weight: 500;
-            }}
-
-            .case-date {{
-                color: rgba(255, 255, 255, 0.6);
-            }}
-
-            .logout-section {{
-                padding: 1.5rem;
-                border-top: 1px solid rgba(255, 255, 255, 0.1);
-                text-align: center;
-            }}
-
-            .logout-btn {{
-                color: #e04e4e;
-                text-decoration: none;
-                font-weight: 600;
-                padding: 0.5rem 1rem;
-                border: 1px solid #e04e4e;
-                border-radius: 8px;
-                transition: all 0.3s ease;
                 display: inline-block;
-            }}
-
-            .logout-btn:hover {{
-                background: #e04e4e;
-                color: white;
-            }}
-
-            /* Main Panel Styles */
-            #detailPanel {{
-                flex: 1;
-                background: rgba(26, 26, 26, 0.95);
-                backdrop-filter: blur(10px);
-                padding: 2rem;
-                overflow-y: auto;
-                position: relative;
-            }}
-
-            .detail-header {{
-                margin-bottom: 2rem;
-                padding-bottom: 1rem;
-                border-bottom: 2px solid rgba(169, 119, 248, 0.2);
-            }}
-
-            .detail-header h2 {{
-                color: #a977f8;
-                font-size: 2rem;
-                font-weight: 700;
+                padding: 0.25rem 0.6rem;
+                border-radius: 8px;
+                font-size: 0.8rem;
+                font-weight: 600;
+                text-transform: uppercase;
                 margin-bottom: 0.5rem;
             }}
 
-            .detail-header .case-status {{
+            .case-user {{
+                font-size: 0.9rem;
+                color: var(--text-muted);
+                margin-bottom: 0.25rem;
+            }}
+
+            .case-reason {{
+                font-size: 0.85rem;
+                color: var(--text);
+                line-height: 1.4;
+            }}
+
+            .case-footer {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                padding-top: 0.5rem;
+                border-top: 1px solid var(--border);
+            }}
+
+            /* Main Panel */
+            .main-panel {{
+                flex: 1;
+                background: var(--glass);
+                backdrop-filter: blur(20px);
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                overflow: hidden;
+            }}
+
+            .panel-header {{
+                padding: 2rem;
+                border-bottom: 1px solid var(--border);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }}
+
+            .panel-title {{
+                font-size: 1.75rem;
+                font-weight: 700;
+                color: var(--primary);
+            }}
+
+            .panel-actions {{
                 display: flex;
                 gap: 1rem;
                 align-items: center;
             }}
 
-            .status-badge {{
-                padding: 0.5rem 1rem;
-                border-radius: 20px;
-                font-size: 0.85rem;
-                font-weight: 600;
-                text-transform: uppercase;
+            .panel-content {{
+                padding: 2rem;
+                height: calc(100vh - 300px);
+                overflow-y: auto;
             }}
 
-            .status-badge.appealed {{
-                background: rgba(224, 78, 78, 0.2);
-                color: #e04e4e;
-                border: 1px solid #e04e4e;
+            .empty-state {{
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                text-align: center;
+                color: var(--text-muted);
             }}
 
-            .status-badge.active {{
-                background: rgba(34, 197, 94, 0.2);
-                color: #22c55e;
-                border: 1px solid #22c55e;
+            .empty-state i {{
+                font-size: 4rem;
+                margin-bottom: 1rem;
+                opacity: 0.5;
+            }}
+
+            .empty-state h3 {{
+                font-size: 1.5rem;
+                margin-bottom: 0.5rem;
+                color: var(--text);
             }}
 
             .detail-grid {{
@@ -625,49 +833,58 @@ def admin_panel():
             }}
 
             .detail-card {{
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: var(--card-bg);
+                border: 1px solid var(--border);
                 border-radius: 12px;
                 padding: 1.5rem;
-                transition: all 0.3s ease;
+                transition: all 0.2s;
             }}
 
             .detail-card:hover {{
-                background: rgba(255, 255, 255, 0.08);
-                border-color: rgba(169, 119, 248, 0.3);
+                border-color: var(--primary);
+                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
             }}
 
-            .detail-card h3 {{
-                color: #a977f8;
-                font-size: 1rem;
+            .detail-card h4 {{
+                color: var(--primary);
+                font-size: 0.9rem;
                 font-weight: 600;
-                margin-bottom: 0.75rem;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
+                margin-bottom: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
             }}
 
             .detail-card p {{
-                color: rgba(255, 255, 255, 0.9);
+                color: var(--text);
                 line-height: 1.6;
-                word-wrap: break-word;
+                margin-bottom: 0.5rem;
             }}
 
-            .evidence-list {{
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+            .detail-card strong {{
+                color: var(--primary);
+            }}
+
+            .evidence-section {{
+                background: var(--card-bg);
+                border: 1px solid var(--border);
                 border-radius: 12px;
                 padding: 1.5rem;
             }}
 
-            .evidence-list h3 {{
-                color: #a977f8;
+            .evidence-section h4 {{
+                color: var(--primary);
                 margin-bottom: 1rem;
-                font-size: 1.1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
             }}
 
             .evidence-item {{
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: rgba(99, 102, 241, 0.05);
+                border: 1px solid rgba(99, 102, 241, 0.2);
                 border-radius: 8px;
                 padding: 0.75rem;
                 margin-bottom: 0.5rem;
@@ -675,126 +892,181 @@ def admin_panel():
             }}
 
             .evidence-item a {{
-                color: #a977f8;
+                color: var(--primary);
                 text-decoration: none;
-                transition: color 0.3s ease;
+                font-weight: 500;
             }}
 
             .evidence-item a:hover {{
-                color: #5e3ce2;
                 text-decoration: underline;
             }}
 
-            .empty-state {{
-                text-align: center;
-                padding: 4rem 2rem;
-                color: rgba(255, 255, 255, 0.6);
-            }}
-
-            .empty-state h3 {{
-                font-size: 1.5rem;
-                margin-bottom: 1rem;
-                color: #a977f8;
-            }}
-
-            /* Scrollbar Styling */
-            #caseList::-webkit-scrollbar, #detailPanel::-webkit-scrollbar {{
-                width: 8px;
-            }}
-
-            #caseList::-webkit-scrollbar-track, #detailPanel::-webkit-scrollbar-track {{
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 4px;
-            }}
-
-            #caseList::-webkit-scrollbar-thumb, #detailPanel::-webkit-scrollbar-thumb {{
-                background: rgba(169, 119, 248, 0.5);
-                border-radius: 4px;
-                transition: background 0.3s ease;
-            }}
-
-            #caseList::-webkit-scrollbar-thumb:hover, #detailPanel::-webkit-scrollbar-thumb:hover {{
-                background: rgba(169, 119, 248, 0.7);
-            }}
-
-            /* Loading Animation */
-            .loading {{
+            .status-badges {{
                 display: flex;
-                justify-content: center;
+                gap: 0.5rem;
+                margin-bottom: 1rem;
+            }}
+
+            .status-badge {{
+                padding: 0.5rem 1rem;
+                border-radius: 20px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                display: flex;
                 align-items: center;
-                padding: 2rem;
+                gap: 0.5rem;
             }}
 
-            .loading::after {{
-                content: '';
-                width: 20px;
-                height: 20px;
-                border: 2px solid rgba(169, 119, 248, 0.3);
-                border-top: 2px solid #a977f8;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
+            .status-badge.appealed {{
+                background: rgba(239, 68, 68, 0.2);
+                color: var(--danger);
+                border: 1px solid var(--danger);
             }}
 
-            @keyframes spin {{
-                0% {{ transform: rotate(0deg); }}
-                100% {{ transform: rotate(360deg); }}
+            .status-badge.active {{
+                background: rgba(16, 185, 129, 0.2);
+                color: var(--success);
+                border: 1px solid var(--success);
             }}
 
             /* Responsive Design */
-            @media (max-width: 768px) {{
-                body {{
+            @media (max-width: 1024px) {{
+                .admin-container {{
                     flex-direction: column;
+                    margin: 1rem;
+                    gap: 1rem;
                 }}
 
-                #sidebar {{
+                .sidebar {{
                     width: 100%;
-                    height: 50vh;
+                    position: static;
                 }}
 
-                #detailPanel {{
-                    height: 50vh;
+                .cases-container {{
+                    max-height: 40vh;
+                }}
+
+                .nav-header {{
+                    padding: 1rem;
+                }}
+
+                .nav-left .breadcrumb {{
+                    display: none;
+                }}
+            }}
+
+            @media (max-width: 768px) {{
+                .panel-header {{
+                    flex-direction: column;
+                    gap: 1rem;
+                    align-items: stretch;
+                }}
+
+                .panel-actions {{
+                    justify-content: space-between;
                 }}
 
                 .detail-grid {{
                     grid-template-columns: 1fr;
                 }}
+
+                .user-info {{
+                    display: none;
+                }}
             }}
         </style>
     </head>
     <body>
-        <div id="sidebar">
-            <div class="sidebar-header">
-                <h1>Case Management</h1>
-                <div class="subtitle">{project.capitalize()} Cases</div>
+        <!-- Navigation Header -->
+        <nav class="nav-header">
+            <div class="nav-left">
+                <div class="nav-logo">
+                    <i class="fas fa-shield-alt"></i>
+                    Themis
+                </div>
+                <div class="breadcrumb">
+                    <a href="/dashboard"><i class="fas fa-home"></i> Dashboard</a>
+                    <i class="fas fa-chevron-right"></i>
+                    <span>Admin Panel</span>
+                </div>
             </div>
-            
-            {project_selector}
-            
-            <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Search cases..." oninput="filterCases()">
+            <div class="nav-right">
+                <div class="user-info">
+                    <div class="user-avatar">{user.get('username', 'Admin')[0].upper()}</div>
+                    <span>{user.get('username', 'Admin')}</span>
+                </div>
+                <a href="/dashboard" class="btn btn-ghost">
+                    <i class="fas fa-arrow-left"></i>
+                    Return
+                </a>
+                <a href="/logout" class="btn btn-danger">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
             </div>
-            
-            <div class="filters">
-                <button class="filter-btn active" onclick="filterByType('all')">All</button>
-                <button class="filter-btn" onclick="filterByType('ban')">Bans</button>
-                <button class="filter-btn" onclick="filterByType('kick')">Kicks</button>
-                <button class="filter-btn" onclick="filterByType('mute')">Mutes</button>
-                <button class="filter-btn" onclick="filterByType('appealed')">Appealed</button>
+        </nav>
+
+        <!-- Main Container -->
+        <div class="admin-container">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h2>Case Management</h2>
+                    <p>Manage and review moderation cases</p>
+                </div>
+
+                {project_selector}
+
+                <div class="controls">
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Search by case ID, user ID..." oninput="filterCases()">
+                    </div>
+                    
+                    <div class="filters">
+                        <div class="filter-tag active" onclick="filterByType('all')">
+                            <i class="fas fa-list"></i> All
+                        </div>
+                        <div class="filter-tag" onclick="filterByType('ban')">
+                            <i class="fas fa-ban"></i> Bans
+                        </div>
+                        <div class="filter-tag" onclick="filterByType('kick')">
+                            <i class="fas fa-door-open"></i> Kicks
+                        </div>
+                        <div class="filter-tag" onclick="filterByType('mute')">
+                            <i class="fas fa-volume-mute"></i> Mutes
+                        </div>
+                        <div class="filter-tag" onclick="filterByType('appealed')">
+                            <i class="fas fa-exclamation-triangle"></i> Appealed
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cases-container" id="caseList">
+                    {cases_html}
+                </div>
             </div>
-            
-            <div id="caseList">
-                {cases_html}
-            </div>
-            
-            <div class="logout-section">
-                <a href="/logout" class="logout-btn">Logout</a>
-            </div>
-        </div>
-        
-        <div id="detailPanel">
-            <div class="empty-state">
-                <h3>Select a Case</h3>
-                <p>Choose a case from the sidebar to view detailed information including evidence, moderator notes, and case history.</p>
+
+            <!-- Main Panel -->
+            <div class="main-panel">
+                <div class="panel-header">
+                    <h1 class="panel-title">Case Details</h1>
+                    <div class="panel-actions">
+                        <button class="btn btn-primary" onclick="refreshCases()">
+                            <i class="fas fa-sync-alt"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="panel-content">
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <h3>Select a Case</h3>
+                        <p>Choose a case from the sidebar to view detailed information including evidence, moderator notes, and case history.</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -803,14 +1075,17 @@ def admin_panel():
             let allCases = [];
             const currentProject = '{project}';
 
-            // Store all cases for filtering
-            document.querySelectorAll('.case-item').forEach(item => {{
-                allCases.push({{
-                    element: item,
-                    id: item.dataset.id,
-                    reference: item.dataset.reference,
-                    type: item.querySelector('.case-type').textContent.toLowerCase(),
-                    appealed: item.querySelector('.appealed-badge') !== null
+            // Initialize
+            document.addEventListener('DOMContentLoaded', function() {{
+                // Store all cases for filtering
+                document.querySelectorAll('.case-item').forEach(item => {{
+                    allCases.push({{
+                        element: item,
+                        id: item.dataset.id,
+                        reference: item.dataset.reference,
+                        type: item.dataset.type,
+                        appealed: item.querySelector('.appealed-badge') !== null
+                    }});
                 }});
             }});
 
@@ -818,18 +1093,22 @@ def admin_panel():
                 window.location.href = `/admin?project=${{project}}`;
             }}
 
+            function refreshCases() {{
+                window.location.reload();
+            }}
+
             function filterCases() {{
                 const searchTerm = document.getElementById('searchInput').value.toLowerCase();
                 allCases.forEach(caseObj => {{
-                    const matchesSearch = caseObj.reference.toLowerCase().includes(searchTerm) || 
-                                        caseObj.id.toLowerCase().includes(searchTerm);
+                    const caseText = caseObj.element.textContent.toLowerCase();
+                    const matchesSearch = caseText.includes(searchTerm);
                     caseObj.element.style.display = matchesSearch ? 'block' : 'none';
                 }});
             }}
 
             function filterByType(type) {{
                 // Update filter buttons
-                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.filter-tag').forEach(btn => btn.classList.remove('active'));
                 event.target.classList.add('active');
 
                 allCases.forEach(caseObj => {{
@@ -842,7 +1121,7 @@ def admin_panel():
                             show = caseObj.appealed;
                             break;
                         default:
-                            show = caseObj.type.includes(type);
+                            show = caseObj.type === type;
                     }}
                     caseObj.element.style.display = show ? 'block' : 'none';
                 }});
@@ -862,7 +1141,12 @@ def admin_panel():
                 selectedCaseId = caseId;
 
                 // Show loading state
-                document.getElementById('detailPanel').innerHTML = '<div class="loading"></div>';
+                document.querySelector('.panel-content').innerHTML = `
+                    <div style="display: flex; justify-content: center; align-items: center; height: 100%; flex-direction: column; gap: 1rem;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
+                        <p>Loading case details...</p>
+                    </div>
+                `;
 
                 try {{
                     const response = await fetch(`/api/case/${{currentProject}}/${{caseId}}`);
@@ -875,10 +1159,14 @@ def admin_panel():
 
                     displayCaseDetails(caseData);
                 }} catch (error) {{
-                    document.getElementById('detailPanel').innerHTML = `
+                    document.querySelector('.panel-content').innerHTML = `
                         <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
                             <h3>Error Loading Case</h3>
                             <p>${{error.message}}</p>
+                            <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 1rem;">
+                                <i class="fas fa-redo"></i> Try Again
+                            </button>
                         </div>
                     `;
                 }}
@@ -886,49 +1174,59 @@ def admin_panel():
 
             function displayCaseDetails(caseData) {{
                 const evidenceList = caseData.evidence && caseData.evidence.length > 0 ? 
-    caseData.evidence.map(url => 
-        `<div class="evidence-item"><a href="${{url.trim()}}" target="_blank">${{url.trim()}}</a></div>`
-    ).join('') : '<p>No evidence provided</p>';
+                    caseData.evidence.map(url => 
+                        `<div class="evidence-item">
+                            <a href="${{url.trim()}}" target="_blank">
+                                <i class="fas fa-external-link-alt"></i>
+                                ${{url.trim()}}
+                            </a>
+                        </div>`
+                    ).join('') : '<p style="color: var(--text-muted); font-style: italic;">No evidence provided</p>';
 
                 const appealedStatus = caseData.appealed == 1 ? 
-                    '<div class="status-badge appealed">Appealed</div>' : 
-                    '<div class="status-badge active">Active</div>';
+                    '<div class="status-badge appealed"><i class="fas fa-exclamation-triangle"></i> Appealed</div>' : 
+                    '<div class="status-badge active"><i class="fas fa-check-circle"></i> Active</div>';
 
-                document.getElementById('detailPanel').innerHTML = `
-                    <div class="detail-header">
-                        <h2>Case #${{caseData.reference_id || caseData.user_id}}</h2>
-                        <div class="case-status">
-                            ${{appealedStatus}}
-                        </div>
+                const punishmentIcon = {{
+                    'ban': 'fas fa-ban',
+                    'kick': 'fas fa-door-open', 
+                    'mute': 'fas fa-volume-mute',
+                    'warn': 'fas fa-exclamation-triangle'
+                }}[caseData.punishment_type?.toLowerCase()] || 'fas fa-gavel';
+
+                document.querySelector('.panel-content').innerHTML = `
+                    <div class="status-badges">
+                        ${appealedStatus}
                     </div>
 
                     <div class="detail-grid">
                         <div class="detail-card">
-                            <h3>Case Information</h3>
-                            <p><strong>User ID:</strong> ${{caseData.user_id}}</p>
-                            <p><strong>Staff ID:</strong> ${{caseData.staff_id}}</p>
-                            <p><strong>Created:</strong> ${{caseData.created_at}}</p>
-                            <p><strong>Type:</strong> ${{caseData.punishment_type}}</p>
-                            <p><strong>Length:</strong> ${{caseData.length || 'Permanent/N/A'}}</p>
+                            <h4><i class="fas fa-info-circle"></i> Case Information</h4>
+                            <p><strong>Case ID:</strong> ${caseData.reference_id || caseData.user_id}</p>
+                            <p><strong>User ID:</strong> ${caseData.user_id}</p>
+                            <p><strong>Staff ID:</strong> ${caseData.staff_id}</p>
+                            <p><strong>Created:</strong> ${new Date(caseData.created_at).toLocaleString()}</p>
+                            <p><strong>Type:</strong> <i class="${punishmentIcon}"></i> ${caseData.punishment_type}</p>
+                            <p><strong>Length:</strong> ${caseData.length || 'Permanent/N/A'}</p>
                         </div>
 
                         <div class="detail-card">
-                            <h3>Reason</h3>
-                            <p>${{caseData.reason || 'No reason provided'}}</p>
+                            <h4><i class="fas fa-comment-alt"></i> Reason</h4>
+                            <p>${caseData.reason || 'No reason provided'}</p>
                         </div>
 
                         <div class="detail-card">
-                            <h3>Moderator Notes</h3>
-                            <p>${{caseData.moderator_note || 'No notes provided'}}</p>
+                            <h4><i class="fas fa-sticky-note"></i> Moderator Notes</h4>
+                            <p>${caseData.moderator_note || 'No notes provided'}</p>
                         </div>
                     </div>
 
-                    <div class="evidence-list">
-                        <h3>Evidence</h3>
-                        ${{evidenceList}}
+                    <div class="evidence-section">
+                        <h4><i class="fas fa-paperclip"></i> Evidence (${caseData.evidence ? caseData.evidence.length : 0} items)</h4>
+                        ${evidenceList}
                     </div>
                 `;
-            }}
+            }
         </script>
     </body>
     </html>
