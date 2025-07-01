@@ -955,7 +955,7 @@ def admin_panel():
 
     <script>
         // JavaScript to handle case selection and filters
-        let casesData = {cases_json};
+        let casesData = {cases};
         let selectedCaseId = null;
 
         const casesContainer = document.getElementById('cases-container');
