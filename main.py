@@ -1194,38 +1194,38 @@ def admin_panel():
                     'warn': 'fas fa-exclamation-triangle'
                 }}[caseData.punishment_type?.toLowerCase()] || 'fas fa-gavel';
 
-                document.querySelector('.panel-content').innerHTML = `
+                document.querySelector('.panel-content').innerHTML = \`
                     <div class="status-badges">
-                        ${appealedStatus}
+                        \${appealedStatus}
                     </div>
 
                     <div class="detail-grid">
                         <div class="detail-card">
                             <h4><i class="fas fa-info-circle"></i> Case Information</h4>
-                            <p><strong>Case ID:</strong> ${caseData.reference_id || caseData.user_id}</p>
-                            <p><strong>User ID:</strong> ${caseData.user_id}</p>
-                            <p><strong>Staff ID:</strong> ${caseData.staff_id}</p>
-                            <p><strong>Created:</strong> ${new Date(caseData.created_at).toLocaleString()}</p>
-                            <p><strong>Type:</strong> <i class="${punishmentIcon}"></i> ${caseData.punishment_type}</p>
-                            <p><strong>Length:</strong> ${caseData.length || 'Permanent/N/A'}</p>
+                            <p><strong>Case ID:</strong> \${caseData.reference_id || caseData.user_id}</p>
+                            <p><strong>User ID:</strong> \${caseData.user_id}</p>
+                            <p><strong>Staff ID:</strong> \${caseData.staff_id}</p>
+                            <p><strong>Created:</strong> \${new Date(caseData.created_at).toLocaleString()}</p>
+                            <p><strong>Type:</strong> <i class="\${punishmentIcon}"></i> \${caseData.punishment_type}</p>
+                            <p><strong>Length:</strong> \${caseData.length || 'Permanent/N/A'}</p>
                         </div>
 
                         <div class="detail-card">
                             <h4><i class="fas fa-comment-alt"></i> Reason</h4>
-                            <p>${caseData.reason || 'No reason provided'}</p>
+                            <p>\${caseData.reason || 'No reason provided'}</p>
                         </div>
 
                         <div class="detail-card">
                             <h4><i class="fas fa-sticky-note"></i> Moderator Notes</h4>
-                            <p>${caseData.moderator_note || 'No notes provided'}</p>
+                            <p>\${caseData.moderator_note || 'No notes provided'}</p>
                         </div>
                     </div>
 
                     <div class="evidence-section">
-                        <h4><i class="fas fa-paperclip"></i> Evidence (${caseData.evidence ? caseData.evidence.length : 0} items)</h4>
-                        ${evidenceList}
+                        <h4><i class="fas fa-paperclip"></i> Evidence (\${caseData.evidence ? caseData.evidence.length : 0} items)</h4>
+                        \${evidenceList}
                     </div>
-                `;
+                \`;
             }
         </script>
     </body>
