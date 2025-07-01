@@ -305,28 +305,30 @@ def admin_panel():
 
     cases = get_cases(project)
 
-    # Build case list HTML (only minimal info here)
     cases_html = ""
     for case in cases:
         created = case['created_at'].strftime('%Y-%m-%d %H:%M') if case['created_at'] else ''
-        cases_html += f'''
-        <div class="case-item" data-id="{case['id']}">
-            <strong>#{case['reference_id']}</strong><br>
+        cases_html += '''
+        <div class="case-item" data-id="{id}">
+            <strong>#{ref}</strong><br>
             <small>{created}</small>
         </div>
-        '''
+        '''.format(id=case['id'], ref=case['reference_id'], created=created)
 
-    project_selector = f'''
+    project_selector = '''
     <form id="projectForm" method="get" action="/admin">
         <label for="project">Select Project:</label><br>
         <select name="project" id="project" onchange="document.getElementById('projectForm').submit()">
-            <option value="discord" {'selected' if project == 'discord' else ''}>Discord</option>
-            <option value="roblox" {'selected' if project == 'roblox' else ''}>Roblox</option>
+            <option value="discord" {discord_selected}>Discord</option>
+            <option value="roblox" {roblox_selected}>Roblox</option>
         </select>
     </form>
-    '''
+    '''.format(
+        discord_selected='selected' if project == 'discord' else '',
+        roblox_selected='selected' if project == 'roblox' else ''
+    )
 
-    return render_template_string(f'''
+    html = '''
     <!DOCTYPE html>
     <html>
     <head>
@@ -398,12 +400,12 @@ def admin_panel():
     </head>
     <body>
         <div id="sidebar">
-            <h2>Cases - {project.capitalize()}</h2>
+            <h2>Cases - {project_name}</h2>
             <div id="projectSelector">
                 {project_selector}
             </div>
             <div id="caseList">
-                {cases_html if cases_html else '<p>No cases found.</p>'}
+                {cases_html}
             </div>
             <div id="logout">
                 <a href="/logout">Logout</a>
@@ -423,36 +425,34 @@ def admin_panel():
                 const caseItem = e.target.closest('.case-item');
                 if (!caseItem) return;
                 const caseId = caseItem.dataset.id;
-                if (caseId === selectedCaseId) return;  // same case clicked
+                if (caseId === selectedCaseId) return;
 
                 // Clear previous selection highlight
                 document.querySelectorAll('.case-item.selected').forEach(el => el.classList.remove('selected'));
                 caseItem.classList.add('selected');
                 selectedCaseId = caseId;
 
-                // Fetch case details from API
                 detailPanel.innerHTML = '<p>Loading...</p>';
                 try {{
                     const response = await fetch(`/api/case/{project}/` + caseId);
                     if (!response.ok) throw new Error('Failed to load case details');
                     const caseData = await response.json();
                     if (caseData.error) {{
-                        detailPanel.innerHTML = `<p style="color: #e04e4e;">Error: ${caseData.error}</p>`;
+                        detailPanel.innerHTML = `<p style="color: #e04e4e;">Error: ${{caseData.error}}</p>`;
                         return;
                     }}
 
-                    // Render case details nicely
-                    detailPanel.innerHTML = f"""
-                        <h2>Case #${caseData.reference_id}</h2>
-                        <p><span class="label">Created At:</span> ${caseData.created_at}</p>
-                        <p><span class="label">User ID:</span> ${caseData.user_id}</p>
-                        <p><span class="label">Staff ID:</span> ${caseData.staff_id}</p>
-                        <p><span class="label">Punishment Type:</span> ${caseData.punishment_type}</p>
-                        <p><span class="label">Length:</span> ${caseData.length || 'N/A'}</p>
-                        <p><span class="label">Reason:</span> ${caseData.reason}</p>
-                        <p><span class="label">Appealed:</span> ${caseData.appealed == 1 ? 'Yes' : 'No'}</p>
-                        <p><span class="label">Evidence:</span><br> ${caseData.evidence ? caseData.evidence.replace(/\\n/g, '<br>') : 'None'}</p>
-                        <p><span class="label">Moderator Note:</span><br> ${caseData.moderator_note ? caseData.moderator_note.replace(/\\n/g, '<br>') : 'None'}</p>
+                    detailPanel.innerHTML = `
+                        <h2>Case #${{caseData.reference_id}}</h2>
+                        <p><span class="label">Created At:</span> ${{caseData.created_at}}</p>
+                        <p><span class="label">User ID:</span> ${{caseData.user_id}}</p>
+                        <p><span class="label">Staff ID:</span> ${{caseData.staff_id}}</p>
+                        <p><span class="label">Punishment Type:</span> ${{caseData.punishment_type}}</p>
+                        <p><span class="label">Length:</span> ${{caseData.length || 'N/A'}}</p>
+                        <p><span class="label">Reason:</span> ${{caseData.reason}}</p>
+                        <p><span class="label">Appealed:</span> ${{caseData.appealed == 1 ? 'Yes' : 'No'}}</p>
+                        <p><span class="label">Evidence:</span><br> ${{caseData.evidence ? caseData.evidence.replace(/\\n/g, '<br>') : 'None'}}</p>
+                        <p><span class="label">Moderator Note:</span><br> ${{caseData.moderator_note ? caseData.moderator_note.replace(/\\n/g, '<br>') : 'None'}}</p>
                     `;
                 }} catch(err) {{
                     detailPanel.innerHTML = `<p style="color: #e04e4e;">Error loading case details.</p>`;
@@ -461,7 +461,14 @@ def admin_panel():
         </script>
     </body>
     </html>
-    """)
+    '''.format(
+        project=project,
+        project_name=project.capitalize(),
+        project_selector=project_selector,
+        cases_html=cases_html
+    )
+
+    return render_template_string(html)
 
 if __name__ == '__main__':
     app.run(debug=True)
