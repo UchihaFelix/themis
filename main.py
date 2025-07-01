@@ -274,7 +274,7 @@ def admin_panel():
             if connection is None:
                 return []
             cursor = connection.cursor(dictionary=True)
-            cursor.execute(f"SELECT * FROM {proj}_cases ORDER BY created_at DESC")
+            cursor.execute(f"SELECT * FROM {proj} ORDER BY created_at DESC")
             cases = cursor.fetchall()
             cursor.close()
             connection.close()
