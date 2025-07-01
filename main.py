@@ -340,898 +340,778 @@ def admin_panel():
     '''
 
     html = f'''
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Themis Admin Dashboard</title>
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-        <style>
-            :root {{
-                --primary: #6366f1;
-                --primary-dark: #4f46e5;
-                --secondary: #8b5cf6;
-                --success: #10b981;
-                --warning: #f59e0b;
-                --danger: #ef4444;
-                --dark: #111827;
-                --dark-light: #1f2937;
-                --dark-lighter: #374151;
-                --text: #f9fafb;
-                --text-muted: #9ca3af;
-                --border: #374151;
-                --card-bg: #1f2937;
-                --glass: rgba(31, 41, 55, 0.8);
-            }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Themis Admin Dashboard</title>
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        rel="stylesheet"
+    />
+    <style>
+        :root {{
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #111827;
+            --dark-light: #1f2937;
+            --dark-lighter: #374151;
+            --text: #f9fafb;
+            --text-muted: #9ca3af;
+            --border: #374151;
+            --card-bg: #1f2937;
+            --glass: rgba(31, 41, 55, 0.8);
+        }}
 
-            * {{
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }}
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
 
-            body {{
-                font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-                color: var(--text);
-                min-height: 100vh;
-                overflow-x: hidden;
-            }}
+        body {{
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont,
+                'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }}
 
-            /* Navigation Header */
-            .nav-header {{
-                background: var(--glass);
-                backdrop-filter: blur(20px);
-                border-bottom: 1px solid var(--border);
-                padding: 1rem 2rem;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                position: sticky;
-                top: 0;
-                z-index: 100;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            }}
+        /* Navigation Header */
+        .nav-header {{
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }}
 
-            .nav-left {{
-                display: flex;
-                align-items: center;
-                gap: 1.5rem;
-            }}
+        .nav-left {{
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }}
 
-            .nav-logo {{
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                font-size: 1.5rem;
-                font-weight: 700;
-                color: var(--primary);
-            }}
+        .nav-logo {{
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }}
 
-            .nav-logo i {{
-                font-size: 1.75rem;
-            }}
+        .nav-logo i {{
+            font-size: 1.75rem;
+        }}
 
-            .breadcrumb {{
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                color: var(--text-muted);
-                font-size: 0.9rem;
-            }}
+        .breadcrumb {{
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }}
 
-            .breadcrumb a {{
-                color: var(--primary);
-                text-decoration: none;
-                transition: color 0.2s;
-            }}
+        .breadcrumb a {{
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }}
 
-            .breadcrumb a:hover {{
-                color: var(--primary-dark);
-            }}
+        .breadcrumb a:hover {{
+            color: var(--primary-dark);
+        }}
 
-            .nav-right {{
-                display: flex;
-                align-items: center;
-                gap: 1rem;
-            }}
+        .nav-right {{
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }}
 
-            .user-info {{
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                padding: 0.5rem 1rem;
-                background: var(--card-bg);
-                border-radius: 50px;
-                border: 1px solid var(--border);
-            }}
+        .user-info {{
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            background: var(--card-bg);
+            border-radius: 50px;
+            border: 1px solid var(--border);
+        }}
 
-            .user-avatar {{
-                width: 32px;
-                height: 32px;
-                background: linear-gradient(135deg, var(--primary), var(--secondary));
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: 600;
-                font-size: 0.9rem;
-            }}
+        .user-avatar {{
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }}
 
-            .btn {{
-                padding: 0.5rem 1rem;
-                border: none;
-                border-radius: 8px;
-                font-weight: 600;
-                text-decoration: none;
-                display: inline-flex;
-                align-items: center;
-                gap: 0.5rem;
-                cursor: pointer;
-                transition: all 0.2s;
-                font-size: 0.9rem;
-            }}
+        .btn {{
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }}
 
-            .btn-primary {{
-                background: var(--primary);
-                color: white;
-            }}
+        .btn-primary {{
+            background: var(--primary);
+            color: white;
+        }}
 
-            .btn-primary:hover {{
-                background: var(--primary-dark);
-                transform: translateY(-1px);
-            }}
+        .btn-primary:hover {{
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }}
 
-            .btn-danger {{
-                background: var(--danger);
-                color: white;
-            }}
+        .btn-danger {{
+            background: var(--danger);
+            color: white;
+        }}
 
-            .btn-danger:hover {{
-                background: #dc2626;
-                transform: translateY(-1px);
-            }}
+        .btn-danger:hover {{
+            background: #dc2626;
+            transform: translateY(-1px);
+        }}
 
-            .btn-ghost {{
-                background: transparent;
-                color: var(--text-muted);
-                border: 1px solid var(--border);
-            }}
+        .btn-ghost {{
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }}
 
-            .btn-ghost:hover {{
-                background: var(--card-bg);
-                color: var(--text);
-            }}
+        .btn-ghost:hover {{
+            background: var(--card-bg);
+            color: var(--text);
+        }}
 
-            /* Main Layout */
+        /* Main Layout */
+        .admin-container {{
+            display: flex;
+            min-height: calc(100vh - 80px);
+            max-width: 1400px;
+            margin: 2rem auto;
+            gap: 2rem;
+            padding: 0 2rem;
+        }}
+
+        /* Sidebar */
+        .sidebar {{
+            width: 400px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }}
+
+        .sidebar-header {{
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            text-align: center;
+        }}
+
+        .sidebar-header h2 {{
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }}
+
+        .sidebar-header p {{
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }}
+
+        .project-selector-container {{
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }}
+
+        .project-selector-container label {{
+            display: block;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            color: var(--primary);
+        }}
+
+        .project-selector-container select {{
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+            transition: all 0.2s;
+        }}
+
+        .project-selector-container select:focus {{
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }}
+
+        .controls {{
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }}
+
+        .search-container {{
+            position: relative;
+            margin-bottom: 1rem;
+        }}
+
+        .search-container input {{
+            width: 100%;
+            padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }}
+
+        .search-container input:focus {{
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }}
+
+        .search-container i {{
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }}
+
+        .filters {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }}
+
+        .filter-tag {{
+            padding: 0.4rem 0.8rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: capitalize;
+        }}
+
+        .filter-tag:hover {{
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }}
+
+        .filter-tag.active {{
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }}
+
+        .cases-container {{
+            max-height: 60vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) transparent;
+        }}
+
+        .cases-container::-webkit-scrollbar {{
+            width: 6px;
+        }}
+
+        .cases-container::-webkit-scrollbar-track {{
+            background: transparent;
+        }}
+
+        .cases-container::-webkit-scrollbar-thumb {{
+            background: var(--primary);
+            border-radius: 3px;
+        }}
+
+        .case-item {{
+            margin: 1rem 1.5rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }}
+
+        .case-item::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }}
+
+        .case-item:hover {{
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2);
+        }}
+
+        .case-item:hover::before {{
+            transform: scaleX(1);
+        }}
+
+        .case-item.selected {{
+            background: rgba(99, 102, 241, 0.15);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+        }}
+
+        .case-item.selected::before {{
+            transform: scaleX(1);
+        }}
+
+        .case-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }}
+
+        .case-id {{
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }}
+
+        .appealed-badge {{
+            background: var(--danger);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            animation: pulse 2s infinite;
+        }}
+
+        @keyframes pulse {{
+            0%, 100% {{ opacity: 1; }}
+            50% {{ opacity: 0.7; }}
+        }}
+
+        .case-body {{
+            margin-bottom: 0.75rem;
+        }}
+
+        .case-type {{
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }}
+
+        .case-user {{
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }}
+
+        .case-reason {{
+            font-size: 0.85rem;
+            color: var(--text);
+            line-height: 1.4;
+        }}
+
+        .case-footer {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border);
+        }}
+
+        /* Colors by type */
+        .case-type-moderation {{
+            background: #6b7280;
+            color: #d1d5db;
+        }}
+
+        .case-type-ban {{
+            background: var(--danger);
+            color: white;
+        }}
+
+        .case-type-warning {{
+            background: var(--warning);
+            color: #78350f;
+        }}
+
+        .case-type-mute {{
+            background: var(--secondary);
+            color: white;
+        }}
+
+        .case-type-kick {{
+            background: var(--primary);
+            color: white;
+        }}
+
+        /* Case Details Section */
+        .case-details {{
+            flex-grow: 1;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 60vh;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }}
+
+        .case-details h3 {{
+            margin-bottom: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.4rem;
+        }}
+
+        .case-details-section {{
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }}
+
+        .case-details-section h4 {{
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            color: var(--secondary);
+            font-size: 1.1rem;
+        }}
+
+        .case-details-section p {{
+            font-size: 0.95rem;
+            color: var(--text);
+            white-space: pre-wrap;
+        }}
+
+        .case-details-section a {{
+            color: var(--primary);
+            text-decoration: none;
+        }}
+
+        .case-details-section a:hover {{
+            text-decoration: underline;
+        }}
+
+        /* Scrollbar for details */
+        .case-details::-webkit-scrollbar {{
+            width: 8px;
+        }}
+
+        .case-details::-webkit-scrollbar-track {{
+            background: transparent;
+        }}
+
+        .case-details::-webkit-scrollbar-thumb {{
+            background: var(--primary);
+            border-radius: 4px;
+        }}
+
+        /* Responsive */
+        @media (max-width: 1150px) {{
             .admin-container {{
-                display: flex;
-                min-height: calc(100vh - 80px);
-                max-width: 1400px;
-                margin: 2rem auto;
-                gap: 2rem;
-                padding: 0 2rem;
-            }}
-
-            /* Sidebar */
-            .sidebar {{
-                width: 400px;
-                background: var(--glass);
-                backdrop-filter: blur(20px);
-                border: 1px solid var(--border);
-                border-radius: 16px;
-                overflow: hidden;
-                height: fit-content;
-                position: sticky;
-                top: 100px;
-            }}
-
-            .sidebar-header {{
-                padding: 2rem;
-                background: linear-gradient(135deg, var(--primary), var(--secondary));
-                text-align: center;
-            }}
-
-            .sidebar-header h2 {{
-                font-size: 1.5rem;
-                margin-bottom: 0.5rem;
-            }}
-
-            .sidebar-header p {{
-                opacity: 0.9;
-                font-size: 0.9rem;
-            }}
-
-            .project-selector-container {{
-                padding: 1.5rem;
-                border-bottom: 1px solid var(--border);
-            }}
-
-            .project-selector-container label {{
-                display: block;
-                margin-bottom: 0.75rem;
-                font-weight: 600;
-                color: var(--primary);
-            }}
-
-            .project-selector-container select {{
-                width: 100%;
-                padding: 0.75rem;
-                background: var(--card-bg);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                color: var(--text);
-                font-size: 1rem;
-                transition: all 0.2s;
-            }}
-
-            .project-selector-container select:focus {{
-                outline: none;
-                border-color: var(--primary);
-                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-            }}
-
-            .controls {{
-                padding: 1.5rem;
-                border-bottom: 1px solid var(--border);
-            }}
-
-            .search-container {{
-                position: relative;
-                margin-bottom: 1rem;
-            }}
-
-            .search-container input {{
-                width: 100%;
-                padding: 0.75rem 0.75rem 0.75rem 2.5rem;
-                background: var(--card-bg);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                color: var(--text);
-                font-size: 0.9rem;
-                transition: all 0.2s;
-            }}
-
-            .search-container input:focus {{
-                outline: none;
-                border-color: var(--primary);
-                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-            }}
-
-            .search-container i {{
-                position: absolute;
-                left: 0.75rem;
-                top: 50%;
-                transform: translateY(-50%);
-                color: var(--text-muted);
-            }}
-
-            .filters {{
-                display: flex;
-                flex-wrap: wrap;
-                gap: 0.5rem;
-            }}
-
-            .filter-tag {{
-                padding: 0.4rem 0.8rem;
-                background: var(--card-bg);
-                border: 1px solid var(--border);
-                border-radius: 20px;
-                color: var(--text-muted);
-                font-size: 0.8rem;
-                cursor: pointer;
-                transition: all 0.2s;
-                text-transform: capitalize;
-            }}
-
-            .filter-tag:hover {{
-                background: var(--primary);
-                color: white;
-                border-color: var(--primary);
-            }}
-
-            .filter-tag.active {{
-                background: var(--primary);
-                color: white;
-                border-color: var(--primary);
-            }}
-
-            .cases-container {{
-                max-height: 60vh;
-                overflow-y: auto;
-                scrollbar-width: thin;
-                scrollbar-color: var(--primary) transparent;
-            }}
-
-            .cases-container::-webkit-scrollbar {{
-                width: 6px;
-            }}
-
-            .cases-container::-webkit-scrollbar-track {{
-                background: transparent;
-            }}
-
-            .cases-container::-webkit-scrollbar-thumb {{
-                background: var(--primary);
-                border-radius: 3px;
-            }}
-
-            .case-item {{
-                margin: 1rem 1.5rem;
-                background: var(--card-bg);
-                border: 1px solid var(--border);
-                border-radius: 12px;
-                padding: 1rem;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                position: relative;
-                overflow: hidden;
-            }}
-
-            .case-item::before {{
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 3px;
-                background: linear-gradient(90deg, var(--primary), var(--secondary));
-                transform: scaleX(0);
-                transition: transform 0.3s ease;
-            }}
-
-            .case-item:hover {{
-                background: rgba(99, 102, 241, 0.1);
-                border-color: var(--primary);
-                transform: translateY(-2px);
-                box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2);
-            }}
-
-            .case-item:hover::before {{
-                transform: scaleX(1);
-            }}
-
-            .case-item.selected {{
-                background: rgba(99, 102, 241, 0.15);
-                border-color: var(--primary);
-                box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
-            }}
-
-            .case-item.selected::before {{
-                transform: scaleX(1);
-            }}
-
-            .case-header {{
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 0.75rem;
-            }}
-
-            .case-id {{
-                font-weight: 700;
-                font-size: 1.1rem;
-                color: var(--primary);
-            }}
-
-            .appealed-badge {{
-                background: var(--danger);
-                color: white;
-                padding: 0.25rem 0.5rem;
-                border-radius: 12px;
-                font-size: 0.7rem;
-                font-weight: 600;
-                text-transform: uppercase;
-                animation: pulse 2s infinite;
-            }}
-
-            @keyframes pulse {{
-                0%, 100% {{ opacity: 1; }}
-                50% {{ opacity: 0.7; }}
-            }}
-
-            .case-body {{
-                margin-bottom: 0.75rem;
-            }}
-
-            .case-type {{
-                display: inline-block;
-                padding: 0.25rem 0.6rem;
-                border-radius: 8px;
-                font-size: 0.8rem;
-                font-weight: 600;
-                text-transform: uppercase;
-                margin-bottom: 0.5rem;
-            }}
-
-            .case-user {{
-                font-size: 0.9rem;
-                color: var(--text-muted);
-                margin-bottom: 0.25rem;
-            }}
-
-            .case-reason {{
-                font-size: 0.85rem;
-                color: var(--text);
-                line-height: 1.4;
-            }}
-
-            .case-footer {{
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                font-size: 0.8rem;
-                color: var(--text-muted);
-                padding-top: 0.5rem;
-                border-top: 1px solid var(--border);
-            }}
-
-            /* Main Panel */
-            .main-panel {{
-                flex: 1;
-                background: var(--glass);
-                backdrop-filter: blur(20px);
-                border: 1px solid var(--border);
-                border-radius: 16px;
-                overflow: hidden;
-            }}
-
-            .panel-header {{
-                padding: 2rem;
-                border-bottom: 1px solid var(--border);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }}
-
-            .panel-title {{
-                font-size: 1.75rem;
-                font-weight: 700;
-                color: var(--primary);
-            }}
-
-            .panel-actions {{
-                display: flex;
-                gap: 1rem;
-                align-items: center;
-            }}
-
-            .panel-content {{
-                padding: 2rem;
-                height: calc(100vh - 300px);
-                overflow-y: auto;
-            }}
-
-            .empty-state {{
-                display: flex;
                 flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                height: 100%;
-                text-align: center;
-                color: var(--text-muted);
+                padding: 1rem;
             }}
 
-            .empty-state i {{
-                font-size: 4rem;
+            .sidebar {{
+                width: 100%;
+                position: relative;
+                top: auto;
                 margin-bottom: 1rem;
-                opacity: 0.5;
+                height: auto;
             }}
 
-            .empty-state h3 {{
-                font-size: 1.5rem;
-                margin-bottom: 0.5rem;
-                color: var(--text);
+            .case-details {{
+                max-height: none;
+                height: auto;
             }}
-
-            .detail-grid {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 1.5rem;
-                margin-bottom: 2rem;
-            }}
-
-            .detail-card {{
-                background: var(--card-bg);
-                border: 1px solid var(--border);
-                border-radius: 12px;
-                padding: 1.5rem;
-                transition: all 0.2s;
-            }}
-
-            .detail-card:hover {{
-                border-color: var(--primary);
-                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
-            }}
-
-            .detail-card h4 {{
-                color: var(--primary);
-                font-size: 0.9rem;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                margin-bottom: 1rem;
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-            }}
-
-            .detail-card p {{
-                color: var(--text);
-                line-height: 1.6;
-                margin-bottom: 0.5rem;
-            }}
-
-            .detail-card strong {{
-                color: var(--primary);
-            }}
-
-            .evidence-section {{
-                background: var(--card-bg);
-                border: 1px solid var(--border);
-                border-radius: 12px;
-                padding: 1.5rem;
-            }}
-
-            .evidence-section h4 {{
-                color: var(--primary);
-                margin-bottom: 1rem;
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-            }}
-
-            .evidence-item {{
-                background: rgba(99, 102, 241, 0.05);
-                border: 1px solid rgba(99, 102, 241, 0.2);
-                border-radius: 8px;
-                padding: 0.75rem;
-                margin-bottom: 0.5rem;
-                word-break: break-all;
-            }}
-
-            .evidence-item a {{
-                color: var(--primary);
-                text-decoration: none;
-                font-weight: 500;
-            }}
-
-            .evidence-item a:hover {{
-                text-decoration: underline;
-            }}
-
-            .status-badges {{
-                display: flex;
-                gap: 0.5rem;
-                margin-bottom: 1rem;
-            }}
-
-            .status-badge {{
-                padding: 0.5rem 1rem;
-                border-radius: 20px;
-                font-size: 0.85rem;
-                font-weight: 600;
-                text-transform: uppercase;
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-            }}
-
-            .status-badge.appealed {{
-                background: rgba(239, 68, 68, 0.2);
-                color: var(--danger);
-                border: 1px solid var(--danger);
-            }}
-
-            .status-badge.active {{
-                background: rgba(16, 185, 129, 0.2);
-                color: var(--success);
-                border: 1px solid var(--success);
-            }}
-
-            /* Responsive Design */
-            @media (max-width: 1024px) {{
-                .admin-container {{
-                    flex-direction: column;
-                    margin: 1rem;
-                    gap: 1rem;
-                }}
-
-                .sidebar {{
-                    width: 100%;
-                    position: static;
-                }}
-
-                .cases-container {{
-                    max-height: 40vh;
-                }}
-
-                .nav-header {{
-                    padding: 1rem;
-                }}
-
-                .nav-left .breadcrumb {{
-                    display: none;
-                }}
-            }}
-
-            @media (max-width: 768px) {{
-                .panel-header {{
-                    flex-direction: column;
-                    gap: 1rem;
-                    align-items: stretch;
-                }}
-
-                .panel-actions {{
-                    justify-content: space-between;
-                }}
-
-                .detail-grid {{
-                    grid-template-columns: 1fr;
-                }}
-
-                .user-info {{
-                    display: none;
-                }}
-            }}
-        </style>
-    </head>
-    <body>
-        <!-- Navigation Header -->
-        <nav class="nav-header">
-            <div class="nav-left">
-                <div class="nav-logo">
-                    <i class="fas fa-shield-alt"></i>
-                    Themis
-                </div>
-                <div class="breadcrumb">
-                    <a href="/dashboard"><i class="fas fa-home"></i> Dashboard</a>
-                    <i class="fas fa-chevron-right"></i>
-                    <span>Admin Panel</span>
-                </div>
+        }}
+    </style>
+</head>
+<body>
+    <header class="nav-header">
+        <div class="nav-left">
+            <div class="nav-logo">
+                <i class="fa-solid fa-gavel"></i>
+                Themis Admin
             </div>
-            <div class="nav-right">
-                <div class="user-info">
-                    <div class="user-avatar">{user.get('username', 'Admin')[0].upper()}</div>
-                    <span>{user.get('username', 'Admin')}</span>
-                </div>
-                <a href="/dashboard" class="btn btn-ghost">
-                    <i class="fas fa-arrow-left"></i>
-                    Return
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+                <a href="/admin" class="breadcrumb-home" aria-current="page">
+                    <i class="fa-solid fa-house"></i> Admin
                 </a>
-                <a href="/logout" class="btn btn-danger">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </a>
-            </div>
-        </nav>
-
-        <!-- Main Container -->
-        <div class="admin-container">
-            <!-- Sidebar -->
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <h2>Case Management</h2>
-                    <p>Manage and review moderation cases</p>
-                </div>
-
-                {project_selector}
-
-                <div class="controls">
-                    <div class="search-container">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="searchInput" placeholder="Search by case ID, user ID..." oninput="filterCases()">
-                    </div>
-                    
-                    <div class="filters">
-                        <div class="filter-tag active" onclick="filterByType('all')">
-                            <i class="fas fa-list"></i> All
-                        </div>
-                        <div class="filter-tag" onclick="filterByType('ban')">
-                            <i class="fas fa-ban"></i> Bans
-                        </div>
-                        <div class="filter-tag" onclick="filterByType('kick')">
-                            <i class="fas fa-door-open"></i> Kicks
-                        </div>
-                        <div class="filter-tag" onclick="filterByType('mute')">
-                            <i class="fas fa-volume-mute"></i> Mutes
-                        </div>
-                        <div class="filter-tag" onclick="filterByType('appealed')">
-                            <i class="fas fa-exclamation-triangle"></i> Appealed
-                        </div>
-                    </div>
-                </div>
-
-                <div class="cases-container" id="caseList">
-                    {cases_html}
-                </div>
-            </div>
-
-            <!-- Main Panel -->
-            <div class="main-panel">
-                <div class="panel-header">
-                    <h1 class="panel-title">Case Details</h1>
-                    <div class="panel-actions">
-                        <button class="btn btn-primary" onclick="refreshCases()">
-                            <i class="fas fa-sync-alt"></i>
-                            Refresh
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="panel-content">
-                    <div class="empty-state">
-                        <i class="fas fa-folder-open"></i>
-                        <h3>Select a Case</h3>
-                        <p>Choose a case from the sidebar to view detailed information including evidence, moderator notes, and case history.</p>
-                    </div>
-                </div>
-            </div>
+                <span>&gt;</span>
+                <a href="/admin/cases">Cases</a>
+            </nav>
         </div>
+        <div class="nav-right">
+            <div class="user-info" title="{user.get('username')}#{user.get('discriminator')}">
+                <div class="user-avatar">{user.get('username')[0].upper()}</div>
+                <span>{user.get('username')}</span>
+            </div>
+            <form method="post" action="/admin/logout">
+                <button type="submit" class="btn btn-ghost" aria-label="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </form>
+        </div>
+    </header>
 
-        <script>
-            let selectedCaseId = null;
-            let allCases = [];
-            const currentProject = '{project}';
+    <main class="admin-container" role="main" aria-label="Admin Dashboard">
+        <aside class="sidebar" role="complementary" aria-label="Project and Case Controls">
+            <div class="sidebar-header">
+                <h2>Case Manager</h2>
+                <p>Manage and review user cases</p>
+            </div>
+            <div class="project-selector-container">
+                <label for="project-select">Select Project</label>
+                {project_selector}
+            </div>
+            <div class="controls">
+                <div class="search-container">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input
+                        type="text"
+                        id="search"
+                        placeholder="Search cases..."
+                        aria-label="Search cases"
+                        autocomplete="off"
+                    />
+                </div>
+                <div class="filters" role="group" aria-label="Filter Cases by Type">
+                    <span class="filter-tag active" data-type="all" tabindex="0">All</span>
+                    <span class="filter-tag" data-type="ban" tabindex="0">Ban</span>
+                    <span class="filter-tag" data-type="warning" tabindex="0">Warning</span>
+                    <span class="filter-tag" data-type="mute" tabindex="0">Mute</span>
+                    <span class="filter-tag" data-type="kick" tabindex="0">Kick</span>
+                    <span class="filter-tag" data-type="moderation" tabindex="0">Moderation</span>
+                </div>
+            </div>
+            <div class="cases-container" id="cases-container" tabindex="0" aria-live="polite" aria-atomic="true">
+                <!-- Cases will be dynamically inserted here -->
+            </div>
+        </aside>
 
-            // Initialize
-            document.addEventListener('DOMContentLoaded', function() {{
-                // Store all cases for filtering
-                document.querySelectorAll('.case-item').forEach(item => {{
-                    allCases.push({{
-                        element: item,
-                        id: item.dataset.id,
-                        reference: item.dataset.reference,
-                        type: item.dataset.type,
-                        appealed: item.querySelector('.appealed-badge') !== null
-                    }});
-                }});
-            }});
+        <section class="case-details" id="case-details" aria-live="polite" aria-atomic="true">
+            <h3>Select a case to view details</h3>
+            <p>No case selected.</p>
+        </section>
+    </main>
 
-            function changeProject(project) {{
-                window.location.href = `/admin?project=${{project}}`;
+    <script>
+        // JavaScript to handle case selection and filters
+        let casesData = {cases_json};
+        let selectedCaseId = null;
+
+        const casesContainer = document.getElementById('cases-container');
+        const caseDetails = document.getElementById('case-details');
+        const filters = document.querySelectorAll('.filter-tag');
+        const searchInput = document.getElementById('search');
+
+        function renderCases(filterType = 'all', searchTerm = '') {{
+            casesContainer.innerHTML = '';
+            let filteredCases = casesData;
+
+            if (filterType !== 'all') {{
+                filteredCases = filteredCases.filter(c => c.type === filterType);
             }}
 
-            function refreshCases() {{
-                window.location.reload();
+            if (searchTerm.trim() !== '') {{
+                const lowerTerm = searchTerm.toLowerCase();
+                filteredCases = filteredCases.filter(c =>
+                    c.case_id.toString().includes(lowerTerm) ||
+                    c.user.toLowerCase().includes(lowerTerm) ||
+                    c.reason.toLowerCase().includes(lowerTerm)
+                );
             }}
 
-            function filterCases() {{
-                const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-                allCases.forEach(caseObj => {{
-                    const caseText = caseObj.element.textContent.toLowerCase();
-                    const matchesSearch = caseText.includes(searchTerm);
-                    caseObj.element.style.display = matchesSearch ? 'block' : 'none';
-                }});
+            if (filteredCases.length === 0) {{
+                casesContainer.innerHTML = '<p style="padding:1rem; color:var(--text-muted);">No cases found.</p>';
+                caseDetails.innerHTML = '<h3>No case selected</h3><p>Please select a case from the list.</p>';
+                selectedCaseId = null;
+                return;
             }}
 
-            function filterByType(type) {{
-                // Update filter buttons
-                document.querySelectorAll('.filter-tag').forEach(btn => btn.classList.remove('active'));
-                event.target.classList.add('active');
+            for (const c of filteredCases) {{
+                const caseDiv = document.createElement('div');
+                caseDiv.classList.add('case-item');
+                caseDiv.dataset.caseId = c.case_id;
+                if (c.case_id === selectedCaseId) {{
+                    caseDiv.classList.add('selected');
+                }}
+                caseDiv.tabIndex = 0;
+                caseDiv.setAttribute('role', 'button');
+                caseDiv.setAttribute('aria-pressed', c.case_id === selectedCaseId ? 'true' : 'false');
 
-                allCases.forEach(caseObj => {{
-                    let show = false;
-                    switch(type) {{
-                        case 'all':
-                            show = true;
-                            break;
-                        case 'appealed':
-                            show = caseObj.appealed;
-                            break;
-                        default:
-                            show = caseObj.type === type;
-                    }}
-                    caseObj.element.style.display = show ? 'block' : 'none';
-                }});
-            }}
+                let appealedBadge = c.appealed ? '<span class="appealed-badge" title="This case has been appealed">Appealed</span>' : '';
 
-            // Case selection handler
-            document.getElementById('caseList').addEventListener('click', async (e) => {{
-                const caseItem = e.target.closest('.case-item');
-                if (!caseItem) return;
-
-                const caseId = caseItem.dataset.reference;
-                if (caseId === selectedCaseId) return;
-
-                // Update selection
-                document.querySelectorAll('.case-item.selected').forEach(el => el.classList.remove('selected'));
-                caseItem.classList.add('selected');
-                selectedCaseId = caseId;
-
-                // Show loading state
-                document.querySelector('.panel-content').innerHTML = `
-                    <div style="display: flex; justify-content: center; align-items: center; height: 100%; flex-direction: column; gap: 1rem;">
-                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
-                        <p>Loading case details...</p>
+                caseDiv.innerHTML = `
+                    <div class="case-header">
+                        <div class="case-id">#${{c.case_id}}</div>
+                        ${{appealedBadge}}
+                    </div>
+                    <div class="case-body">
+                        <div class="case-type case-type-${{c.type}}">${{c.type}}</div>
+                        <div class="case-user">User: ${{c.user}}</div>
+                        <div class="case-reason">${{c.reason.length > 100 ? c.reason.slice(0, 100) + '...' : c.reason}}</div>
+                    </div>
+                    <div class="case-footer">
+                        <div>Date: ${{c.date}}</div>
+                        <div>Staff: ${{c.staff}}</div>
                     </div>
                 `;
 
-                try {{
-                    const response = await fetch(`/api/case/${{currentProject}}/${{caseId}}`);
-                    if (!response.ok) throw new Error('Failed to load case');
-                    
-                    const caseData = await response.json();
-                    if (caseData.error) {{
-                        throw new Error(caseData.error);
+                caseDiv.addEventListener('click', () => {{
+                    selectCase(c.case_id);
+                }});
+                caseDiv.addEventListener('keypress', e => {{
+                    if (e.key === 'Enter' || e.key === ' ') {{
+                        e.preventDefault();
+                        selectCase(c.case_id);
                     }}
+                }});
 
-                    displayCaseDetails(caseData);
-                }} catch (error) {{
-                    document.querySelector('.panel-content').innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
-                            <h3>Error Loading Case</h3>
-                            <p>${{error.message}}</p>
-                            <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 1rem;">
-                                <i class="fas fa-redo"></i> Try Again
-                            </button>
-                        </div>
-                    `;
+                casesContainer.appendChild(caseDiv);
+            }}
+        }}
+
+        function selectCase(caseId) {{
+            selectedCaseId = caseId;
+
+            const prevSelected = casesContainer.querySelector('.case-item.selected');
+            if (prevSelected) {{
+                prevSelected.classList.remove('selected');
+                prevSelected.setAttribute('aria-pressed', 'false');
+            }}
+
+            const newSelected = casesContainer.querySelector(`.case-item[data-case-id="${{caseId}}"]`);
+            if (newSelected) {{
+                newSelected.classList.add('selected');
+                newSelected.setAttribute('aria-pressed', 'true');
+                newSelected.focus();
+            }}
+
+            const c = casesData.find(c => c.case_id === caseId);
+            if (!c) {{
+                caseDetails.innerHTML = '<h3>Case not found</h3>';
+                return;
+            }}
+
+            caseDetails.innerHTML = `
+                <h3>Case #${{c.case_id}}</h3>
+                <div class="case-details-section">
+                    <h4>Type</h4>
+                    <p class="case-type case-type-${{c.type}}">${{c.type}}</p>
+                </div>
+                <div class="case-details-section">
+                    <h4>User</h4>
+                    <p>${{c.user}} (ID: ${{c.user_id}})</p>
+                </div>
+                <div class="case-details-section">
+                    <h4>Reason</h4>
+                    <p>${{c.reason}}</p>
+                </div>
+                <div class="case-details-section">
+                    <h4>Staff</h4>
+                    <p>${{c.staff}} (ID: ${{c.staff_id}})</p>
+                </div>
+                <div class="case-details-section">
+                    <h4>Date</h4>
+                    <p>${{c.date}}</p>
+                </div>
+                <div class="case-details-section">
+                    <h4>Additional Details</h4>
+                    <p>${{c.details || 'No additional details available.'}}</p>
+                </div>
+                ${{c.appealed ? '<div class="case-details-section"><h4>Appeal Status</h4><p>This case has been appealed.</p></div>' : ''}}
+            `;
+        }}
+
+        filters.forEach(filter => {{
+            filter.addEventListener('click', () => {{
+                filters.forEach(f => f.classList.remove('active'));
+                filter.classList.add('active');
+                renderCases(filter.dataset.type, searchInput.value);
+                selectedCaseId = null;
+                caseDetails.innerHTML = '<h3>Select a case to view details</h3><p>No case selected.</p>';
+            }});
+            filter.addEventListener('keypress', e => {{
+                if (e.key === 'Enter' || e.key === ' ') {{
+                    e.preventDefault();
+                    filter.click();
                 }}
             }});
+        }});
 
-            function displayCaseDetails(caseData) {
-                const evidenceList = caseData.evidence && caseData.evidence.length > 0 ? 
-                    caseData.evidence.map(url => 
-                        `<div class="evidence-item">
-                            <a href="${url.trim()}" target="_blank">
-                                <i class="fas fa-external-link-alt"></i>
-                                ${url.trim()}
-                            </a>
-                        </div>`
-                    ).join('') : '<p style="color: var(--text-muted); font-style: italic;">No evidence provided</p>';
+        searchInput.addEventListener('input', () => {{
+            const activeFilter = document.querySelector('.filter-tag.active').dataset.type;
+            renderCases(activeFilter, searchInput.value);
+            selectedCaseId = null;
+            caseDetails.innerHTML = '<h3>Select a case to view details</h3><p>No case selected.</p>';
+        }});
 
-                const appealedStatus = caseData.appealed == 1 ? 
-                    '<div class="status-badge appealed"><i class="fas fa-exclamation-triangle"></i> Appealed</div>' : 
-                    '<div class="status-badge active"><i class="fas fa-check-circle"></i> Active</div>';
+        // Initial render
+        renderCases();
+    </script>
+</body>
+</html>
+'''
 
-                const punishmentIcon = {
-                    'ban': 'fas fa-ban',
-                    'kick': 'fas fa-door-open', 
-                    'mute': 'fas fa-volume-mute',
-                    'warn': 'fas fa-exclamation-triangle'
-                }[caseData.punishment_type?.toLowerCase()] || 'fas fa-gavel';
-
-                document.querySelector('.panel-content').innerHTML = `
-                    <div class="status-badges">
-                        ${appealedStatus}
-                    </div>
-
-                    <div class="detail-grid">
-                        <div class="detail-card">
-                            <h4><i class="fas fa-info-circle"></i> Case Information</h4>
-                            <p><strong>Case ID:</strong> ${caseData.reference_id || caseData.user_id}</p>
-                            <p><strong>User ID:</strong> ${caseData.user_id}</p>
-                            <p><strong>Staff ID:</strong> ${caseData.staff_id}</p>
-                            <p><strong>Created:</strong> ${new Date(caseData.created_at).toLocaleString()}</p>
-                            <p><strong>Type:</strong> <i class="${punishmentIcon}"></i> ${caseData.punishment_type}</p>
-                            <p><strong>Length:</strong> ${caseData.length || 'Permanent/N/A'}</p>
-                        </div>
-
-                        <div class="detail-card">
-                            <h4><i class="fas fa-comment-alt"></i> Reason</h4>
-                            <p>${caseData.reason || 'No reason provided'}</p>
-                        </div>
-
-                        <div class="detail-card">
-                            <h4><i class="fas fa-sticky-note"></i> Moderator Notes</h4>
-                            <p>${caseData.moderator_note || 'No notes provided'}</p>
-                        </div>
-                    </div>
-
-                    <div class="evidence-section">
-                        <h4><i class="fas fa-paperclip"></i> Evidence (${caseData.evidence ? caseData.evidence.length : 0} items)</h4>
-                        ${evidenceList}
-                    </div>
-                `;
-            }
-
-        </script>
-    </body>
-    </html>
-    '''
 
     return render_template_string(html)
 
