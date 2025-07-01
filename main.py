@@ -9,13 +9,12 @@ import json
 import mysql.connector
 from mysql.connector import Error
 
-app.permanent_session_lifetime = timedelta(days=30) # CHANGE IF NEEDED
-
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = "ehwodbwelenwkshyuxisid"
 
 # Steve's one commit - cookies, just not as edible.
+app.permanent_session_lifetime = timedelta(days=30) # CHANGE IF NEEDED
 app.config['SESSION_COOKIE_NAME'] = 'fxs-sites'
 app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookie over HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
