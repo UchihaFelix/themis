@@ -927,7 +927,7 @@ def admin_panel():
 
     return render_template_string(html)
 
-@app.route('/api/case/<project>/<int:case_id>')
+@app.route('/api/case/<project>/<case_id>')
 @login_required
 @staff_required
 def get_case_detail(project, case_id):
