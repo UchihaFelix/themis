@@ -288,7 +288,7 @@ def admin_panel():
     # Build cases HTML with enhanced styling
     cases_html = ""
     for case in cases:
-        created = case['created_at'].strftime('%Y-%m-%d %H:%M') if case['created_at'] else ''
+        created = str(case['created_at'])[:16] if case['created_at'] else ''
         appealed_badge = '<span class="appealed-badge">APPEALED</span>' if case.get('appealed') == 1 else ''
         
         cases_html += f'''
