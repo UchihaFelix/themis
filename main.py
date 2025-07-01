@@ -954,8 +954,6 @@ def get_case_detail(project, case_id):
             return jsonify({'error': 'Case not found'}), 404
             
         # Convert datetime to string for JSON serialization
-        if case.get('created_at'):
-            case['created_at'] = case['created_at'].strftime('%Y-%m-%d %H:%M:%S')
         
         # Handle evidence field if it exists
         if case.get('evidence'):
