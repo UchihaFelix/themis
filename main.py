@@ -269,7 +269,7 @@ def api_case_detail(project, case_id):
         if connection is None:
             return jsonify({'error': 'DB connection error'}), 500
         cursor = connection.cursor(dictionary=True)
-        cursor.execute(f"SELECT * FROM {project}_cases WHERE id = %s", (case_id,))
+        cursor.execute(f"SELECT * FROM {project}_cases WHERE user_id = %s", (reference_id,))
         case = cursor.fetchone()
         cursor.close()
         connection.close()
@@ -313,7 +313,7 @@ def admin_panel():
             <strong>#{ref}</strong><br>
             <small>{created}</small>
         </div>
-        '''.format(id=case['id'], ref=case['reference_id'], created=created)
+        '''.format(id=case['user_id'], ref=case['reference_id'], created=created)
 
     project_selector = '''
     <form id="projectForm" method="get" action="/admin">
