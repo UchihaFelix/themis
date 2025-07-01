@@ -646,7 +646,18 @@
                 document.body.style.overflow = 'auto';
             }
         }
-
+        // if already logged in, hide the login button
+        document.addEventListener('DOMContentLoaded', () => {
+          fetch('/api/whoami')
+            .then(res => res.json())
+            .then(user => {
+              if (user.username) {
+                document.getElementById('login-btn').style.display = 'none';
+                document.getElementById('welcome').textContent =
+                  `Hello, ${user.username}!`;
+              }
+            });
+        });
         // Discord OAuth login
         function discordLogin() {
             // Show loading state
