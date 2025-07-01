@@ -442,7 +442,7 @@ def admin_panel():
                     }}
 
                     // Render case details nicely
-                    detailPanel.innerHTML = `
+                    detailPanel.innerHTML = f"""
                         <h2>Case #${caseData.reference_id}</h2>
                         <p><span class="label">Created At:</span> ${caseData.created_at}</p>
                         <p><span class="label">User ID:</span> ${caseData.user_id}</p>
@@ -461,7 +461,7 @@ def admin_panel():
         </script>
     </body>
     </html>
-    ''')
+    """)
 
 if __name__ == '__main__':
     app.run(debug=True)
