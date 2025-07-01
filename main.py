@@ -876,10 +876,10 @@ def admin_panel():
             }});
 
             function displayCaseDetails(caseData) {{
-                const evidenceList = caseData.evidence ? 
-                    caseData.evidence.split('\\n').filter(url => url.trim()).map(url => 
-                        `<div class="evidence-item"><a href="${{url.trim()}}" target="_blank">${{url.trim()}}</a></div>`
-                    ).join('') : '<p>No evidence provided</p>';
+                const evidenceList = caseData.evidence && caseData.evidence.length > 0 ? 
+    caseData.evidence.map(url => 
+        `<div class="evidence-item"><a href="${url.trim()}" target="_blank">${url.trim()}</a></div>`
+    ).join('') : '<p>No evidence provided</p>';
 
                 const appealedStatus = caseData.appealed == 1 ? 
                     '<div class="status-badge appealed">Appealed</div>' : 
