@@ -260,7 +260,7 @@ def get_current_user():
         return jsonify({'error': 'Not authenticated'}), 401
         
     return jsonify(session['user'])
-@@app.route('/api/case/<project>/<int:case_id>')
+@app.route('/api/case/<project>/<int:case_id>')
 @login_required
 @staff_required
 def get_case_detail(project, case_id):
