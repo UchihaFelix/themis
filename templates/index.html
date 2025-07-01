@@ -655,16 +655,7 @@
                 modal.classList.add('loading');
             }
             
-            // In a real implementation, this would redirect to your Discord OAuth endpoint
-            // For demo purposes, simulate a successful login after 2 seconds
-            setTimeout(() => {
-                const mockUserData = {
-                    username: 'fx-admin',
-                    avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png',
-                    id: '123456789'
-                };
-                handleAuthCallback(mockUserData);
-            }, 2000);
+            window.location.href = '/auth/discord';
         }
 
         // Handle OAuth callback (would be called from your backend)
