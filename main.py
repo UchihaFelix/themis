@@ -931,6 +931,7 @@ def admin_panel():
 @login_required
 @staff_required
 def get_case_detail(project, case_id):
+    print(f"Called for {case_id}")
     try:
         # Validate project parameter to prevent SQL injection
         if project not in ['discord', 'arenamadness']:
