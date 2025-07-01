@@ -75,6 +75,7 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            cursor: pointer;
         }
 
         .login-btn:hover, .user-profile:hover {
@@ -87,6 +88,7 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
+            background: #a977f8;
         }
 
         .logout-btn {
@@ -173,6 +175,26 @@
 
         .hero .private-notice strong {
             color: #ffffff;
+        }
+
+        .hero .welcome-notice {
+            background: rgba(34, 197, 94, 0.05);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 3rem;
+            max-width: 520px;
+        }
+
+        .hero .welcome-notice p {
+            font-size: 0.9rem;
+            color: #c0c0c0;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .hero .welcome-notice strong {
+            color: #22c55e;
         }
 
         .hero-buttons {
@@ -285,6 +307,7 @@
             transition: all 0.2s ease;
             font-weight: 500;
             font-size: 0.9rem;
+            cursor: pointer;
         }
 
         .login-option:hover {
@@ -313,6 +336,12 @@
 
         .close-modal:hover {
             color: #ffffff;
+        }
+
+        /* Loading state */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
         }
 
         /* Info Section */
@@ -461,55 +490,309 @@
     </style>
 </head>
 <body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <div class="logo">
+                <img src="https://cdn.discordapp.com/attachments/1237356893635088447/1357800550867140812/themis_logo.png?ex=6864384e&is=6862e6ce&hm=630a64562cc8b6402be751715b532791962c0abf918718b9d40263dbe8c6c7ed&" alt="Themis">
+                Themis
+            </div>
+
+            <div class="nav-links">
+                <!-- Show login button if not logged in -->
+                <div class="login-btn" id="loginBtn" onclick="openLoginModal()">Login</div>
+                
+                <!-- Show user info if logged in -->
+                <div class="user-profile hidden" id="userProfile">
+                    <img src="" alt="Avatar" class="user-avatar" id="userAvatar">
+                    <span id="username"></span>
+                </div>
+                
+                <!-- Show logout button if logged in -->
+                <div class="login-btn logout-btn hidden" id="logoutBtn" onclick="logout()">Logout</div>
+            </div>
+        </nav>
+
+        <!-- Login Modal -->
+        <div class="login-modal" id="loginModal">
+            <div class="login-content">
+                <button class="close-modal" onclick="closeLoginModal()">&times;</button>
+                <h3>Authentication Required</h3>
+                <p class="subtitle">Access restricted to authorized fx-Studios personnel</p>
+                <div class="login-options">
+                    <div class="login-option" onclick="discordLogin()">
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235865f2'%3E%3Cpath d='M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.196.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z'/%3E%3C/svg%3E" alt="Discord">
+                        Continue with Discord
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 id="heroTitle">Themis Administration</h1>
+                <p id="heroDescription">Advanced Discord & Roblox administration system built exclusively by fx-Studios. Cross-platform moderation with seamless integration for elite gaming communities.</p>
+                
+                <!-- Private notice for non-authenticated users -->
+                <div class="private-notice" id="privateNotice">
+                    <p><strong>Private System:</strong> This administration platform is exclusively for authorized fx-Studios personnel. Access requires proper authentication credentials.</p>
+                </div>
+
+                <!-- Welcome notice for authenticated users -->
+                <div class="welcome-notice hidden" id="welcomeNotice">
+                    <p><strong>Welcome back, <span id="welcomeUsername">User</span>!</strong> You have access to all administration features and community management tools.</p>
+                </div>
+
+                <div class="hero-buttons">
+                    <div class="hero-login" id="heroLoginBtn" onclick="openLoginModal()">Access System</div>
+                    <div class="admin-panel-btn hidden" id="adminPanelBtn" onclick="window.location.href='/admin'">Admin Dashboard</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Info Section -->
+    <section class="info">
+        <div class="info-container">
+            <div class="info-grid">
+                <div class="info-item">
+                    <h3>Cross-Platform Integration</h3>
+                    <p>Seamlessly manage Discord servers and Roblox experiences from a unified dashboard. Real-time synchronization across all platforms.</p>
+                </div>
+                <div class="info-item">
+                    <h3>Advanced Moderation</h3>
+                    <p>Automated moderation tools with custom rule sets, AI-powered content filtering, and comprehensive audit logging.</p>
+                </div>
+                <div class="info-item">
+                    <h3>Analytics & Insights</h3>
+                    <p>Detailed community analytics, user behavior tracking, and comprehensive reporting for data-driven decisions.</p>
+                </div>
+                <div class="info-item">
+                    <h3>Secure Access Control</h3>
+                    <p>Multi-layered authentication system with role-based permissions and secure API endpoints for authorized personnel only.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>System</h4>
+                    <p>Themis Administration Platform<br>
+                    Built by fx-Studios<br>
+                    Version 2.1.0</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Access</h4>
+                    <p>Authorized Personnel Only<br>
+                    Discord OAuth Required<br>
+                    Secure Connection</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <p>Internal Support Only<br>
+                    fx-Studios Team<br>
+                    Emergency Contact Available</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 fx-Studios. All rights reserved. Private administration system.</p>
+            </div>
+        </div>
+    </footer>
+
     <script>
-        // Function definitions first, so they exist before onclick uses them
+        // Cookie utility functions
+        function setCookie(name, value, days) {
+            const expires = new Date();
+            expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for(let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+
+        function deleteCookie(name) {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        }
+
+        // Modal functions
         function openLoginModal() {
-            document.getElementById('loginModal').classList.add('active');
-            document.body.style.overflow = 'hidden';
+            const modal = document.getElementById('loginModal');
+            if (modal) {
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
         }
 
         function closeLoginModal() {
-            document.getElementById('loginModal').classList.remove('active');
-            document.body.style.overflow = 'auto';
+            const modal = document.getElementById('loginModal');
+            if (modal) {
+                modal.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
         }
 
-        // Other JS logic for login state check, modal close handlers, etc.
-        document.addEventListener('DOMContentLoaded', function() {
-            fetch('/api/me')
-                .then(response => {
-                    if (response.ok) {
-                        return response.json();
-                    }
-                    throw new Error('Not logged in');
-                })
-                .then(user => {
-                    showLoggedInState(user);
-                })
-                .catch(error => {
+        // Discord OAuth login
+        function discordLogin() {
+            // Show loading state
+            const modal = document.getElementById('loginModal');
+            if (modal) {
+                modal.classList.add('loading');
+            }
+            
+            // In a real implementation, this would redirect to your Discord OAuth endpoint
+            // For demo purposes, simulate a successful login after 2 seconds
+            setTimeout(() => {
+                const mockUserData = {
+                    username: 'fx-admin',
+                    avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png',
+                    id: '123456789'
+                };
+                handleAuthCallback(mockUserData);
+            }, 2000);
+        }
+
+        // Handle OAuth callback (would be called from your backend)
+        function handleAuthCallback(userData) {
+            setCookie('themis_auth', JSON.stringify(userData), 7); // 7 days
+            closeLoginModal();
+            checkAuthStatus();
+        }
+
+        // Logout function
+        function logout() {
+            deleteCookie('themis_auth');
+            // Optional: Call backend logout endpoint
+            // fetch('/auth/logout', { method: 'POST' });
+            checkAuthStatus();
+        }
+
+        // Check authentication status
+        function checkAuthStatus() {
+            const authCookie = getCookie('themis_auth');
+            
+            if (authCookie) {
+                try {
+                    const userData = JSON.parse(authCookie);
+                    showLoggedInState(userData);
+                } catch (error) {
+                    console.error('Invalid auth cookie:', error);
+                    deleteCookie('themis_auth');
                     showLoggedOutState();
-                });
-        });
+                }
+            } else {
+                showLoggedOutState();
+            }
+        }
 
         function showLoggedInState(user) {
-            document.getElementById('loginBtn').classList.add('hidden');
-            document.getElementById('heroLoginBtn').classList.add('hidden');
+            // Hide login elements
+            const loginBtn = document.getElementById('loginBtn');
+            const heroLoginBtn = document.getElementById('heroLoginBtn');
+            const privateNotice = document.getElementById('privateNotice');
+            
+            if (loginBtn) loginBtn.classList.add('hidden');
+            if (heroLoginBtn) heroLoginBtn.classList.add('hidden');
+            if (privateNotice) privateNotice.classList.add('hidden');
 
-            document.getElementById('userProfile').classList.remove('hidden');
-            document.getElementById('logoutBtn').classList.remove('hidden');
-            document.getElementById('adminPanelBtn').classList.remove('hidden');
+            // Show logged in elements
+            const userProfile = document.getElementById('userProfile');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const adminPanelBtn = document.getElementById('adminPanelBtn');
+            const welcomeNotice = document.getElementById('welcomeNotice');
+            
+            if (userProfile) userProfile.classList.remove('hidden');
+            if (logoutBtn) logoutBtn.classList.remove('hidden');
+            if (adminPanelBtn) adminPanelBtn.classList.remove('hidden');
+            if (welcomeNotice) welcomeNotice.classList.remove('hidden');
 
-            document.getElementById('userAvatar').src = user.avatar_url;
-            document.getElementById('username').textContent = user.username;
+            // Update user info
+            const userAvatar = document.getElementById('userAvatar');
+            const username = document.getElementById('username');
+            const welcomeUsername = document.getElementById('welcomeUsername');
+            
+            if (userAvatar) userAvatar.src = user.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png';
+            if (username) username.textContent = user.username || 'User';
+            if (welcomeUsername) welcomeUsername.textContent = user.username || 'User';
+
+            // Update hero content
+            const heroTitle = document.getElementById('heroTitle');
+            const heroDescription = document.getElementById('heroDescription');
+            
+            if (heroTitle) heroTitle.textContent = 'Welcome Back';
+            if (heroDescription) heroDescription.textContent = 'Access your administration dashboard and manage your Discord & Roblox communities with advanced moderation tools.';
         }
 
         function showLoggedOutState() {
-            document.getElementById('loginBtn').classList.remove('hidden');
-            document.getElementById('heroLoginBtn').classList.remove('hidden');
+            // Show login elements
+            const loginBtn = document.getElementById('loginBtn');
+            const heroLoginBtn = document.getElementById('heroLoginBtn');
+            const privateNotice = document.getElementById('privateNotice');
+            
+            if (loginBtn) loginBtn.classList.remove('hidden');
+            if (heroLoginBtn) heroLoginBtn.classList.remove('hidden');
+            if (privateNotice) privateNotice.classList.remove('hidden');
 
-            document.getElementById('userProfile').classList.add('hidden');
-            document.getElementById('logoutBtn').classList.add('hidden');
-            document.getElementById('adminPanelBtn').classList.add('hidden');
+            // Hide logged in elements
+            const userProfile = document.getElementById('userProfile');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const adminPanelBtn = document.getElementById('adminPanelBtn');
+            const welcomeNotice = document.getElementById('welcomeNotice');
+            
+            if (userProfile) userProfile.classList.add('hidden');
+            if (logoutBtn) logoutBtn.classList.add('hidden');
+            if (adminPanelBtn) adminPanelBtn.classList.add('hidden');
+            if (welcomeNotice) welcomeNotice.classList.add('hidden');
+
+            // Reset hero content
+            const heroTitle = document.getElementById('heroTitle');
+            const heroDescription = document.getElementById('heroDescription');
+            
+            if (heroTitle) heroTitle.textContent = 'Themis Administration';
+            if (heroDescription) heroDescription.textContent = 'Advanced Discord & Roblox administration system built exclusively by fx-Studios. Cross-platform moderation with seamless integration for elite gaming communities.';
         }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthStatus();
+            
+            // Check for auth token in URL (OAuth callback)
+            const urlParams = new URLSearchParams(window.location.search);
+            const authToken = urlParams.get('token');
+            if (authToken) {
+                // Fetch user data with the token
+                fetch('/auth/user', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                })
+                .then(response => response.json())
+                .then(userData => {
+                    handleAuthCallback(userData);
+                    // Clean up URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                })
+                .catch(error => {
+                    console.error('Auth error:', error);
+                    alert('Authentication failed. Please try again.');
+                });
+            }
+        });
 
         // Close modal when clicking outside
         document.addEventListener('click', function(e) {
@@ -525,117 +808,5 @@
             }
         });
     </script>
-
-    <!-- Header -->
-    <header>
-        <nav>
-            <div class="logo">
-                <img src="https://cdn.discordapp.com/attachments/1237356893635088447/1357800550867140812/themis_logo.png?ex=6864384e&is=6862e6ce&hm=630a64562cc8b6402be751715b532791962c0abf918718b9d40263dbe8c6c7ed&" alt="Themis">
-                Themis
-            </div>
-
-            <div class="nav-links">
-                <!-- Show login button if not logged in -->
-                <a href="#" class="hero-login" id="heroLoginBtn" onclick="openLoginModal()">Login</a>
-                
-                <!-- Show user info if logged in -->
-                <div class="user-profile hidden" id="userProfile">
-                    <img src="" alt="Avatar" class="user-avatar" id="userAvatar">
-                    <span id="username"></span>
-                </div>
-                
-                <!-- Show logout button if logged in -->
-                <a href="/logout" class="login-btn logout-btn hidden" id="logoutBtn">Logout</a>
-            </div>
-
-            <!-- Login Modal -->
-            <div class="login-modal" id="loginModal">
-                <div class="login-content">
-                    <button class="close-modal" onclick="closeLoginModal()">&times;</button>
-                    <h3>Authentication</h3>
-                    <p class="subtitle">Select your preferred authentication method</p>
-                    <div class="login-options">
-                        <a href="/auth/discord" class="login-option" onclick="closeLoginModal()">
-                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235865f2'%3E%3Cpath d='M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z'/%3E%3C/svg%3E" alt="Discord">
-                            Use Discord
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </nav>
-    </header>
-
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="hero-container">
-            <div class="hero-content">
-                <h1>Themis Administration</h1>
-                <p>Advanced Discord & Roblox administration system built exclusively by fx-Studios. Cross-platform moderation with seamless integration for elite gaming communities.</p>
-                <div class="private-notice">
-                    <p><strong>Notice:</strong> This is an internal fx-Studios administration system, therefore confidential. Entry is strictly permitted to Studio Staff.</p>
-                </div>
-                
-                <div class="hero-buttons">
-                    <!-- Show login button if not logged in -->
-                    <a href="#" class="hero-login" id="heroLoginBtn" onclick="openLoginModal()">Login</a>
-                    
-                    <!-- Show admin panel button if logged in -->
-                    <a href="/admin" class="admin-panel-btn hidden" id="adminPanelBtn">Return</a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Info Section -->
-    <section class="info">
-        <div class="info-container">
-            <div class="info-grid">
-                <div class="info-item">
-                    <h3>Cross-Platform Integration</h3>
-                    <p>Seamless Discord & Roblox connectivity with real-time synchronization and persistent data management.</p>
-                </div>
-                <div class="info-item">
-                    <h3>Advanced Tracking</h3>
-                    <p>Comprehensive logging and moderation history with escalation protocols and appeal systems.</p>
-                </div>
-                <div class="info-item">
-                    <h3>Private & Exclusive</h3>
-                    <p>Internal fx-Studios system with restricted access for authorized Studio Employees only.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Footer -->
-    <footer>
-        <div class="footer-container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h4>Themis</h4>
-                    <p>Advanced administration system bringing order to complexity in moderation.</p>
-                </div>
-                <div class="footer-section">
-                    <h4>Support</h4>
-                    <p>
-                        <a href="#help">Help Center</a><br>
-                        <a href="#status">System Status</a><br>
-                        <a href="#contact">Contact Support</a>
-                    </p>
-                </div>
-                <div class="footer-section">
-                    <h4>Contact</h4>
-                    <p>
-                        fallenfelix.discord@gmail.com<br>
-                        Discord: @fxllenfx
-                    </p>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2025 Themis Administration System by fx-Studios</p>
-            </div>
-        </div>
-    </footer>
 </body>
-
-
-
+</html>
