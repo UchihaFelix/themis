@@ -270,6 +270,11 @@ def get_current_user():
         
     return jsonify(session['user'])
 
+@app.route('/api/whoami') # different than 'me'endpoint, might work better, idk /shrug
+def whoami():
+    user = session.get('user', {})
+    return {'username': user.get('username')}
+
 @app.route('/admin')
 @login_required
 @staff_required
