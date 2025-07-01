@@ -943,7 +943,7 @@ def get_case_detail(project, case_id):
         cursor = connection.cursor(dictionary=True)
         
         # Use reference_id in the WHERE clause
-        cursor.execute(f"SELECT * FROM {project} WHERE reference_id = %s", (case_id,))
+        cursor.execute(f"SELECT * FROM {project} WHERE reference_id = %s OR user_id = %s", (case_id, case_id))
         case = cursor.fetchone()
         
         cursor.close()
