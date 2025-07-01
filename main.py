@@ -260,24 +260,37 @@ def get_current_user():
         return jsonify({'error': 'Not authenticated'}), 401
         
     return jsonify(session['user'])
-@app.route('/api/case/<project>/<int:case_id>')
+@@app.route('/api/case/<project>/<int:case_id>')
 @login_required
 @staff_required
-def api_case_detail(project, case_id):
+def get_case_detail(project, case_id):
     try:
+        # Validate project parameter to prevent SQL injection
+        if project not in ['discord', 'roblox']:
+            return jsonify({'error': 'Invalid project'}), 400
+            
         connection = get_db_connection()
         if connection is None:
             return jsonify({'error': 'DB connection error'}), 500
+            
         cursor = connection.cursor(dictionary=True)
-        cursor.execute(f"SELECT * FROM {project}_cases WHERE user_id = %s", (reference_id,))
+        
+        # Use parameterized query for the WHERE clause, f-string only for table name (validated above)
+        cursor.execute(f"SELECT * FROM {project}_cases WHERE user_id = %s", (case_id,))
         case = cursor.fetchone()
+        
         cursor.close()
         connection.close()
+        
         if not case:
             return jsonify({'error': 'Case not found'}), 404
+            
         # Convert datetime to string for JSON serialization
-        case['created_at'] = case['created_at'].strftime('%Y-%m-%d %H:%M:%S') if case['created_at'] else ''
+        if case.get('created_at'):
+            case['created_at'] = case['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            
         return jsonify(case)
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
