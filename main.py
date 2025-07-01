@@ -292,7 +292,7 @@ def admin_panel():
         appealed_badge = '<span class="appealed-badge">APPEALED</span>' if case.get('appealed') == 1 else ''
         
         cases_html += f'''
-        <div class="case-item" data-id="{case['user_id']}" data-reference="{case.get('reference_id', case['user_id'])}">
+        <div class="case-item" data-id="{case.get('reference_id', case['user_id'])}" data-reference="{case.get('reference_id', case['user_id'])}">
             <div class="case-header">
                 <div class="case-id">#{case.get('reference_id', case['user_id'])}</div>
                 {appealed_badge}
