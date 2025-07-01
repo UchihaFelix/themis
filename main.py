@@ -260,173 +260,208 @@ def get_current_user():
         return jsonify({'error': 'Not authenticated'}), 401
         
     return jsonify(session['user'])
+@app.route('/api/case/<project>/<int:case_id>')
+@login_required
+@staff_required
+def api_case_detail(project, case_id):
+    try:
+        connection = get_db_connection()
+        if connection is None:
+            return jsonify({'error': 'DB connection error'}), 500
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(f"SELECT * FROM {project}_cases WHERE id = %s", (case_id,))
+        case = cursor.fetchone()
+        cursor.close()
+        connection.close()
+        if not case:
+            return jsonify({'error': 'Case not found'}), 404
+        # Convert datetime to string for JSON serialization
+        case['created_at'] = case['created_at'].strftime('%Y-%m-%d %H:%M:%S') if case['created_at'] else ''
+        return jsonify(case)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/admin')
 @login_required
 @staff_required
 def admin_panel():
-    """Admin panel dashboard - Stub for now"""
     user = session['user']
-    return render_template_string('''
+    project = request.args.get('project', 'discord')
+
+    def get_cases(proj):
+        try:
+            connection = get_db_connection()
+            if connection is None:
+                return []
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(f"SELECT id, reference_id, created_at FROM {proj}_cases ORDER BY created_at DESC")
+            cases = cursor.fetchall()
+            cursor.close()
+            connection.close()
+            return cases
+        except Exception as e:
+            print(f"Error fetching cases: {e}")
+            return []
+
+    cases = get_cases(project)
+
+    # Build case list HTML (only minimal info here)
+    cases_html = ""
+    for case in cases:
+        created = case['created_at'].strftime('%Y-%m-%d %H:%M') if case['created_at'] else ''
+        cases_html += f'''
+        <div class="case-item" data-id="{case['id']}">
+            <strong>#{case['reference_id']}</strong><br>
+            <small>{created}</small>
+        </div>
+        '''
+
+    project_selector = f'''
+    <form id="projectForm" method="get" action="/admin">
+        <label for="project">Select Project:</label><br>
+        <select name="project" id="project" onchange="document.getElementById('projectForm').submit()">
+            <option value="discord" {'selected' if project == 'discord' else ''}>Discord</option>
+            <option value="roblox" {'selected' if project == 'roblox' else ''}>Roblox</option>
+        </select>
+    </form>
+    '''
+
+    return render_template_string(f'''
     <!DOCTYPE html>
-    <html lang="en">
+    <html>
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Themis Admin Panel</title>
+        <title>Themis Admin Panel - Cases</title>
         <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                background: #0a0a0a;
-                color: #ffffff;
-                line-height: 1.6;
-            }
-            .header {
-                background: rgba(10, 10, 10, 0.9);
-                border-bottom: 1px solid rgba(169, 119, 248, 0.3);
-                padding: 1rem 2rem;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .logo { font-size: 1.5rem; font-weight: 600; color: #a977f8; }
-            .user-info {
-                display: flex;
-                align-items: center;
-                gap: 1rem;
-                background: rgba(255, 255, 255, 0.05);
-                padding: 0.5rem 1rem;
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            }
-            .user-avatar {
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-            }
-            .container {
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 2rem;
-                text-align: center;
-            }
-            .welcome-card {
-                background: rgba(255, 255, 255, 0.03);
-                border: 1px solid rgba(169, 119, 248, 0.2);
-                border-radius: 12px;
-                padding: 3rem;
-                margin: 2rem 0;
-            }
-            .welcome-card h2 {
-                color: #a977f8;
-                font-size: 2rem;
+            body {{
+                margin: 0; font-family: Arial, sans-serif; background: #0a0a0a; color: white;
+                display: flex; height: 100vh; overflow: hidden;
+            }}
+            #sidebar {{
+                width: 320px; background: #121212; padding: 1rem; box-sizing: border-box;
+                display: flex; flex-direction: column;
+            }}
+            #sidebar h2 {{
+                margin-top: 0; margin-bottom: 1rem; color: #a977f8;
+            }}
+            #projectSelector {{
                 margin-bottom: 1rem;
-            }
-            .welcome-card p {
-                color: #a0a0a0;
-                font-size: 1.1rem;
-                margin-bottom: 1.5rem;
-            }
-            .status-badge {
-                background: rgba(34, 197, 94, 0.1);
-                border: 1px solid rgba(34, 197, 94, 0.3);
-                color: #22c55e;
-                padding: 0.5rem 1rem;
-                border-radius: 6px;
-                font-weight: 500;
-                display: inline-block;
-            }
-            .logout-btn {
-                background: rgba(220, 38, 38, 0.1);
-                color: #ffffff;
-                border: 1px solid rgba(220, 38, 38, 0.3);
-                padding: 0.5rem 1rem;
-                border-radius: 6px;
-                text-decoration: none;
-                font-size: 0.9rem;
-                transition: all 0.2s ease;
-            }
-            .logout-btn:hover {
-                background: rgba(220, 38, 38, 0.2);
-                border-color: rgba(220, 38, 38, 0.5);
-            }
+            }}
+            #caseList {{
+                flex-grow: 1; overflow-y: auto; border-top: 1px solid #333; padding-top: 1rem;
+            }}
+            .case-item {{
+                padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer;
+                border: 1px solid transparent;
+                margin-bottom: 0.5rem;
+                background: #1a1a1a;
+                transition: background 0.2s, border-color 0.2s;
+            }}
+            .case-item:hover {{
+                background: #2d1a5f;
+                border-color: #a977f8;
+            }}
+            .case-item.selected {{
+                background: #5e3ce2;
+                border-color: #a977f8;
+            }}
+            #detailPanel {{
+                flex-grow: 1; background: #1a1a1a; padding: 1.5rem; overflow-y: auto;
+            }}
+            #detailPanel h2 {{
+                color: #a977f8;
+                margin-top: 0;
+            }}
+            #detailPanel p {{
+                margin: 0.25rem 0;
+                white-space: pre-wrap;
+            }}
+            .label {{
+                font-weight: bold; color: #999;
+            }}
+            #logout {{
+                margin-top: auto; text-align: center;
+            }}
+            #logout a {{
+                color: #e04e4e; text-decoration: none; font-weight: bold;
+            }}
+            #logout a:hover {{
+                text-decoration: underline;
+            }}
+            /* Scrollbar styling */
+            #caseList::-webkit-scrollbar, #detailPanel::-webkit-scrollbar {{
+                width: 8px;
+            }}
+            #caseList::-webkit-scrollbar-thumb, #detailPanel::-webkit-scrollbar-thumb {{
+                background-color: #444; border-radius: 4px;
+            }}
         </style>
     </head>
     <body>
-        <header class="header">
-            <div class="logo">Themis Admin Panel</div>
-            <div class="user-info">
-                {% if user.avatar_url %}
-                <img src="{{ user.avatar_url }}" alt="Avatar" class="user-avatar">
-                {% endif %}
-                <div>
-                    <div>{{ user.username }}#{{ user.discriminator }}</div>
-                    <div style="font-size: 0.8rem; color: #a0a0a0;">{{ user.staff_info.role|title or 'Staff' }}</div>
-                </div>
-                <a href="/logout" class="logout-btn">Logout</a>
+        <div id="sidebar">
+            <h2>Cases - {project.capitalize()}</h2>
+            <div id="projectSelector">
+                {project_selector}
             </div>
-        </header>
-        
-        <div class="container">
-            <div class="welcome-card">
-                <h2>Welcome to Themis Admin Panel</h2>
-                <p>Authentication successful! You are now logged in as an authorized staff member.</p>
-                <div class="status-badge">✓ Authentication Complete</div>
-                
-                <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(255, 255, 255, 0.02); border-radius: 8px;">
-                    <h3 style="color: #ffffff; margin-bottom: 1rem;">User Information</h3>
-                    <p style="color: #a0a0a0; margin-bottom: 0.5rem;"><strong>Discord ID:</strong> {{ user.id }}</p>
-                    <p style="color: #a0a0a0; margin-bottom: 0.5rem;"><strong>Username:</strong> {{ user.username }}#{{ user.discriminator }}</p>
-                    <p style="color: #a0a0a0; margin-bottom: 0.5rem;"><strong>Role:</strong> {{ user.staff_info.role|title or 'Staff' }}</p>
-                    <p style="color: #a0a0a0;"><strong>Access Level:</strong> Authorized Staff Member</p>
-                </div>
-                
-                <div style="margin-top: 2rem; padding: 1rem; background: rgba(169, 119, 248, 0.05); border: 1px solid rgba(169, 119, 248, 0.2); border-radius: 8px;">
-                    <p style="color: #c0c0c0; font-size: 0.9rem; margin: 0;">
-                        <strong>Note:</strong> This is a stub page for the admin panel. Full dashboard functionality will be implemented in the next phase.
-                    </p>
-                </div>
+            <div id="caseList">
+                {cases_html if cases_html else '<p>No cases found.</p>'}
+            </div>
+            <div id="logout">
+                <a href="/logout">Logout</a>
             </div>
         </div>
+        <div id="detailPanel">
+            <h2>Select a case to view details</h2>
+            <p>Case details will appear here when you select a case from the list.</p>
+        </div>
+
+        <script>
+            const caseList = document.getElementById('caseList');
+            const detailPanel = document.getElementById('detailPanel');
+            let selectedCaseId = null;
+
+            caseList.addEventListener('click', async e => {{
+                const caseItem = e.target.closest('.case-item');
+                if (!caseItem) return;
+                const caseId = caseItem.dataset.id;
+                if (caseId === selectedCaseId) return;  // same case clicked
+
+                // Clear previous selection highlight
+                document.querySelectorAll('.case-item.selected').forEach(el => el.classList.remove('selected'));
+                caseItem.classList.add('selected');
+                selectedCaseId = caseId;
+
+                // Fetch case details from API
+                detailPanel.innerHTML = '<p>Loading...</p>';
+                try {{
+                    const response = await fetch(`/api/case/{project}/` + caseId);
+                    if (!response.ok) throw new Error('Failed to load case details');
+                    const caseData = await response.json();
+                    if (caseData.error) {{
+                        detailPanel.innerHTML = `<p style="color: #e04e4e;">Error: ${caseData.error}</p>`;
+                        return;
+                    }}
+
+                    // Render case details nicely
+                    detailPanel.innerHTML = `
+                        <h2>Case #${caseData.reference_id}</h2>
+                        <p><span class="label">Created At:</span> ${caseData.created_at}</p>
+                        <p><span class="label">User ID:</span> ${caseData.user_id}</p>
+                        <p><span class="label">Staff ID:</span> ${caseData.staff_id}</p>
+                        <p><span class="label">Punishment Type:</span> ${caseData.punishment_type}</p>
+                        <p><span class="label">Length:</span> ${caseData.length || 'N/A'}</p>
+                        <p><span class="label">Reason:</span> ${caseData.reason}</p>
+                        <p><span class="label">Appealed:</span> ${caseData.appealed == 1 ? 'Yes' : 'No'}</p>
+                        <p><span class="label">Evidence:</span><br> ${caseData.evidence ? caseData.evidence.replace(/\\n/g, '<br>') : 'None'}</p>
+                        <p><span class="label">Moderator Note:</span><br> ${caseData.moderator_note ? caseData.moderator_note.replace(/\\n/g, '<br>') : 'None'}</p>
+                    `;
+                }} catch(err) {{
+                    detailPanel.innerHTML = `<p style="color: #e04e4e;">Error loading case details.</p>`;
+                }}
+            }});
+        </script>
     </body>
     </html>
-    ''', user=user)
-
-# Database initialization route (for testing)
-@app.route('/init-db')
-def init_database():
-    """Initialize the staff_members table (for testing purposes)"""
-    try:
-        connection = get_db_connection()
-        if connection is None:
-            return jsonify({'error': 'Failed to connect to database'}), 500
-            
-        cursor = connection.cursor()
-        
-        # Create table if it doesn't exist
-        create_table_query = """
-        CREATE TABLE IF NOT EXISTS staff_members (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            userid VARCHAR(255) NOT NULL UNIQUE,
-            username VARCHAR(255),
-            role VARCHAR(100) DEFAULT 'staff',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-        
-        cursor.execute(create_table_query)
-        connection.commit()
-        
-        cursor.close()
-        connection.close()
-        
-        return jsonify({'message': 'Database table initialized successfully'})
-        
-    except Error as e:
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
-    except Exception as e:
-        return jsonify({'error': f'General error: {str(e)}'}), 500
+    ''')
 
 if __name__ == '__main__':
     app.run(debug=True)
