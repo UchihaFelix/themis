@@ -9,9 +9,17 @@ import json
 import mysql.connector
 from mysql.connector import Error
 
+app.permanent_session_lifetime = timedelta(days=30) # CHANGE IF NEEDED
+
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = "ehwodbwelenwkshyuxisid"
+
+# Steve's one commit - cookies, just not as edible.
+app.config['SESSION_COOKIE_NAME'] = 'fxs-sites'
+app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookie over HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'     # Adjust as needed
 
 # Discord OAuth2 Configuration
 DISCORD_CLIENT_ID = "1389347057432662119"
@@ -229,6 +237,8 @@ def discord_callback():
         if user_response.status_code == 200:
             discord_user = user_response.json()
             staff_info = get_staff_info(discord_user['id'])
+
+            session.permanent = True  # Make session cookie persistent
             
             # Store user session
             session['user'] = {
