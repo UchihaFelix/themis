@@ -294,32 +294,67 @@ def admin_panel():
 
     cases = get_cases(project)
 
-    # Convert cases to JavaScript-friendly format
-    js_cases = []
-    for case in cases:
-        # Handle evidence field
-        evidence = []
-        if case.get('evidence'):
-            if isinstance(case['evidence'], str):
-                evidence = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
-            elif isinstance(case['evidence'], list):
-                evidence = case['evidence']
+    def get_discord_usernames_bulk(user_ids):
+    """Fetch multiple usernames from Discord API efficiently"""
+    try:
+        import requests
+        bot_token = "MTIzNTY1NDk4MzQ3MTMzMzQxNw.G1xZni.pPROxPeZnTU5ThW5qCVcAARL1IH-e9m5dW8swQ"
+        headers = {
+            'Authorization': f'Bot {bot_token}',
+            'Content-Type': 'application/json'
+        }
         
-        js_cases.append({
-            'case_id': case.get('reference_id', case['user_id']),
-            'type': case.get('punishment_type', 'unknown').lower(),
-            'user': str(case.get('user_id', 'Unknown')),
-            'user_id': case.get('user_id', 'Unknown'),
-            'username': case.get('username', 'Unknown User'),
-            'reason': case.get('reason', 'No reason provided'),
-            'staff': str(case.get('staff_id', 'Unknown')),
-            'staff_id': case.get('staff_id', 'Unknown'),
-            'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
-            'appealed': case.get('appealed') == 1,
-            'details': case.get('details', ''),
-            'evidence': evidence,
-            'moderator_note': case.get('moderator_note', '')  # Add moderator notes
-        })
+        usernames = {}
+        # Process in batches to avoid rate limits
+        for user_id in user_ids:
+            try:
+                response = requests.get(f'https://discord.com/api/v10/users/{user_id}', headers=headers)
+                if response.status_code == 200:
+                    user_data = response.json()
+                    usernames[str(user_id)] = user_data.get('username', f'User-{user_id}')
+                else:
+                    usernames[str(user_id)] = f'User-{user_id}'
+            except:
+                usernames[str(user_id)] = f'User-{user_id}'
+        
+        return usernames
+    except Exception as e:
+        print(f"Error fetching Discord usernames: {e}")
+        return {str(uid): f'User-{uid}' for uid in user_ids}
+        
+    # Get all unique user IDs for bulk username lookup
+user_ids = list(set([case.get('user_id') for case in cases if case.get('user_id') and case.get('user_id') != 'Unknown']))
+discord_usernames = get_discord_usernames_bulk(user_ids) if project == 'discord' and user_ids else {}
+
+# Convert cases to JavaScript-friendly format
+js_cases = []
+for case in cases:
+    # Handle evidence field
+    evidence = []
+    if case.get('evidence'):
+        if isinstance(case['evidence'], str):
+            evidence = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
+        elif isinstance(case['evidence'], list):
+            evidence = case['evidence']
+    
+    # Get Discord username from bulk lookup
+    user_id = case.get('user_id', 'Unknown')
+    username = discord_usernames.get(str(user_id)) if project == 'discord' and str(user_id) in discord_usernames else None
+    
+    js_cases.append({
+        'case_id': case.get('reference_id', case['user_id']),
+        'type': case.get('punishment_type', 'unknown').lower(),
+        'user_id': case.get('user_id', 'Unknown'),
+        'username': username,
+        'reason': case.get('reason', 'No reason provided'),
+        'staff': str(case.get('staff_id', 'Unknown')),
+        'staff_id': case.get('staff_id', 'Unknown'),
+        'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
+        'appealed': case.get('appealed') == 1,
+        'details': case.get('details', ''),
+        'evidence': evidence,
+        'moderator_note': case.get('moderator_note', '')
+    })
 
     # Get staff rank for display
     staff_rank = user.get('staff_info', {}).get('role', 'Staff')
