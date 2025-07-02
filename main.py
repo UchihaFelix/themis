@@ -1179,6 +1179,52 @@ caseData.reason.toLowerCase().includes(searchTerm) ||
 
         // Initialize
         renderCases();
+
+        let lastCaseCount = casesData.length;
+        let pollInterval;
+        
+        function showNotification(message) {
+            // Simple notification - you can style this however you want
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed; top: 20px; right: 20px; 
+                background: var(--accent-purple); color: white; 
+                padding: 12px 16px; border-radius: 6px; 
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 1001; font-size: 14px;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.remove(), 3000);
+        }
+        
+        function pollForNewCases() {
+            fetch(`/api/cases?project=${projectSelector.value}`)
+                .then(response => response.json())
+                .then(newCases => {
+                    if (newCases.length !== lastCaseCount) {
+                        casesData = newCases;
+                        lastCaseCount = newCases.length;
+                        applyFilters(); // This will re-render with new cases
+                        
+                        // Optional: Show notification
+                        showNotification(`${newCases.length - lastCaseCount} new case(s) added`);
+                    }
+                })
+                .catch(error => console.error('Error polling for cases:', error));
+        }
+        
+        
+        // Start polling when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            pollInterval = setInterval(pollForNewCases, 5000); // Poll every 5 seconds
+        });
+        
+        // Stop polling when user leaves page
+        window.addEventListener('beforeunload', () => {
+            if (pollInterval) clearInterval(pollInterval);
+        });
     </script>
 </body>
 </html>
