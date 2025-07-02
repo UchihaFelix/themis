@@ -293,59 +293,6 @@ def admin_panel():
             return []
 
     cases = get_cases(project)
-
-# Add this function after your get_cases function:
-
-    def get_discord_usernames_bulk(user_ids):
-        """Fetch multiple usernames from Discord API efficiently"""
-        try:
-            import requests
-            import time
-            bot_token = "YOUR_BOT_TOKEN_HERE"  # Replace with your actual bot token
-            headers = {
-                'Authorization': f'Bot {bot_token}',
-                'Content-Type': 'application/json'
-            }
-            
-            usernames = {}
-            # Process each user ID with rate limiting
-            for user_id in user_ids:
-                try:
-                    print(f"Fetching username for user ID: {user_id}")  # Debug log
-                    response = requests.get(f'https://discord.com/api/v10/users/{user_id}', headers=headers)
-                    print(f"API Response status: {response.status_code}")  # Debug log
-                    
-                    if response.status_code == 200:
-                        user_data = response.json()
-                        username = user_data.get('username', f'User-{user_id}')
-                        usernames[str(user_id)] = username
-                        print(f"Found username: {username}")  # Debug log
-                    elif response.status_code == 404:
-                        usernames[str(user_id)] = f'DeletedUser-{user_id}'
-                        print(f"User {user_id} not found (deleted account)")
-                    else:
-                        print(f"API Error {response.status_code}: {response.text}")
-                        usernames[str(user_id)] = f'User-{user_id}'
-                    
-                    time.sleep(0.1)  # Rate limiting - 100ms between requests
-                    
-                except Exception as e:
-                    print(f"Error fetching user {user_id}: {e}")
-                    usernames[str(user_id)] = f'User-{user_id}'
-            
-            return usernames
-        except Exception as e:
-            print(f"Error in bulk username fetch: {e}")
-            return {str(uid): f'User-{uid}' for uid in user_ids}
-    
-    # Replace your existing "Convert cases to JavaScript-friendly format" section with this:
-    
-    # Get all unique user IDs for bulk username lookup
-    user_ids = list(set([case.get('user_id') for case in cases if case.get('user_id') and case.get('user_id') != 'Unknown']))
-    print(f"Total cases: {len(cases)}")  # Debug log
-    print(f"Unique user IDs: {len(user_ids)}")  # Debug log
-    
-    discord_usernames = get_discord_usernames_bulk(user_ids) if project == 'discord' and user_ids else {}
     
     # Convert cases to JavaScript-friendly format
     js_cases = []
@@ -367,7 +314,7 @@ def admin_panel():
                 'case_id': case.get('reference_id', case['user_id']),
                 'type': case.get('punishment_type', 'unknown').lower(),
                 'user_id': case.get('user_id', 'Unknown'),
-                'username': username,
+                'username': case.get('username', 'Error',
                 'reason': case.get('reason', 'No reason provided'),
                 'staff': str(case.get('staff_id', 'Unknown')),
                 'staff_id': case.get('staff_id', 'Unknown'),
@@ -377,9 +324,7 @@ def admin_panel():
                 'evidence': evidence,
                 'moderator_note': case.get('moderator_note', '')
             })
-            
-            print(f"Processed case {i+1}/{len(cases)}: {case.get('reference_id', case['user_id'])}")  # Debug log
-            
+                    
         except Exception as e:
             print(f"Error processing case {i}: {e}")
             continue  # Skip this case but continue with others
@@ -390,7 +335,7 @@ def admin_panel():
         'case_id': case.get('reference_id', case['user_id']),
         'type': case.get('punishment_type', 'unknown').lower(),
         'user_id': case.get('user_id', 'Unknown'),
-        'username': username,
+        'username': case.get('username', 'Error',
         'reason': case.get('reason', 'No reason provided'),
         'staff': str(case.get('staff_id', 'Unknown')),
         'staff_id': case.get('staff_id', 'Unknown'),
