@@ -1247,7 +1247,7 @@ caseData.reason.toLowerCase().includes(searchTerm) ||
             document.body.appendChild(notification);
             
             setTimeout(() => notification.remove(), 3000);
-        }
+        }}
         
         function pollForNewCases() {{
             fetch(`/api/cases?project=${projectSelector.value}`)
@@ -1263,7 +1263,7 @@ caseData.reason.toLowerCase().includes(searchTerm) ||
                     }
                 })
                 .catch(error => console.error('Error polling for cases:', error));
-        }
+        }}
         
         
         // Start polling when page loads
