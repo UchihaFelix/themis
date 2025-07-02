@@ -321,43 +321,43 @@ def admin_panel():
             return {str(uid): f'User-{uid}' for uid in user_ids}
         
     # Get all unique user IDs for bulk username lookup
-user_ids = list(set([case.get('user_id') for case in cases if case.get('user_id') and case.get('user_id') != 'Unknown']))
-discord_usernames = get_discord_usernames_bulk(user_ids) if project == 'discord' and user_ids else {}
+    user_ids = list(set([case.get('user_id') for case in cases if case.get('user_id') and case.get('user_id') != 'Unknown']))
+    discord_usernames = get_discord_usernames_bulk(user_ids) if project == 'discord' and user_ids else {}
 
-# Convert cases to JavaScript-friendly format
-js_cases = []
-for case in cases:
-    # Handle evidence field
-    evidence = []
-    if case.get('evidence'):
-        if isinstance(case['evidence'], str):
-            evidence = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
-        elif isinstance(case['evidence'], list):
-            evidence = case['evidence']
+    # Convert cases to JavaScript-friendly format
+    js_cases = []
+    for case in cases:
+        # Handle evidence field
+        evidence = []
+        if case.get('evidence'):
+            if isinstance(case['evidence'], str):
+                evidence = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
+            elif isinstance(case['evidence'], list):
+                evidence = case['evidence']
     
     # Get Discord username from bulk lookup
-    user_id = case.get('user_id', 'Unknown')
-    username = discord_usernames.get(str(user_id)) if project == 'discord' and str(user_id) in discord_usernames else None
+        user_id = case.get('user_id', 'Unknown')
+        username = discord_usernames.get(str(user_id)) if project == 'discord' and str(user_id) in discord_usernames else None
     
-    js_cases.append({
-        'case_id': case.get('reference_id', case['user_id']),
-        'type': case.get('punishment_type', 'unknown').lower(),
-        'user_id': case.get('user_id', 'Unknown'),
-        'username': username,
-        'reason': case.get('reason', 'No reason provided'),
-        'staff': str(case.get('staff_id', 'Unknown')),
-        'staff_id': case.get('staff_id', 'Unknown'),
-        'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
-        'appealed': case.get('appealed') == 1,
-        'details': case.get('details', ''),
-        'evidence': evidence,
-        'moderator_note': case.get('moderator_note', '')
-    })
+        js_cases.append({
+            'case_id': case.get('reference_id', case['user_id']),
+            'type': case.get('punishment_type', 'unknown').lower(),
+            'user_id': case.get('user_id', 'Unknown'),
+            'username': username,
+            'reason': case.get('reason', 'No reason provided'),
+            'staff': str(case.get('staff_id', 'Unknown')),
+            'staff_id': case.get('staff_id', 'Unknown'),
+            'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
+            'appealed': case.get('appealed') == 1,
+            'details': case.get('details', ''),
+            'evidence': evidence,
+            'moderator_note': case.get('moderator_note', '')
+        })
 
     # Get staff rank for display
-    staff_rank = user.get('staff_info', {}).get('role', 'Staff')
+        staff_rank = user.get('staff_info', {}).get('role', 'Staff')
 
-    html = f'''
+        html = f'''
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1217,7 +1217,7 @@ caseData.reason.toLowerCase().includes(searchTerm) ||
 </html>
     '''
 
-    return render_template_string(html)
+        return render_template_string(html)
     
 @app.route('/api/case/<project>/<case_id>')
 @login_required
