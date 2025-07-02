@@ -1234,8 +1234,7 @@ caseData.reason.toLowerCase().includes(searchTerm) ||
         let lastCaseCount = casesData.length;
         let pollInterval;
         
-        function showNotification(message) {
-            // Simple notification - you can style this however you want
+        function showNotification(message) {{
             const notification = document.createElement('div');
             notification.style.cssText = `
                 position: fixed; top: 20px; right: 20px; 
@@ -1250,7 +1249,7 @@ caseData.reason.toLowerCase().includes(searchTerm) ||
             setTimeout(() => notification.remove(), 3000);
         }
         
-        function pollForNewCases() {
+        function pollForNewCases() {{
             fetch(`/api/cases?project=${projectSelector.value}`)
                 .then(response => response.json())
                 .then(newCases => {
