@@ -298,16 +298,15 @@ def admin_panel():
     js_cases = []
     
     js_cases.append({
-        'case_id': cases.get('reference_id', case['user_id']),
-        'type': cases.get('punishment_type', 'unknown').lower(),
-        'user_id': cases.get('user_id', 'Unknown'),
-        'username': cases.get('username', 'Error'),
-        'reason': cases.get('reason', 'No reason provided'),
-        'staff': str(cases.get('staff_id', 'Unknown')),
+        'case_id': cases['user_id']),
+        'type': cases['punishment_type', 'unknown'].lower(),
+        'user_id': cases['user_id', 'Unknown'],
+        'username': cases['username'],
+        'reason': cases['reason', 'No reason provided'],
         'staff_id': cases.get('staff_id', 'Unknown'),
-        'date': str(cases['created_at'])[:16] if case['created_at'] else 'Unknown',
-        'appealed': cases.get('appealed') == 1,
-        'details': cases.get('details', ''),
+        'date': str(cases['created_at'])[:16] if cases['created_at'] else 'Unknown',
+        'appealed': cases['appealed'] == 1,
+        'details': cases['details', ''],
         'evidence': evidence,
         'moderator_note': cases.get('moderator_note', '')
     })
@@ -1206,7 +1205,7 @@ def get_case_detail(project, case_id):
         # Convert datetime to string for JSON serialization
         
         # Handle evidence field if it exists
-        if case.get('evidence'):
+        if cases['evidence']:
             # If evidence is stored as a multi-line string, convert to list
             if isinstance(case['evidence'], str):
                 case['evidence'] = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
