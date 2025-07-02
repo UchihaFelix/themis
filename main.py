@@ -308,7 +308,7 @@ def admin_panel():
         'appealed': cases['appealed'] == 1,
         'details': cases['details', ''],
         'evidence': evidence,
-        'moderator_note': cases.get('moderator_note', '')
+        'moderator_note': cases['moderator_note', '']
     })
 
     # Get staff rank for display
