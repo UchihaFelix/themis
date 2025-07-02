@@ -312,7 +312,7 @@ def admin_panel():
             'user_id': case.get('user_id', 'Unknown'),
             'username': case.get('username', 'Unknown User'),
             'reason': case.get('reason', 'No reason provided'),
-            'staff': str(case.get('staff_id', 'Unknown')),
+            'staff': str(case.get('staff_user', 'Unknown')),
             'staff_id': case.get('staff_id', 'Unknown'),
             'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
             'appealed': case.get('appealed') == 1,
