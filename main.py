@@ -270,56 +270,7 @@ def get_current_user():
         
     return jsonify(session['user'])
 
-@app.route('/api/cases')
-@login_required
-@staff_required
-def api_cases():
-    project = request.args.get('project', 'discord')
-    
-    def get_cases(proj):
-        try:
-            connection = get_db_connection()
-            if connection is None:
-                return []
-            cursor = connection.cursor(dictionary=True)
-            cursor.execute(f"SELECT * FROM {proj} ORDER BY created_at DESC")
-            cases = cursor.fetchall()
-            cursor.close()
-            connection.close()
-            return cases
-        except Exception as e:
-            print(f"Error fetching cases: {e}")
-            return []
 
-    cases = get_cases(project)
-    
-    # Convert to the same format as your main route
-    js_cases = []
-    for case in cases:
-        evidence = []
-        if case.get('evidence'):
-            if isinstance(case['evidence'], str):
-                evidence = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
-            elif isinstance(case['evidence'], list):
-                evidence = case['evidence']
-        
-        js_cases.append({
-            'case_id': case.get('reference_id', case['user_id']),
-            'type': case.get('punishment_type', 'unknown').lower(),
-            'user': str(case.get('user_id', 'Unknown')),
-            'user_id': case.get('user_id', 'Unknown'),
-            'username': case.get('username', 'Unknown User'),
-            'reason': case.get('reason', 'No reason provided'),
-            'staff': str(case.get('staff_user', 'Unknown')),
-            'staff_id': case.get('staff_id', 'Unknown'),
-            'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
-            'appealed': case.get('appealed') == 1,
-            'details': case.get('details', ''),
-            'evidence': evidence,
-            'moderator_note': case.get('moderator_note', '')
-        })
-    
-    return jsonify(js_cases)
 
 @app.route('/admin')
 @login_required
@@ -1231,50 +1182,6 @@ caseData.reason.toLowerCase().includes(searchTerm) ||
         // Initialize
         renderCases();
 
-        let lastCaseCount = casesData.length;
-        let pollInterval;
-        
-        function showNotification(message) {{
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed; top: 20px; right: 20px; 
-                background: var(--accent-purple); color: white; 
-                padding: 12px 16px; border-radius: 6px; 
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                z-index: 1001; font-size: 14px;
-            `;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            
-            setTimeout(() => notification.remove(), 3000);
-        }}
-        
-        function pollForNewCases() {{
-            fetch(`/api/cases?project=${projectSelector.value}`)
-                .then(response => response.json())
-                .then(newCases => {
-                    if (newCases.length !== lastCaseCount) {{
-                        casesData = newCases;
-                        lastCaseCount = newCases.length;
-                        applyFilters(); // This will re-render with new cases
-                        
-                        // Optional: Show notification
-                        showNotification(`${newCases.length - lastCaseCount} new case(s) added`);
-                    }}
-                })
-                .catch(error => console.error('Error polling for cases:', error));
-        }}
-        
-        
-        // Start polling when page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            pollInterval = setInterval(pollForNewCases, 5000); // Poll every 5 seconds
-        });
-        
-        // Stop polling when user leaves page
-        window.addEventListener('beforeunload', () => {
-            if (pollInterval) clearInterval(pollInterval);
-        });
     </script>
 </body>
 </html>
