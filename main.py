@@ -294,815 +294,671 @@ def admin_panel():
 
     cases = get_cases(project)
 
-    # Build cases HTML with enhanced styling
-    cases_html = ""
+    # Convert cases to JavaScript-friendly format
+    js_cases = []
     for case in cases:
-        created = str(case['created_at'])[:16] if case['created_at'] else ''
-        appealed_badge = '<span class="appealed-badge">APPEALED</span>' if case.get('appealed') == 1 else ''
-        
-        # Determine punishment type color
-        punishment_color = {
-            'ban': '#ef4444',
-            'kick': '#f59e0b', 
-            'mute': '#8b5cf6',
-            'warn': '#10b981'
-        }.get(case.get('punishment_type', '').lower(), '#6b7280')
-        
-        cases_html += f'''
-        <div class="case-item" data-id="{case.get('reference_id', case['user_id'])}" data-reference="{case.get('reference_id', case['user_id'])}" data-type="{case.get('punishment_type', '').lower()}">
-            <div class="case-header">
-                <div class="case-id">#{case.get('reference_id', case['user_id'])}</div>
-                {appealed_badge}
-            </div>
-            <div class="case-body">
-                <div class="case-type" style="background-color: {punishment_color}20; color: {punishment_color}; border: 1px solid {punishment_color}40;">
-                    {case.get('punishment_type', 'Unknown')}
-                </div>
-                <div class="case-user">User: {case.get('user_id', 'Unknown')}</div>
-                <div class="case-reason">{case.get('reason', 'No reason provided')[:50]}{'...' if len(case.get('reason', '')) > 50 else ''}</div>
-            </div>
-            <div class="case-footer">
-                <div class="case-date">{created}</div>
-                <div class="case-staff">by {case.get('staff_id', 'Unknown')}</div>
-            </div>
-        </div>
-        '''
-
-    # Enhanced project selector
-    project_selector = f'''
-    <div class="project-selector-container">
-        <label for="project">Active Project:</label>
-        <select name="project" id="project" onchange="changeProject(this.value)">
-            <option value="discord" {'selected' if project == 'discord' else ''}>🎮 Discord</option>
-            <option value="roblox" {'selected' if project == 'roblox' else ''}>🎯 Roblox</option>
-        </select>
-    </div>
-    '''
+        js_cases.append({
+            'case_id': case.get('reference_id', case['user_id']),
+            'type': case.get('punishment_type', 'unknown').lower(),
+            'user': str(case.get('user_id', 'Unknown')),
+            'user_id': case.get('user_id', 'Unknown'),
+            'reason': case.get('reason', 'No reason provided'),
+            'staff': str(case.get('staff_id', 'Unknown')),
+            'staff_id': case.get('staff_id', 'Unknown'),
+            'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
+            'appealed': case.get('appealed') == 1,
+            'details': case.get('details', '')
+        })
 
     html = f'''
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Themis Admin Dashboard</title>
-    <link
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-        rel="stylesheet"
-    />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studio Dashboard - Themis</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root {{
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --secondary: #8b5cf6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --dark: #111827;
-            --dark-light: #1f2937;
-            --dark-lighter: #374151;
-            --text: #f9fafb;
-            --text-muted: #9ca3af;
-            --border: #374151;
-            --card-bg: #1f2937;
-            --glass: rgba(31, 41, 55, 0.8);
-        }}
-
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
 
-        body {{
-            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont,
-                'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-            color: var(--text);
-            min-height: 100vh;
-            overflow-x: hidden;
+        :root {{
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border-primary: #30363d;
+            --border-secondary: #21262d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --text-muted: #656d76;
+            --accent-red: #f85149;
+            --accent-red-muted: #da3633;
+            --accent-red-bg: rgba(248, 81, 73, 0.1);
+            --shadow: rgba(0, 0, 0, 0.12);
         }}
 
-        /* Navigation Header */
-        .nav-header {{
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 2rem;
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }}
+
+        /* Header */
+        .header {{
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            padding: 16px 24px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }}
 
-        .nav-left {{
+        .header-left {{
             display: flex;
             align-items: center;
-            gap: 1.5rem;
+            gap: 16px;
         }}
 
-        .nav-logo {{
+        .logo {{
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary);
+            gap: 8px;
         }}
 
-        .nav-logo i {{
-            font-size: 1.75rem;
+        .logo i {{
+            color: var(--accent-red);
         }}
 
         .breadcrumb {{
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--text-muted);
-            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-size: 14px;
         }}
 
         .breadcrumb a {{
-            color: var(--primary);
+            color: var(--accent-red);
             text-decoration: none;
-            transition: color 0.2s;
         }}
 
         .breadcrumb a:hover {{
-            color: var(--primary-dark);
+            text-decoration: underline;
         }}
 
-        .nav-right {{
+        .header-right {{
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 12px;
         }}
 
         .user-info {{
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem 1rem;
-            background: var(--card-bg);
-            border-radius: 50px;
-            border: 1px solid var(--border);
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            font-size: 14px;
         }}
 
         .user-avatar {{
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            width: 20px;
+            height: 20px;
+            background: var(--accent-red);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 12px;
             font-weight: 600;
-            font-size: 0.9rem;
         }}
 
         .btn {{
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
+            padding: 6px 12px;
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
             text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 14px;
             cursor: pointer;
             transition: all 0.2s;
-            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }}
 
-        .btn-primary {{
-            background: var(--primary);
-            color: white;
-        }}
-
-        .btn-primary:hover {{
-            background: var(--primary-dark);
-            transform: translateY(-1px);
-        }}
-
-        .btn-danger {{
-            background: var(--danger);
-            color: white;
-        }}
-
-        .btn-danger:hover {{
-            background: #dc2626;
-            transform: translateY(-1px);
-        }}
-
-        .btn-ghost {{
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid var(--border);
-        }}
-
-        .btn-ghost:hover {{
-            background: var(--card-bg);
-            color: var(--text);
+        .btn:hover {{
+            background: var(--bg-primary);
+            border-color: var(--text-muted);
         }}
 
         /* Main Layout */
-        .admin-container {{
-            display: flex;
-            min-height: calc(100vh - 80px);
-            max-width: 1400px;
-            margin: 2rem auto;
-            gap: 2rem;
-            padding: 0 2rem;
+        .container {{
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 24px;
+            min-height: calc(100vh - 76px);
         }}
 
         /* Sidebar */
         .sidebar {{
-            width: 400px;
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            overflow: hidden;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
             height: fit-content;
             position: sticky;
             top: 100px;
         }}
 
         .sidebar-header {{
-            padding: 2rem;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            text-align: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-primary);
         }}
 
-        .sidebar-header h2 {{
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-        }}
-
-        .sidebar-header p {{
-            opacity: 0.9;
-            font-size: 0.9rem;
-        }}
-
-        .project-selector-container {{
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
-        }}
-
-        .project-selector-container label {{
-            display: block;
-            margin-bottom: 0.75rem;
+        .sidebar-title {{
+            font-size: 16px;
             font-weight: 600;
-            color: var(--primary);
+            margin-bottom: 4px;
         }}
 
-        .project-selector-container select {{
+        .sidebar-subtitle {{
+            font-size: 14px;
+            color: var(--text-secondary);
+        }}
+
+        .sidebar-section {{
+            padding: 16px;
+            border-bottom: 1px solid var(--border-primary);
+        }}
+
+        .sidebar-section:last-child {{
+            border-bottom: none;
+        }}
+
+        .section-label {{
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }}
+
+        .project-select {{
             width: 100%;
-            padding: 0.75rem;
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 1rem;
-            transition: all 0.2s;
+            padding: 6px 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-bottom: 12px;
         }}
 
-        .project-selector-container select:focus {{
+        .project-select:focus {{
             outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px var(--accent-red-bg);
         }}
 
-        .controls {{
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
-        }}
-
-        .search-container {{
+        .search-box {{
             position: relative;
-            margin-bottom: 1rem;
+            margin-bottom: 12px;
         }}
 
-        .search-container input {{
+        .search-input {{
             width: 100%;
-            padding: 0.75rem 0.75rem 0.75rem 2.5rem;
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 0.9rem;
-            transition: all 0.2s;
+            padding: 6px 8px 6px 28px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
         }}
 
-        .search-container input:focus {{
+        .search-input:focus {{
             outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px var(--accent-red-bg);
         }}
 
-        .search-container i {{
+        .search-icon {{
             position: absolute;
-            left: 0.75rem;
+            left: 8px;
             top: 50%;
             transform: translateY(-50%);
             color: var(--text-muted);
+            font-size: 12px;
         }}
 
-        .filters {{
+        .filter-tags {{
             display: flex;
             flex-wrap: wrap;
-            gap: 0.5rem;
+            gap: 6px;
         }}
 
         .filter-tag {{
-            padding: 0.4rem 0.8rem;
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            color: var(--text-muted);
-            font-size: 0.8rem;
+            padding: 4px 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.2s;
             text-transform: capitalize;
         }}
 
         .filter-tag:hover {{
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
+            background: var(--bg-tertiary);
+            border-color: var(--text-muted);
         }}
 
         .filter-tag.active {{
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
+            background: var(--accent-red-bg);
+            border-color: var(--accent-red);
+            color: var(--accent-red);
         }}
 
-        .cases-container {{
-            max-height: 60vh;
+        .cases-list {{
+            max-height: 500px;
             overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: var(--primary) transparent;
         }}
 
-        .cases-container::-webkit-scrollbar {{
+        .cases-list::-webkit-scrollbar {{
             width: 6px;
         }}
 
-        .cases-container::-webkit-scrollbar-track {{
-            background: transparent;
+        .cases-list::-webkit-scrollbar-track {{
+            background: var(--bg-primary);
         }}
 
-        .cases-container::-webkit-scrollbar-thumb {{
-            background: var(--primary);
+        .cases-list::-webkit-scrollbar-thumb {{
+            background: var(--border-primary);
             border-radius: 3px;
         }}
 
         .case-item {{
-            margin: 1rem 1.5rem;
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1rem;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-secondary);
             cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }}
-
-        .case-item::before {{
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            transform: scaleX(0);
-            transition: transform 0.3s ease;
+            transition: background 0.2s;
         }}
 
         .case-item:hover {{
-            background: rgba(99, 102, 241, 0.1);
-            border-color: var(--primary);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2);
-        }}
-
-        .case-item:hover::before {{
-            transform: scaleX(1);
+            background: var(--bg-primary);
         }}
 
         .case-item.selected {{
-            background: rgba(99, 102, 241, 0.15);
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
-        }}
-
-        .case-item.selected::before {{
-            transform: scaleX(1);
+            background: var(--accent-red-bg);
+            border-left: 3px solid var(--accent-red);
+            padding-left: 13px;
         }}
 
         .case-header {{
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.75rem;
+            margin-bottom: 6px;
         }}
 
         .case-id {{
-            font-weight: 700;
-            font-size: 1.1rem;
-            color: var(--primary);
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 14px;
         }}
 
         .appealed-badge {{
-            background: var(--danger);
+            background: var(--accent-red);
             color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 12px;
-            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
-            animation: pulse 2s infinite;
-        }}
-
-        @keyframes pulse {{
-            0%, 100% {{ opacity: 1; }}
-            50% {{ opacity: 0.7; }}
-        }}
-
-        .case-body {{
-            margin-bottom: 0.75rem;
         }}
 
         .case-type {{
             display: inline-block;
-            padding: 0.25rem 0.6rem;
-            border-radius: 8px;
-            font-size: 0.8rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
-            margin-bottom: 0.5rem;
+            margin-bottom: 4px;
         }}
 
+        .case-type-ban {{ background: #da3633; color: white; }}
+        .case-type-kick {{ background: #fb8500; color: white; }}
+        .case-type-mute {{ background: #7c3aed; color: white; }}
+        .case-type-warn {{ background: #fbbf24; color: black; }}
+        .case-type-warning {{ background: #fbbf24; color: black; }}
+
         .case-user {{
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            margin-bottom: 0.25rem;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
         }}
 
         .case-reason {{
-            font-size: 0.85rem;
-            color: var(--text);
-            line-height: 1.4;
+            font-size: 12px;
+            color: var(--text-primary);
+            line-height: 1.3;
         }}
 
-        .case-footer {{
+        .case-meta {{
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            font-size: 0.8rem;
+            font-size: 11px;
             color: var(--text-muted);
-            padding-top: 0.5rem;
-            border-top: 1px solid var(--border);
+            margin-top: 6px;
         }}
 
-        /* Colors by type */
-        .case-type-moderation {{
-            background: #6b7280;
-            color: #d1d5db;
+        /* Content Area */
+        .content {{
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: 24px;
+            min-height: 600px;
         }}
 
-        .case-type-ban {{
-            background: var(--danger);
-            color: white;
+        .content-header {{
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-primary);
         }}
 
-        .case-type-warning {{
-            background: var(--warning);
-            color: #78350f;
-        }}
-
-        .case-type-mute {{
-            background: var(--secondary);
-            color: white;
-        }}
-
-        .case-type-kick {{
-            background: var(--primary);
-            color: white;
-        }}
-
-        /* Case Details Section */
-        .case-details {{
-            flex-grow: 1;
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border-radius: 16px;
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            max-height: 60vh;
-            overflow-y: auto;
-            border: 1px solid var(--border);
-        }}
-
-        .case-details h3 {{
-            margin-bottom: 1rem;
-            font-weight: 700;
-            color: var(--primary);
-            font-size: 1.4rem;
-        }}
-
-        .case-details-section {{
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 1rem 1.5rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }}
-
-        .case-details-section h4 {{
-            margin-bottom: 0.75rem;
+        .content-title {{
+            font-size: 20px;
             font-weight: 600;
-            color: var(--secondary);
-            font-size: 1.1rem;
+            margin-bottom: 4px;
         }}
 
-        .case-details-section p {{
-            font-size: 0.95rem;
-            color: var(--text);
-            white-space: pre-wrap;
+        .content-subtitle {{
+            color: var(--text-secondary);
+            font-size: 14px;
         }}
 
-        .case-details-section a {{
-            color: var(--primary);
-            text-decoration: none;
+        .detail-section {{
+            margin-bottom: 20px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: 16px;
         }}
 
-        .case-details-section a:hover {{
-            text-decoration: underline;
+        .detail-label {{
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
         }}
 
-        /* Scrollbar for details */
-        .case-details::-webkit-scrollbar {{
-            width: 8px;
+        .detail-value {{
+            color: var(--text-primary);
+            font-size: 14px;
+            word-break: break-word;
         }}
 
-        .case-details::-webkit-scrollbar-track {{
-            background: transparent;
+        .empty-state {{
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 60px 20px;
         }}
 
-        .case-details::-webkit-scrollbar-thumb {{
-            background: var(--primary);
-            border-radius: 4px;
+        .empty-state i {{
+            font-size: 48px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
         }}
 
-        /* Responsive */
-        @media (max-width: 1150px) {{
-            .admin-container {{
-                flex-direction: column;
-                padding: 1rem;
+        @media (max-width: 768px) {{
+            .container {{
+                grid-template-columns: 1fr;
+                gap: 16px;
+                padding: 16px;
             }}
-
+            
             .sidebar {{
-                width: 100%;
                 position: relative;
-                top: auto;
-                margin-bottom: 1rem;
-                height: auto;
-            }}
-
-            .case-details {{
-                max-height: none;
-                height: auto;
+                top: 0;
             }}
         }}
     </style>
 </head>
 <body>
-    <header class="nav-header">
-        <div class="nav-left">
-            <div class="nav-logo">
-                <i class="fa-solid fa-gavel"></i>
-                Themis Admin
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <i class="fas fa-gavel"></i>
+                Studio Dashboard
             </div>
-            <nav class="breadcrumb" aria-label="Breadcrumb">
-                <a href="/admin" class="breadcrumb-home" aria-current="page">
-                    <i class="fa-solid fa-house"></i> Admin
-                </a>
-                <span>&gt;</span>
-                <a href="/admin/cases">Cases</a>
-            </nav>
+            <div class="breadcrumb">
+                <a href="/admin">Dashboard</a> / Cases
+            </div>
         </div>
-        <div class="nav-right">
-            <div class="user-info" title="{user.get('username')}#{user.get('discriminator')}">
-                <div class="user-avatar">{user.get('username')[0].upper()}</div>
-                <span>{user.get('username')}</span>
+        <div class="header-right">
+            <div class="user-info">
+                <div class="user-avatar">{user.get('username', 'U')[0].upper()}</div>
+                <span>{user.get('username', 'User')}</span>
             </div>
-            <form method="post" action="/admin/logout">
-                <button type="submit" class="btn btn-ghost" aria-label="Logout">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                </button>
-            </form>
+            <a href="/logout" class="btn">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
         </div>
     </header>
 
-    <main class="admin-container" role="main" aria-label="Admin Dashboard">
-        <aside class="sidebar" role="complementary" aria-label="Project and Case Controls">
+    <div class="container">
+        <aside class="sidebar">
             <div class="sidebar-header">
-                <h2>Case Manager</h2>
-                <p>Manage and review user cases</p>
+                <div class="sidebar-title">Case Management</div>
+                <div class="sidebar-subtitle">Review and manage user cases</div>
             </div>
-            <div class="project-selector-container">
-                <label for="project-select">Select Project</label>
-                {project_selector}
+            
+            <div class="sidebar-section">
+                <div class="section-label">Project</div>
+                <select class="project-select" id="project-selector">
+                    <option value="discord" {'selected' if project == 'discord' else ''}>Discord Bot</option>
+                    <option value="roblox" {'selected' if project == 'roblox' else ''}>Roblox Game</option>
+                </select>
             </div>
-            <div class="controls">
-                <div class="search-container">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input
-                        type="text"
-                        id="search"
-                        placeholder="Search cases..."
-                        aria-label="Search cases"
-                        autocomplete="off"
-                    />
+
+            <div class="sidebar-section">
+                <div class="section-label">Search & Filter</div>
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="search-input" id="search-input" placeholder="Search cases...">
                 </div>
-                <div class="filters" role="group" aria-label="Filter Cases by Type">
-                    <span class="filter-tag active" data-type="all" tabindex="0">All</span>
-                    <span class="filter-tag" data-type="ban" tabindex="0">Ban</span>
-                    <span class="filter-tag" data-type="warning" tabindex="0">Warning</span>
-                    <span class="filter-tag" data-type="mute" tabindex="0">Mute</span>
-                    <span class="filter-tag" data-type="kick" tabindex="0">Kick</span>
-                    <span class="filter-tag" data-type="moderation" tabindex="0">Moderation</span>
+                <div class="filter-tags">
+                    <div class="filter-tag active" data-type="all">All</div>
+                    <div class="filter-tag" data-type="ban">Ban</div>
+                    <div class="filter-tag" data-type="kick">Kick</div>
+                    <div class="filter-tag" data-type="mute">Mute</div>
+                    <div class="filter-tag" data-type="warn">Warn</div>
+                    <div class="filter-tag" data-type="warning">Warning</div>
                 </div>
             </div>
-            <div class="cases-container" id="cases-container" tabindex="0" aria-live="polite" aria-atomic="true">
-                <!-- Cases will be dynamically inserted here -->
+
+            <div class="sidebar-section">
+                <div class="section-label">Cases</div>
+                <div class="cases-list" id="cases-list">
+                    <!-- Cases will be populated by JavaScript -->
+                </div>
             </div>
         </aside>
 
-        <section class="case-details" id="case-details" aria-live="polite" aria-atomic="true">
-            <h3>Select a case to view details</h3>
-            <p>No case selected.</p>
-        </section>
-    </main>
+        <main class="content">
+            <div class="content-header">
+                <div class="content-title">Case Details</div>
+                <div class="content-subtitle">Select a case from the sidebar to view details</div>
+            </div>
+            
+            <div id="case-details">
+                <div class="empty-state">
+                    <i class="fas fa-folder-open"></i>
+                    <div>No case selected</div>
+                </div>
+            </div>
+        </main>
+    </div>
 
     <script>
-        // JavaScript to handle case selection and filters
-        let casesData = {cases};
+        let casesData = {json.dumps(js_cases)};
+        let filteredCases = casesData;
         let selectedCaseId = null;
 
-        const casesContainer = document.getElementById('cases-container');
+        const casesList = document.getElementById('cases-list');
         const caseDetails = document.getElementById('case-details');
-        const filters = document.querySelectorAll('.filter-tag');
-        const searchInput = document.getElementById('search');
+        const searchInput = document.getElementById('search-input');
+        const filterTags = document.querySelectorAll('.filter-tag');
+        const projectSelector = document.getElementById('project-selector');
 
-        function renderCases(filterType = 'all', searchTerm = '') {{
-            casesContainer.innerHTML = '';
-            let filteredCases = casesData;
-
-            if (filterType !== 'all') {{
-                filteredCases = filteredCases.filter(c => c.type === filterType);
-            }}
-
-            if (searchTerm.trim() !== '') {{
-                const lowerTerm = searchTerm.toLowerCase();
-                filteredCases = filteredCases.filter(c =>
-                    c.case_id.toString().includes(lowerTerm) ||
-                    c.user.toLowerCase().includes(lowerTerm) ||
-                    c.reason.toLowerCase().includes(lowerTerm)
-                );
-            }}
-
+        function renderCases() {{
+            casesList.innerHTML = '';
+            
             if (filteredCases.length === 0) {{
-                casesContainer.innerHTML = '<p style="padding:1rem; color:var(--text-muted);">No cases found.</p>';
-                caseDetails.innerHTML = '<h3>No case selected</h3><p>Please select a case from the list.</p>';
-                selectedCaseId = null;
+                casesList.innerHTML = '<div style="padding: 12px 16px; color: var(--text-muted); text-align: center;">No cases found</div>';
                 return;
             }}
 
-            for (const c of filteredCases) {{
-                const caseDiv = document.createElement('div');
-                caseDiv.classList.add('case-item');
-                caseDiv.dataset.caseId = c.case_id;
-                if (c.case_id === selectedCaseId) {{
-                    caseDiv.classList.add('selected');
+            filteredCases.forEach(caseData => {{
+                const caseElement = document.createElement('div');
+                caseElement.className = 'case-item';
+                caseElement.dataset.caseId = caseData.case_id;
+                
+                if (selectedCaseId === caseData.case_id) {{
+                    caseElement.classList.add('selected');
                 }}
-                caseDiv.tabIndex = 0;
-                caseDiv.setAttribute('role', 'button');
-                caseDiv.setAttribute('aria-pressed', c.case_id === selectedCaseId ? 'true' : 'false');
 
-                let appealedBadge = c.appealed ? '<span class="appealed-badge" title="This case has been appealed">Appealed</span>' : '';
+                const appealedBadge = caseData.appealed ? '<span class="appealed-badge">Appealed</span>' : '';
+                const truncatedReason = caseData.reason.length > 60 ? caseData.reason.substring(0, 60) + '...' : caseData.reason;
 
-                caseDiv.innerHTML = `
+                caseElement.innerHTML = `
                     <div class="case-header">
-                        <div class="case-id">#${{c.case_id}}</div>
+                        <div class="case-id">#${{caseData.case_id}}</div>
                         ${{appealedBadge}}
                     </div>
-                    <div class="case-body">
-                        <div class="case-type case-type-${{c.type}}">${{c.type}}</div>
-                        <div class="case-user">User: ${{c.user}}</div>
-                        <div class="case-reason">${{c.reason.length > 100 ? c.reason.slice(0, 100) + '...' : c.reason}}</div>
-                    </div>
-                    <div class="case-footer">
-                        <div>Date: ${{c.date}}</div>
-                        <div>Staff: ${{c.staff}}</div>
+                    <div class="case-type case-type-${{caseData.type}}">${{caseData.type}}</div>
+                    <div class="case-user">User: ${{caseData.user}}</div>
+                    <div class="case-reason">${{truncatedReason}}</div>
+                    <div class="case-meta">
+                        <span>${{caseData.date}}</span>
+                        <span>by ${{caseData.staff}}</span>
                     </div>
                 `;
 
-                caseDiv.addEventListener('click', () => {{
-                    selectCase(c.case_id);
-                }});
-                caseDiv.addEventListener('keypress', e => {{
-                    if (e.key === 'Enter' || e.key === ' ') {{
-                        e.preventDefault();
-                        selectCase(c.case_id);
-                    }}
-                }});
-
-                casesContainer.appendChild(caseDiv);
-            }}
+                caseElement.addEventListener('click', () => selectCase(caseData.case_id));
+                casesList.appendChild(caseElement);
+            }});
         }}
 
         function selectCase(caseId) {{
             selectedCaseId = caseId;
+            const caseData = casesData.find(c => c.case_id === caseId);
+            
+            // Update selected state
+            document.querySelectorAll('.case-item').forEach(item => {{
+                item.classList.remove('selected');
+            }});
+            document.querySelector(`[data-case-id="${{caseId}}"]`)?.classList.add('selected');
 
-            const prevSelected = casesContainer.querySelector('.case-item.selected');
-            if (prevSelected) {{
-                prevSelected.classList.remove('selected');
-                prevSelected.setAttribute('aria-pressed', 'false');
-            }}
-
-            const newSelected = casesContainer.querySelector(`.case-item[data-case-id="${{caseId}}"]`);
-            if (newSelected) {{
-                newSelected.classList.add('selected');
-                newSelected.setAttribute('aria-pressed', 'true');
-                newSelected.focus();
-            }}
-
-            const c = casesData.find(c => c.case_id === caseId);
-            if (!c) {{
-                caseDetails.innerHTML = '<h3>Case not found</h3>';
+            if (!caseData) {{
+                caseDetails.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><div>Case not found</div></div>';
                 return;
             }}
 
             caseDetails.innerHTML = `
-                <h3>Case #${{c.case_id}}</h3>
-                <div class="case-details-section">
-                    <h4>Type</h4>
-                    <p class="case-type case-type-${{c.type}}">${{c.type}}</p>
+                <div class="content-header">
+                    <div class="content-title">Case #${{caseData.case_id}}</div>
+                    <div class="content-subtitle">${{caseData.type.charAt(0).toUpperCase() + caseData.type.slice(1)}} case details</div>
                 </div>
-                <div class="case-details-section">
-                    <h4>User</h4>
-                    <p>${{c.user}} (ID: ${{c.user_id}})</p>
+                
+                <div class="detail-section">
+                    <div class="detail-label">Case Type</div>
+                    <div class="detail-value">
+                        <span class="case-type case-type-${{caseData.type}}">${{caseData.type}}</span>
+                        ${{caseData.appealed ? '<span class="appealed-badge" style="margin-left: 8px;">Appealed</span>' : ''}}
+                    </div>
                 </div>
-                <div class="case-details-section">
-                    <h4>Reason</h4>
-                    <p>${{c.reason}}</p>
+
+                <div class="detail-section">
+                    <div class="detail-label">Target User</div>
+                    <div class="detail-value">${{caseData.user}} (ID: ${{caseData.user_id}})</div>
                 </div>
-                <div class="case-details-section">
-                    <h4>Staff</h4>
-                    <p>${{c.staff}} (ID: ${{c.staff_id}})</p>
+
+                <div class="detail-section">
+                    <div class="detail-label">Reason</div>
+                    <div class="detail-value">${{caseData.reason}}</div>
                 </div>
-                <div class="case-details-section">
-                    <h4>Date</h4>
-                    <p>${{c.date}}</p>
+
+                <div class="detail-section">
+                    <div class="detail-label">Staff Member</div>
+                    <div class="detail-value">${{caseData.staff}} (ID: ${{caseData.staff_id}})</div>
                 </div>
-                <div class="case-details-section">
-                    <h4>Additional Details</h4>
-                    <p>${{c.details || 'No additional details available.'}}</p>
+
+                <div class="detail-section">
+                    <div class="detail-label">Date & Time</div>
+                    <div class="detail-value">${{caseData.date}}</div>
                 </div>
-                ${{c.appealed ? '<div class="case-details-section"><h4>Appeal Status</h4><p>This case has been appealed.</p></div>' : ''}}
+
+                ${{caseData.details ? `
+                <div class="detail-section">
+                    <div class="detail-label">Additional Details</div>
+                    <div class="detail-value">${{caseData.details}}</div>
+                </div>
+                ` : ''}}
             `;
         }}
 
-        filters.forEach(filter => {{
-            filter.addEventListener('click', () => {{
-                filters.forEach(f => f.classList.remove('active'));
-                filter.classList.add('active');
-                renderCases(filter.dataset.type, searchInput.value);
-                selectedCaseId = null;
-                caseDetails.innerHTML = '<h3>Select a case to view details</h3><p>No case selected.</p>';
+        function applyFilters() {{
+            const searchTerm = searchInput.value.toLowerCase();
+            const activeFilter = document.querySelector('.filter-tag.active').dataset.type;
+
+            filteredCases = casesData.filter(caseData => {{
+                const matchesSearch = !searchTerm || 
+                    caseData.case_id.toString().includes(searchTerm) ||
+                    caseData.user.toLowerCase().includes(searchTerm) ||
+                    caseData.reason.toLowerCase().includes(searchTerm) ||
+                    caseData.staff.toLowerCase().includes(searchTerm);
+
+                const matchesFilter = activeFilter === 'all' || caseData.type === activeFilter;
+
+                return matchesSearch && matchesFilter;
             }});
-            filter.addEventListener('keypress', e => {{
-                if (e.key === 'Enter' || e.key === ' ') {{
-                    e.preventDefault();
-                    filter.click();
-                }}
+
+            renderCases();
+        }}
+
+        // Event listeners
+        searchInput.addEventListener('input', applyFilters);
+
+        filterTags.forEach(tag => {{
+            tag.addEventListener('click', () => {{
+                filterTags.forEach(t => t.classList.remove('active'));
+                tag.classList.add('active');
+                applyFilters();
             }});
         }});
 
-        searchInput.addEventListener('input', () => {{
-            const activeFilter = document.querySelector('.filter-tag.active').dataset.type;
-            renderCases(activeFilter, searchInput.value);
-            selectedCaseId = null;
-            caseDetails.innerHTML = '<h3>Select a case to view details</h3><p>No case selected.</p>';
+        projectSelector.addEventListener('change', () => {{
+            window.location.href = `/admin?project=${{projectSelector.value}}`;
         }});
 
         // Initial render
@@ -1110,11 +966,10 @@ def admin_panel():
     </script>
 </body>
 </html>
-'''
-
+    '''
 
     return render_template_string(html)
-
+    
 @app.route('/api/case/<project>/<case_id>')
 @login_required
 @staff_required
