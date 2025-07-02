@@ -295,7 +295,6 @@ def admin_panel():
     cases = get_cases(project)
 
     def get_discord_usernames_bulk(user_ids):
-    """Fetch multiple usernames from Discord API efficiently"""
     try:
         import requests
         bot_token = "MTIzNTY1NDk4MzQ3MTMzMzQxNw.G1xZni.pPROxPeZnTU5ThW5qCVcAARL1IH-e9m5dW8swQ"
