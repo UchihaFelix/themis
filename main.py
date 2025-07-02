@@ -386,25 +386,25 @@ def admin_panel():
     
     print(f"Final js_cases count: {len(js_cases)}")  # Debug log
         
-        js_cases.append({
-            'case_id': case.get('reference_id', case['user_id']),
-            'type': case.get('punishment_type', 'unknown').lower(),
-            'user_id': case.get('user_id', 'Unknown'),
-            'username': username,
-            'reason': case.get('reason', 'No reason provided'),
-            'staff': str(case.get('staff_id', 'Unknown')),
-            'staff_id': case.get('staff_id', 'Unknown'),
-            'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
-            'appealed': case.get('appealed') == 1,
-            'details': case.get('details', ''),
-            'evidence': evidence,
-            'moderator_note': case.get('moderator_note', '')
-        })
+    js_cases.append({
+        'case_id': case.get('reference_id', case['user_id']),
+        'type': case.get('punishment_type', 'unknown').lower(),
+        'user_id': case.get('user_id', 'Unknown'),
+        'username': username,
+        'reason': case.get('reason', 'No reason provided'),
+        'staff': str(case.get('staff_id', 'Unknown')),
+        'staff_id': case.get('staff_id', 'Unknown'),
+        'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
+        'appealed': case.get('appealed') == 1,
+        'details': case.get('details', ''),
+        'evidence': evidence,
+        'moderator_note': case.get('moderator_note', '')
+    })
 
     # Get staff rank for display
-        staff_rank = user.get('staff_info', {}).get('role', 'Staff')
+    staff_rank = user.get('staff_info', {}).get('role', 'Staff')
 
-        html = f'''
+    html = f'''
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1264,7 +1264,7 @@ caseData.reason.toLowerCase().includes(searchTerm) ||
 </html>
     '''
 
-        return render_template_string(html)
+    return render_template_string(html)
     
 @app.route('/api/case/<project>/<case_id>')
 @login_required
