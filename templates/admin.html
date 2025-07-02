@@ -1,1 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Themis - Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.5;
+            color: #ffffff;
+            background: #0a0a0a;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            border-bottom: 1px solid rgba(169, 119, 248, 0.3);
+        }
+
+        nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            letter-spacing: -0.02em;
+        }
+
+        .logo img {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            background: rgba(255, 255, 255, 0.06);
+            color: #ffffff;
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .nav-link:hover {
+            background: rgba(169, 119, 248, 0.1);
+            border-color: rgba(169, 119, 248, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .nav-link.active {
+            background: rgba(169, 119, 248, 0.2);
+            border-color: rgba(169, 119, 248, 0.5);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+        }
+
+        .user-avatar {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #a977f8;
+        }
+
+        /* Main Content */
+        main {
+            margin-top: 80px;
+            min-height: calc(100vh - 80px);
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: block;
+        }
+
+        .dashboard-header {
+            margin-bottom: 3rem;
+        }
+
+        .dashboard-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #ffffff 0%, #a0a0a0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .dashboard-subtitle {
+            color: #a0a0a0;
+            font-size: 1.125rem;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(169, 119, 248, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .stat-card h3 {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #a0a0a0;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-card .value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .change {
+            font-size: 0.875rem;
+            color: #22c55e;
+        }
+
+        .stat-card .change.negative {
+            color: #ef4444;
+        }
+
+        /* Navigation Cards */
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .nav-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 2rem;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .nav-card:hover {
+            background: rgba(169, 119, 248, 0.1);
+            border-color: rgba(169, 119, 248, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(169, 119, 248, 0.15);
+        }
+
+        .nav-card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.75rem;
+        }
+
+        .nav-card p {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .nav-card .icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(169, 119, 248, 0.1);
+            border: 1px solid rgba(169, 119, 248, 0.3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        /* Cases Section */
+        .cases-section {
+            display: none;
+        }
+
+        .cases-section.active {
+            display: block;
+        }
+
+        .cases-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .cases-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .cases-controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .filter-btn, .export-btn {
+            background: rgba(255, 255, 255, 0.06);
+            color: #ffffff;
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+        }
+
+        .filter-btn:hover, .export-btn:hover {
+            background: rgba(169, 119, 248, 0.1);
+            border-color: rgba(169, 119, 248, 0.4);
+        }
+
+        .cases-table {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .cases-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .cases-table th,
+        .cases-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .cases-table th {
+            background: rgba(255, 255, 255, 0.02);
+            font-weight: 600;
+            color: #ffffff;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .cases-table td {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+        }
+
+        .case-id {
+            font-family: 'Monaco', monospace;
+            color: #a977f8;
+            font-weight: 600;
+        }
+
+        .case-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .case-status.open {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .case-status.closed {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .case-status.pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .case-severity {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .case-severity.low {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .case-severity.medium {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .case-severity.high {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* Chat Section */
+        .chat-section {
+            display: none;
+        }
+
+        .chat-section.active {
+            display: block;
+        }
+
+        .chat-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 1.5rem;
+            height: calc(100vh - 180px);
+        }
+
+        .chat-sidebar {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .chat-sidebar h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .chat-user {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .chat-user:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .chat-user.active {
+            background: rgba(169, 119, 248, 0.1);
+            border: 1px solid rgba(169, 119, 248, 0.3);
+        }
+
+        .chat-user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #a977f8;
+        }
+
+        .chat-user-info h4 {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #ffffff;
+        }
+
+        .chat-user-info p {
+            font-size: 0.8rem;
+            color: #a0a0a0;
+        }
+
+        .chat-main {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .chat-header-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #a977f8;
+        }
+
+        .chat-header-info h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .chat-header-info p {
+            font-size: 0.875rem;
+            color: #a0a0a0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .chat-message {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .chat-message.admin {
+            flex-direction: row-reverse;
+        }
+
+        .chat-message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #a977f8;
+            flex-shrink: 0;
+        }
+
+        .chat-message-content {
+            max-width: 70%;
+        }
+
+        .chat-message.admin .chat-message-content {
+            text-align: right;
+        }
+
+        .chat-message-bubble {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .chat-message.admin .chat-message-bubble {
+            background: rgba(169, 119, 248, 0.1);
+            border: 1px solid rgba(169, 119, 248, 0.3);
+        }
+
+        .chat-message-time {
+            font-size: 0.75rem;
+            color: #808080;
+            margin-top: 0.25rem;
+        }
+
+        .chat-input {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            gap: 1rem;
+        }
+
+        .chat-input input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        .chat-input input:focus {
+            outline: none;
+            border-color: rgba(169, 119, 248, 0.5);
+        }
+
+        .chat-input button {
+            background: rgba(169, 119, 248, 0.1);
+            border: 1px solid rgba(169, 119, 248, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chat-input button:hover {
+            background: rgba(169, 119, 248, 0.2);
+            border-color: rgba(169, 119, 248, 0.5);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            main {
+                padding: 1rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chat-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .cases-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .cases-controls {
+                flex-wrap: wrap;
+            }
+        }
+
+        /* Animations */
+        .dashboard,
+        .cases-section,
+        .chat-section {
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <div class="logo">
+                <img src="https://cdn.discordapp.com/attachments/1237356893635088447/1357800550867140812/themis_logo.png?ex=6864384e&is=6862e6ce&hm=630a64562cc8b6402be751715b532791962c0abf918718b9d40263dbe8c6c7ed&" alt="Themis">
+                Themis Admin
+            </div>
+
+            <div class="nav-links">
+                <a href="#" class="nav-link active" onclick="showSection('dashboard')">Dashboard</a>
+                <a href="#" class="nav-link" onclick="showSection('cases')">Cases</a>
+                <a href="#" class="nav-link" onclick="showSection('chat')">Chat</a>
+                <a href="/" class="nav-link">← Back to Home</a>
+                
+                <div class="user-profile">
+                    <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar" class="user-avatar">
+                    <span>Admin</span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <!-- Dashboard Section -->
+            <section class="dashboard" id="dashboard">
+                <div class="dashboard-header">
+                    <h1 class="dashboard-title">Admin Dashboard</h1>
+                    <p class="dashboard-subtitle">Monitor and manage your Themis administration system</p>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Cases</h3>
+                        <div class="value">2,847</div>
+                        <div class="change">+12% from last month</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Active Moderators</h3>
+                        <div class="value">24</div>
+                        <div class="change">+2 this week</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Server Health</h3>
+                        <div class="value">99.8%</div>
+                        <div class="change">Operational</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Response Time</h3>
+                        <div class="value">1.2s</div>
+                        <div class="change negative">+0.1s from yesterday</div>
+                    </div>
+                </div>
+
+                <!-- Navigation Cards -->
+                <div class="nav-grid">
+                    <div class="nav-card" onclick="showSection('cases')">
+                        <div class="icon">📋</div>
+                        <h3>Case Management</h3>
+                        <p>View and manage all moderation cases, warnings, and disciplinary actions across your platforms.</p>
+                    </div>
+                    <div class="nav-card" onclick="showSection('chat')">
+                        <div class="icon">💬</div>
+                        <h3>Live Chat Support</h3>
+                        <p>Communicate with users in real-time, provide support, and resolve issues directly.</p>
+                    </div>
+                    <div class="nav-card" onclick="alert('Coming Soon!')">
+                        <div class="icon">📊</div>
+                        <h3>Analytics & Reports</h3>
+                        <p>Detailed insights into user behavior, moderation patterns, and system performance metrics.</p>
+                    </div>
+                    <div class="nav-card" onclick="alert('Coming Soon!')">
+                        <div class="icon">⚙️</div>
+                        <h3>System Settings</h3>
+                        <p>Configure moderation rules, permissions, integrations, and system-wide settings.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Cases Section -->
+            <section class="cases-section" id="cases">
+                <div class="cases-header">
+                    <h2 class="cases-title">Case Management</h2>
+                    <div class="cases-controls">
+                        <button class="filter-btn" onclick="toggleFilter()">Filter Cases</button>
+                        <button class="export-btn" onclick="exportCases()">Export Data</button>
+                    </div>
+                </div>
+
+                <div class="cases-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>User</th>
+                                <th>Type</th>
+                                <th>Severity</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Moderator</th>
+                            </tr>
+                        </thead>
+                        <tbody id="casesTableBody">
+                            <tr>
+                                <td class="case-id">#THM-2024-001</td>
+                                <td>JohnDoe#1234</td>
+                                <td>Spam</td>
+                                <td><span class="case-severity low">Low</span></td>
+                                <td><span class="case-status closed">Closed</span></td>
+                                <td>2024-01-15 14:30</td>
+                                <td>ModeratorOne</td>
+                            </tr>
+                            <tr>
+                                <td class="case-id">#THM-2024-002</td>
+                                <td>BadUser#5678</td>
+                                <td>Harassment</td>
+                                <td><span class="case-severity high">High</span></td>
+                                <td><span class="case-status open">Open</span></td>
+                                <td>2024-01-15 16:45</td>
+                                <td>ModeratorTwo</td>
+                            </tr>
+                            <tr>
+                                <td class="case-id">#THM-2024-003</td>
+                                <td>SuspiciousAcc#9999</td>
+                                <td>Exploit</td>
+                                <td><span class="case-severity medium">Medium</span></td>
+                                <td><span class="case-status pending">Pending</span></td>
+                                <td>2024-01-15 18:20</td>
+                                <td>ModeratorThree</td>
+                            </tr>
+                            <tr>
+                                <td class="case-id">#THM-2024-004</td>
+                                <td>ToxicPlayer#1111</td>
+                                <td>Toxicity</td>
+                                <td><span class="case-severity medium">Medium</span></td>
+                                <td><span class="case-status closed">Closed</span></td>
+                                <td>2024-01-15 20:10</td>
+                                <td>ModeratorOne</td>
+                            </tr>
+                            <tr>
+                                <td class="case-id">#THM-2024-005</td>
+                                <td>Cheater#2222</td>
+                                <td>Cheating</td>
+                                <td><span class="case-severity high">High</span></td>
+                                <td><span class="case-status open">Open</span></td>
+                                <td>2024-01-15 22:30</td>
+                                <td>ModeratorTwo</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Chat Section -->
+            <section class="chat-section" id="chat">
+                <div class="chat-container">
+                    <div class="chat-sidebar">
+                        <h3>Active Chats</h3>
+                        <div class="chat-user active" onclick="selectUser('user1')">
+                            <img src="https://cdn.discordapp.com/embed/avatars/1.png" alt="User" class="chat-user-avatar">
+                            <div class="chat-user-info">
+                                <h4>HelpSeeker#1234</h4>
+                                <p>Need help with ban appeal</p>
+                            </div>
+                        </div>
+                        <div class="chat-user" onclick="selectUser('user2')">
+                            <img src="https://cdn.discordapp.com/embed/avatars/2.png" alt="User" class="chat-user-avatar">
+                            <div class="chat-user-info">
+                                <h4>ConfusedUser#5678</h4>
+                                <p>Account verification issue</p>
+                            </div>
+                        </div>
+                        <div class="chat-user" onclick="selectUser('user3')">
+                            <img src="https://cdn.discordapp.com/embed/avatars/3.png" alt="User" class="chat-user-avatar">
+                            <div class="chat-user-info">
+                                <h4>NewPlayer#9999</h4>
+                                <p>Questions about rules</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-main">
+                        <div class="chat-header">
+                            <img src="https://cdn.discordapp.com/embed/avatars/1.png" alt="User" class="chat-header-avatar">
+                            <div class="chat-header-info">
+                                <h3 id="chatUserName">HelpSeeker#1234</h3>
+                                <p id="chatUserStatus">Online • Last seen 2 minutes ago</p>
+                            </div>
+                        </div>
+
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-message">
+                                <img src="https://cdn.discordapp.com/embed/avatars/1.png" alt="User" class="chat-message-avatar">
+                                <div class="chat-message-content">
+                                    <div class="chat-message-bubble">
+                                        Hi, I was banned from the server but I think it was a mistake. Can you help me understand what happened?
+                                    </div>
+                                    <div class="chat-message-time">2:30 PM</div>
+                                </div>
+                            </div>
+
+                            <div class="chat-message admin">
+                                <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Admin" class="chat-message-avatar">
+                                <div class="chat-message-content">
+                                    <div class="chat-message-bubble">
+                                        Hello! I'd be happy to help you with your ban appeal. Let me look up your case information.
+                                    </div>
+                                    <div class="chat-message-time">2:32 PM</div>
+                                </div>
+                            </div>
+
+                            <div class="chat-message admin">
+                                <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Admin" class="chat-message-avatar">
+                                <div class="chat-message-content">
+                                    <div class="chat-message-bubble">
+                                        I can see that you were banned for spam violations. Can you tell me more about what you were doing before the ban?
+                                    </div>
+                                    <div class="chat-message-time">2:33 PM</div>
+                                </div>
+                            </div>
+
+                            <div class="chat-message">
+                                <img src="https://cdn.discordapp.com/embed/avatars/1.png" alt="User" class="chat-message-avatar">
+                                <div class="chat-message-content">
+                                    <div class="chat-message-bubble">
