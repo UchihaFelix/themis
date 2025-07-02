@@ -298,12 +298,12 @@ def admin_panel():
     js_cases = []
     
     js_cases.append({
-        'case_id': cases['user_id']),
+        'case_id': cases['user_id'],
         'type': cases['punishment_type', 'unknown'].lower(),
         'user_id': cases['user_id', 'Unknown'],
         'username': cases['username'],
         'reason': cases['reason', 'No reason provided'],
-        'staff_id': cases.get('staff_id', 'Unknown'),
+        'staff_id': cases['staff_id'],
         'date': str(cases['created_at'])[:16] if cases['created_at'] else 'Unknown',
         'appealed': cases['appealed'] == 1,
         'details': cases['details', ''],
