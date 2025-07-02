@@ -297,18 +297,31 @@ def admin_panel():
     # Convert cases to JavaScript-friendly format
     js_cases = []
     for case in cases:
+        # Handle evidence field
+        evidence = []
+        if case.get('evidence'):
+            if isinstance(case['evidence'], str):
+                evidence = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
+            elif isinstance(case['evidence'], list):
+                evidence = case['evidence']
+        
         js_cases.append({
             'case_id': case.get('reference_id', case['user_id']),
             'type': case.get('punishment_type', 'unknown').lower(),
             'user': str(case.get('user_id', 'Unknown')),
             'user_id': case.get('user_id', 'Unknown'),
+            'username': case.get('username', 'Unknown User'),
             'reason': case.get('reason', 'No reason provided'),
             'staff': str(case.get('staff_id', 'Unknown')),
             'staff_id': case.get('staff_id', 'Unknown'),
             'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
             'appealed': case.get('appealed') == 1,
-            'details': case.get('details', '')
+            'details': case.get('details', ''),
+            'evidence': evidence
         })
+
+    # Get staff rank for display
+    staff_rank = user.get('staff_info', {}).get('role', 'Staff')
 
     html = f'''
 <!DOCTYPE html>
@@ -334,9 +347,10 @@ def admin_panel():
             --text-primary: #f0f6fc;
             --text-secondary: #8b949e;
             --text-muted: #656d76;
-            --accent-red: #f85149;
-            --accent-red-muted: #da3633;
-            --accent-red-bg: rgba(248, 81, 73, 0.1);
+            --accent-red: #ff6b8a;
+            --accent-red-muted: #ff4d7a;
+            --accent-red-bg: rgba(255, 107, 138, 0.15);
+            --accent-red-glow: rgba(255, 107, 138, 0.3);
             --shadow: rgba(0, 0, 0, 0.12);
         }}
 
@@ -350,7 +364,8 @@ def admin_panel():
         /* Header */
         .header {{
             background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-primary);
+            border-bottom: 1px solid var(--accent-red);
+            box-shadow: 0 1px 0 var(--accent-red-glow);
             padding: 16px 24px;
             display: flex;
             align-items: center;
@@ -364,19 +379,6 @@ def admin_panel():
             display: flex;
             align-items: center;
             gap: 16px;
-        }}
-
-        .logo {{
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }}
-
-        .logo i {{
-            color: var(--accent-red);
         }}
 
         .breadcrumb {{
@@ -402,29 +404,56 @@ def admin_panel():
         .user-info {{
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
+            gap: 12px;
+            padding: 8px 12px;
             background: var(--bg-tertiary);
-            border: 1px solid var(--border-primary);
+            border: 1px solid var(--accent-red);
             border-radius: 6px;
             font-size: 14px;
+            box-shadow: 0 0 8px var(--accent-red-glow);
         }}
 
         .user-avatar {{
-            width: 20px;
-            height: 20px;
-            background: var(--accent-red);
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
+            background: var(--accent-red);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 600;
+            overflow: hidden;
+        }}
+
+        .user-avatar img {{
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }}
+
+        .user-details {{
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }}
+
+        .user-name {{
+            color: var(--text-primary);
+            font-weight: 600;
+            line-height: 1.2;
+        }}
+
+        .user-rank {{
+            color: var(--accent-red);
+            font-size: 12px;
+            text-transform: capitalize;
+            line-height: 1;
         }}
 
         .btn {{
             padding: 6px 12px;
-            border: 1px solid var(--border-primary);
+            border: 1px solid var(--accent-red);
             border-radius: 6px;
             background: var(--bg-tertiary);
             color: var(--text-primary);
@@ -435,11 +464,13 @@ def admin_panel():
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            box-shadow: 0 0 4px var(--accent-red-glow);
         }}
 
         .btn:hover {{
-            background: var(--bg-primary);
-            border-color: var(--text-muted);
+            background: var(--accent-red-bg);
+            border-color: var(--accent-red-muted);
+            box-shadow: 0 0 12px var(--accent-red-glow);
         }}
 
         /* Main Layout */
@@ -456,16 +487,18 @@ def admin_panel():
         /* Sidebar */
         .sidebar {{
             background: var(--bg-secondary);
-            border: 1px solid var(--border-primary);
+            border: 1px solid var(--accent-red);
             border-radius: 6px;
             height: fit-content;
             position: sticky;
             top: 100px;
+            box-shadow: 0 0 8px var(--accent-red-glow);
         }}
 
         .sidebar-header {{
             padding: 16px;
-            border-bottom: 1px solid var(--border-primary);
+            border-bottom: 1px solid var(--accent-red);
+            box-shadow: 0 1px 0 var(--accent-red-glow);
         }}
 
         .sidebar-title {{
@@ -481,11 +514,13 @@ def admin_panel():
 
         .sidebar-section {{
             padding: 16px;
-            border-bottom: 1px solid var(--border-primary);
+            border-bottom: 1px solid var(--accent-red);
+            box-shadow: 0 1px 0 var(--accent-red-glow);
         }}
 
         .sidebar-section:last-child {{
             border-bottom: none;
+            box-shadow: none;
         }}
 
         .section-label {{
@@ -501,7 +536,7 @@ def admin_panel():
             width: 100%;
             padding: 6px 8px;
             background: var(--bg-primary);
-            border: 1px solid var(--border-primary);
+            border: 1px solid var(--accent-red);
             border-radius: 6px;
             color: var(--text-primary);
             font-size: 14px;
@@ -510,7 +545,7 @@ def admin_panel():
 
         .project-select:focus {{
             outline: none;
-            border-color: var(--accent-red);
+            border-color: var(--accent-red-muted);
             box-shadow: 0 0 0 3px var(--accent-red-bg);
         }}
 
@@ -523,7 +558,7 @@ def admin_panel():
             width: 100%;
             padding: 6px 8px 6px 28px;
             background: var(--bg-primary);
-            border: 1px solid var(--border-primary);
+            border: 1px solid var(--accent-red);
             border-radius: 6px;
             color: var(--text-primary);
             font-size: 14px;
@@ -531,7 +566,7 @@ def admin_panel():
 
         .search-input:focus {{
             outline: none;
-            border-color: var(--accent-red);
+            border-color: var(--accent-red-muted);
             box-shadow: 0 0 0 3px var(--accent-red-bg);
         }}
 
@@ -553,7 +588,7 @@ def admin_panel():
         .filter-tag {{
             padding: 4px 8px;
             background: var(--bg-primary);
-            border: 1px solid var(--border-primary);
+            border: 1px solid var(--accent-red);
             border-radius: 12px;
             color: var(--text-secondary);
             font-size: 12px;
@@ -564,13 +599,14 @@ def admin_panel():
 
         .filter-tag:hover {{
             background: var(--bg-tertiary);
-            border-color: var(--text-muted);
+            border-color: var(--accent-red-muted);
         }}
 
         .filter-tag.active {{
             background: var(--accent-red-bg);
             border-color: var(--accent-red);
             color: var(--accent-red);
+            box-shadow: 0 0 4px var(--accent-red-glow);
         }}
 
         .cases-list {{
@@ -587,7 +623,7 @@ def admin_panel():
         }}
 
         .cases-list::-webkit-scrollbar-thumb {{
-            background: var(--border-primary);
+            background: var(--accent-red);
             border-radius: 3px;
         }}
 
@@ -606,6 +642,7 @@ def admin_panel():
             background: var(--accent-red-bg);
             border-left: 3px solid var(--accent-red);
             padding-left: 13px;
+            box-shadow: 0 0 8px var(--accent-red-glow);
         }}
 
         .case-header {{
@@ -670,16 +707,18 @@ def admin_panel():
         /* Content Area */
         .content {{
             background: var(--bg-secondary);
-            border: 1px solid var(--border-primary);
+            border: 1px solid var(--accent-red);
             border-radius: 6px;
             padding: 24px;
             min-height: 600px;
+            box-shadow: 0 0 8px var(--accent-red-glow);
         }}
 
         .content-header {{
             margin-bottom: 24px;
             padding-bottom: 16px;
-            border-bottom: 1px solid var(--border-primary);
+            border-bottom: 1px solid var(--accent-red);
+            box-shadow: 0 1px 0 var(--accent-red-glow);
         }}
 
         .content-title {{
@@ -696,7 +735,7 @@ def admin_panel():
         .detail-section {{
             margin-bottom: 20px;
             background: var(--bg-primary);
-            border: 1px solid var(--border-primary);
+            border: 1px solid var(--accent-red);
             border-radius: 6px;
             padding: 16px;
         }}
@@ -714,6 +753,98 @@ def admin_panel():
             color: var(--text-primary);
             font-size: 14px;
             word-break: break-word;
+        }}
+
+        .evidence-gallery {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 8px;
+        }}
+
+        .evidence-item {{
+            position: relative;
+            border: 1px solid var(--accent-red);
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+        }}
+
+        .evidence-item:hover {{
+            border-color: var(--accent-red-muted);
+            box-shadow: 0 0 8px var(--accent-red-glow);
+        }}
+
+        .evidence-item img {{
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            display: block;
+        }}
+
+        .evidence-overlay {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }}
+
+        .evidence-item:hover .evidence-overlay {{
+            opacity: 1;
+        }}
+
+        .evidence-overlay i {{
+            color: white;
+            font-size: 24px;
+        }}
+
+        .modal {{
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }}
+
+        .modal-content {{
+            position: relative;
+            margin: auto;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 90%;
+            top: 50%;
+            transform: translateY(-50%);
+        }}
+
+        .modal-content img {{
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 6px;
+        }}
+
+        .close {{
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }}
+
+        .close:hover {{
+            color: var(--accent-red);
         }}
 
         .empty-state {{
@@ -745,18 +876,19 @@ def admin_panel():
 <body>
     <header class="header">
         <div class="header-left">
-            <div class="logo">
-                <i class="fas fa-gavel"></i>
-                Studio Dashboard
-            </div>
             <div class="breadcrumb">
                 <a href="/admin">Dashboard</a> / Cases
             </div>
         </div>
         <div class="header-right">
             <div class="user-info">
-                <div class="user-avatar">{user.get('username', 'U')[0].upper()}</div>
-                <span>{user.get('username', 'User')}</span>
+                <div class="user-avatar">
+                    {f'<img src="{user.get("avatar_url")}" alt="Avatar">' if user.get("avatar_url") else user.get('username', 'U')[0].upper()}
+                </div>
+                <div class="user-details">
+                    <div class="user-name">{user.get('username', 'User')}</div>
+                    <div class="user-rank">{staff_rank}</div>
+                </div>
             </div>
             <a href="/logout" class="btn">
                 <i class="fas fa-sign-out-alt"></i>
@@ -819,6 +951,14 @@ def admin_panel():
         </main>
     </div>
 
+    <!-- Evidence Modal -->
+    <div id="evidence-modal" class="modal">
+        <span class="close">&times;</span>
+        <div class="modal-content">
+            <img id="modal-image" src="" alt="Evidence">
+        </div>
+    </div>
+
     <script>
         let casesData = {json.dumps(js_cases)};
         let filteredCases = casesData;
@@ -829,6 +969,9 @@ def admin_panel():
         const searchInput = document.getElementById('search-input');
         const filterTags = document.querySelectorAll('.filter-tag');
         const projectSelector = document.getElementById('project-selector');
+        const modal = document.getElementById('evidence-modal');
+        const modalImg = document.getElementById('modal-image');
+        const closeModal = document.querySelector('.close');
 
         function renderCases() {{
             casesList.innerHTML = '';
@@ -849,6 +992,9 @@ def admin_panel():
 
                 const appealedBadge = caseData.appealed ? '<span class="appealed-badge">Appealed</span>' : '';
                 const truncatedReason = caseData.reason.length > 60 ? caseData.reason.substring(0, 60) + '...' : caseData.reason;
+                const userDisplay = caseData.username !== 'Unknown User' ? 
+                    `${{caseData.username}} (${{caseData.user_id}})` : 
+                    `User: ${{caseData.user}}`;
 
                 caseElement.innerHTML = `
                     <div class="case-header">
@@ -856,7 +1002,7 @@ def admin_panel():
                         ${{appealedBadge}}
                     </div>
                     <div class="case-type case-type-${{caseData.type}}">${{caseData.type}}</div>
-                    <div class="case-user">User: ${{caseData.user}}</div>
+                    <div class="case-user">${{userDisplay}}</div>
                     <div class="case-reason">${{truncatedReason}}</div>
                     <div class="case-meta">
                         <span>${{caseData.date}}</span>
@@ -884,6 +1030,29 @@ def admin_panel():
                 return;
             }}
 
+            const userDisplay = caseData.username !== 'Unknown User' ? 
+                `${{caseData.username}} (${{caseData.user_id}})` : 
+                `${{caseData.user}} (ID: ${{caseData.user_id}})`;
+
+            let evidenceHtml = '';
+            if (caseData.evidence && caseData.evidence.length > 0) {{
+                evidenceHtml = `
+                <div class="detail-section">
+                    <div class="detail-label">Evidence</div>
+                    <div class="evidence-gallery">
+                        ${{caseData.evidence.map(url => `
+                            <div class="evidence-item" onclick="openModal('${{url}}')">
+                                <img src="${{url}}" alt="Evidence" onerror="this.parentElement.innerHTML='<div style=\\'padding: 20px; text-align: center; color: var(--text-muted);\\'>Failed to load image</div>'">
+                                <div class="evidence-overlay">
+                                    <i class="fas fa-expand"></i>
+                                </div>
+                            </div>
+                        `).join('')}}
+                    </div>
+                </div>
+                `;
+            }}
+
             caseDetails.innerHTML = `
                 <div class="content-header">
                     <div class="content-title">Case #${{caseData.case_id}}</div>
@@ -900,7 +1069,7 @@ def admin_panel():
 
                 <div class="detail-section">
                     <div class="detail-label">Target User</div>
-                    <div class="detail-value">${{caseData.user}} (ID: ${{caseData.user_id}})</div>
+                    <div class="detail-value">${{userDisplay}}</div>
                 </div>
 
                 <div class="detail-section">
@@ -918,6 +1087,8 @@ def admin_panel():
                     <div class="detail-value">${{caseData.date}}</div>
                 </div>
 
+                ${{evidenceHtml}}
+
                 ${{caseData.details ? `
                 <div class="detail-section">
                     <div class="detail-label">Additional Details</div>
@@ -925,6 +1096,11 @@ def admin_panel():
                 </div>
                 ` : ''}}
             `;
+        }}
+
+        function openModal(imageUrl) {{
+            modal.style.display = 'block';
+            modalImg.src = imageUrl;
         }}
 
         function applyFilters() {{
@@ -935,6 +1111,7 @@ def admin_panel():
                 const matchesSearch = !searchTerm || 
                     caseData.case_id.toString().includes(searchTerm) ||
                     caseData.user.toLowerCase().includes(searchTerm) ||
+                    caseData.username.toLowerCase().includes(searchTerm) ||
                     caseData.reason.toLowerCase().includes(searchTerm) ||
                     caseData.staff.toLowerCase().includes(searchTerm);
 
@@ -959,6 +1136,17 @@ def admin_panel():
 
         projectSelector.addEventListener('change', () => {{
             window.location.href = `/admin?project=${{projectSelector.value}}`;
+        }});
+
+        // Modal event listeners
+        closeModal.addEventListener('click', () => {{
+            modal.style.display = 'none';
+        }});
+
+        window.addEventListener('click', (event) => {{
+            if (event.target === modal) {{
+                modal.style.display = 'none';
+            }}
         }});
 
         // Initial render
