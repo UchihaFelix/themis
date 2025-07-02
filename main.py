@@ -295,31 +295,30 @@ def admin_panel():
     cases = get_cases(project)
 
     def get_discord_usernames_bulk(user_ids):
-    try:
-        import requests
-        bot_token = "MTIzNTY1NDk4MzQ3MTMzMzQxNw.G1xZni.pPROxPeZnTU5ThW5qCVcAARL1IH-e9m5dW8swQ"
-        headers = {
-            'Authorization': f'Bot {bot_token}',
-            'Content-Type': 'application/json'
-        }
+        try:
+            bot_token = "MTIzNTY1NDk4MzQ3MTMzMzQxNw.G1xZni.pPROxPeZnTU5ThW5qCVcAARL1IH-e9m5dW8swQ"
+            headers = {
+                'Authorization': f'Bot {bot_token}',
+                'Content-Type': 'application/json'
+            }
         
-        usernames = {}
+            usernames = {}
         # Process in batches to avoid rate limits
-        for user_id in user_ids:
-            try:
-                response = requests.get(f'https://discord.com/api/v10/users/{user_id}', headers=headers)
-                if response.status_code == 200:
-                    user_data = response.json()
-                    usernames[str(user_id)] = user_data.get('username', f'User-{user_id}')
-                else:
+            for user_id in user_ids:
+                try:
+                    response = requests.get(f'https://discord.com/api/v10/users/{user_id}', headers=headers)
+                    if response.status_code == 200:
+                        user_data = response.json()
+                        usernames[str(user_id)] = user_data.get('username', f'User-{user_id}')
+                    else:
+                        usernames[str(user_id)] = f'User-{user_id}'
+                except:
                     usernames[str(user_id)] = f'User-{user_id}'
-            except:
-                usernames[str(user_id)] = f'User-{user_id}'
         
-        return usernames
-    except Exception as e:
-        print(f"Error fetching Discord usernames: {e}")
-        return {str(uid): f'User-{uid}' for uid in user_ids}
+            return usernames
+        except Exception as e:
+            print(f"Error fetching Discord usernames: {e}")
+            return {str(uid): f'User-{uid}' for uid in user_ids}
         
     # Get all unique user IDs for bulk username lookup
 user_ids = list(set([case.get('user_id') for case in cases if case.get('user_id') and case.get('user_id') != 'Unknown']))
