@@ -347,10 +347,10 @@ def admin_panel():
             --text-primary: #f0f6fc;
             --text-secondary: #8b949e;
             --text-muted: #656d76;
-            --accent-red: #ff6b8a;
-            --accent-red-muted: #ff4d7a;
-            --accent-red-bg: rgba(255, 107, 138, 0.15);
-            --accent-red-glow: rgba(255, 107, 138, 0.3);
+            --accent-purple: #A977F8;
+            --accent-purple-muted: #9966E6;
+            --accent-purple-bg: rgba(169, 119, 248, 0.15);
+            --accent-purple-glow: rgba(169, 119, 248, 0.3);
             --shadow: rgba(0, 0, 0, 0.12);
         }}
 
@@ -364,8 +364,8 @@ def admin_panel():
         /* Header */
         .header {{
             background: var(--bg-secondary);
-            border-bottom: 1px solid var(--accent-red);
-            box-shadow: 0 1px 0 var(--accent-red-glow);
+            border-bottom: 1px solid var(--accent-purple);
+            box-shadow: 0 1px 0 var(--accent-purple-glow);
             padding: 16px 24px;
             display: flex;
             align-items: center;
@@ -387,7 +387,7 @@ def admin_panel():
         }}
 
         .breadcrumb a {{
-            color: var(--accent-red);
+            color: var(--accent-purple);
             text-decoration: none;
         }}
 
@@ -407,17 +407,17 @@ def admin_panel():
             gap: 12px;
             padding: 8px 12px;
             background: var(--bg-tertiary);
-            border: 1px solid var(--accent-red);
+            border: 1px solid var(--accent-purple);
             border-radius: 6px;
             font-size: 14px;
-            box-shadow: 0 0 8px var(--accent-red-glow);
+            box-shadow: 0 0 8px var(--accent-purple-glow);
         }}
 
         .user-avatar {{
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            background: var(--accent-red);
+            background: var(--accent-purple);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -445,7 +445,7 @@ def admin_panel():
         }}
 
         .user-rank {{
-            color: var(--accent-red);
+            color: var(--accent-purple);
             font-size: 12px;
             text-transform: capitalize;
             line-height: 1;
@@ -453,7 +453,7 @@ def admin_panel():
 
         .btn {{
             padding: 6px 12px;
-            border: 1px solid var(--accent-red);
+            border: 1px solid var(--accent-purple);
             border-radius: 6px;
             background: var(--bg-tertiary);
             color: var(--text-primary);
@@ -464,13 +464,13 @@ def admin_panel():
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            box-shadow: 0 0 4px var(--accent-red-glow);
+            box-shadow: 0 0 4px var(--accent-purple-glow);
         }}
 
         .btn:hover {{
-            background: var(--accent-red-bg);
-            border-color: var(--accent-red-muted);
-            box-shadow: 0 0 12px var(--accent-red-glow);
+            background: var(--accent-purple-bg);
+            border-color: var(--accent-purple-muted);
+            box-shadow: 0 0 12px var(--accent-purple-glow);
         }}
 
         /* Main Layout */
@@ -487,18 +487,18 @@ def admin_panel():
         /* Sidebar */
         .sidebar {{
             background: var(--bg-secondary);
-            border: 1px solid var(--accent-red);
+            border: 1px solid var(--accent-purple);
             border-radius: 6px;
             height: fit-content;
             position: sticky;
             top: 100px;
-            box-shadow: 0 0 8px var(--accent-red-glow);
+            box-shadow: 0 0 8px var(--accent-purple-glow);
         }}
 
         .sidebar-header {{
             padding: 16px;
-            border-bottom: 1px solid var(--accent-red);
-            box-shadow: 0 1px 0 var(--accent-red-glow);
+            border-bottom: 1px solid var(--accent-purple);
+            box-shadow: 0 1px 0 var(--accent-purple-glow);
         }}
 
         .sidebar-title {{
@@ -514,8 +514,8 @@ def admin_panel():
 
         .sidebar-section {{
             padding: 16px;
-            border-bottom: 1px solid var(--accent-red);
-            box-shadow: 0 1px 0 var(--accent-red-glow);
+            border-bottom: 1px solid var(--accent-purple);
+            box-shadow: 0 1px 0 var(--accent-purple-glow);
         }}
 
         .sidebar-section:last-child {{
@@ -536,7 +536,7 @@ def admin_panel():
             width: 100%;
             padding: 6px 8px;
             background: var(--bg-primary);
-            border: 1px solid var(--accent-red);
+            border: 1px solid var(--accent-purple);
             border-radius: 6px;
             color: var(--text-primary);
             font-size: 14px;
@@ -545,8 +545,8 @@ def admin_panel():
 
         .project-select:focus {{
             outline: none;
-            border-color: var(--accent-red-muted);
-            box-shadow: 0 0 0 3px var(--accent-red-bg);
+            border-color: var(--accent-purple-muted);
+            box-shadow: 0 0 0 3px var(--accent-purple-bg);
         }}
 
         .search-box {{
@@ -558,7 +558,7 @@ def admin_panel():
             width: 100%;
             padding: 6px 8px 6px 28px;
             background: var(--bg-primary);
-            border: 1px solid var(--accent-red);
+            border: 1px solid var(--accent-purple);
             border-radius: 6px;
             color: var(--text-primary);
             font-size: 14px;
@@ -566,8 +566,8 @@ def admin_panel():
 
         .search-input:focus {{
             outline: none;
-            border-color: var(--accent-red-muted);
-            box-shadow: 0 0 0 3px var(--accent-red-bg);
+            border-color: var(--accent-purple-muted);
+            box-shadow: 0 0 0 3px var(--accent-purple-bg);
         }}
 
         .search-icon {{
@@ -588,7 +588,7 @@ def admin_panel():
         .filter-tag {{
             padding: 4px 8px;
             background: var(--bg-primary);
-            border: 1px solid var(--accent-red);
+            border: 1px solid var(--accent-purple);
             border-radius: 12px;
             color: var(--text-secondary);
             font-size: 12px;
@@ -599,14 +599,14 @@ def admin_panel():
 
         .filter-tag:hover {{
             background: var(--bg-tertiary);
-            border-color: var(--accent-red-muted);
+            border-color: var(--accent-purple-muted);
         }}
 
         .filter-tag.active {{
-            background: var(--accent-red-bg);
-            border-color: var(--accent-red);
-            color: var(--accent-red);
-            box-shadow: 0 0 4px var(--accent-red-glow);
+            background: var(--accent-purple-bg);
+            border-color: var(--accent-purple);
+            color: var(--accent-purple);
+            box-shadow: 0 0 4px var(--accent-purple-glow);
         }}
 
         .cases-list {{
@@ -623,7 +623,7 @@ def admin_panel():
         }}
 
         .cases-list::-webkit-scrollbar-thumb {{
-            background: var(--accent-red);
+            background: var(--accent-purple);
             border-radius: 3px;
         }}
 
@@ -639,10 +639,10 @@ def admin_panel():
         }}
 
         .case-item.selected {{
-            background: var(--accent-red-bg);
-            border-left: 3px solid var(--accent-red);
+            background: var(--accent-purple-bg);
+            border-left: 3px solid var(--accent-purple);
             padding-left: 13px;
-            box-shadow: 0 0 8px var(--accent-red-glow);
+            box-shadow: 0 0 8px var(--accent-purple-glow);
         }}
 
         .case-header {{
@@ -659,7 +659,7 @@ def admin_panel():
         }}
 
         .appealed-badge {{
-            background: var(--accent-red);
+            background: var(--accent-purple);
             color: white;
             padding: 2px 6px;
             border-radius: 3px;
@@ -707,18 +707,18 @@ def admin_panel():
         /* Content Area */
         .content {{
             background: var(--bg-secondary);
-            border: 1px solid var(--accent-red);
+            border: 1px solid var(--accent-purple);
             border-radius: 6px;
             padding: 24px;
             min-height: 600px;
-            box-shadow: 0 0 8px var(--accent-red-glow);
+            box-shadow: 0 0 8px var(--accent-purple-glow);
         }}
 
         .content-header {{
             margin-bottom: 24px;
             padding-bottom: 16px;
-            border-bottom: 1px solid var(--accent-red);
-            box-shadow: 0 1px 0 var(--accent-red-glow);
+            border-bottom: 1px solid var(--accent-purple);
+            box-shadow: 0 1px 0 var(--accent-purple-glow);
         }}
 
         .content-title {{
@@ -735,7 +735,7 @@ def admin_panel():
         .detail-section {{
             margin-bottom: 20px;
             background: var(--bg-primary);
-            border: 1px solid var(--accent-red);
+            border: 1px solid var(--accent-purple);
             border-radius: 6px;
             padding: 16px;
         }}
@@ -764,7 +764,7 @@ def admin_panel():
 
         .evidence-item {{
             position: relative;
-            border: 1px solid var(--accent-red);
+            border: 1px solid var(--accent-purple);
             border-radius: 6px;
             overflow: hidden;
             cursor: pointer;
@@ -772,8 +772,8 @@ def admin_panel():
         }}
 
         .evidence-item:hover {{
-            border-color: var(--accent-red-muted);
-            box-shadow: 0 0 8px var(--accent-red-glow);
+            border-color: var(--accent-purple-muted);
+            box-shadow: 0 0 8px var(--accent-purple-glow);
         }}
 
         .evidence-item img {{
@@ -844,7 +844,7 @@ def admin_panel():
         }}
 
         .close:hover {{
-            color: var(--accent-red);
+            color: var(--accent-purple);
         }}
 
         .empty-state {{
