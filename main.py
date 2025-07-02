@@ -1253,14 +1253,14 @@ caseData.reason.toLowerCase().includes(searchTerm) ||
             fetch(`/api/cases?project=${projectSelector.value}`)
                 .then(response => response.json())
                 .then(newCases => {
-                    if (newCases.length !== lastCaseCount) {
+                    if (newCases.length !== lastCaseCount) {{
                         casesData = newCases;
                         lastCaseCount = newCases.length;
                         applyFilters(); // This will re-render with new cases
                         
                         // Optional: Show notification
                         showNotification(`${newCases.length - lastCaseCount} new case(s) added`);
-                    }
+                    }}
                 })
                 .catch(error => console.error('Error polling for cases:', error));
         }}
