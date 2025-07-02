@@ -317,7 +317,8 @@ def admin_panel():
             'date': str(case['created_at'])[:16] if case['created_at'] else 'Unknown',
             'appealed': case.get('appealed') == 1,
             'details': case.get('details', ''),
-            'evidence': evidence
+            'evidence': evidence,
+            'moderator_note': case.get('moderator_note', '')  # Add moderator notes
         })
 
     # Get staff rank for display
@@ -755,6 +756,21 @@ def admin_panel():
             word-break: break-word;
         }}
 
+        /* Username formatting styles */
+        .username-display {{
+            font-size: 14px;
+        }}
+
+        .username-display .username {{
+            font-weight: bold;
+            color: var(--text-primary);
+        }}
+
+        .username-display .user-id {{
+            color: var(--text-muted);
+            font-weight: normal;
+        }}
+
         .evidence-gallery {{
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -973,6 +989,14 @@ def admin_panel():
         const modalImg = document.getElementById('modal-image');
         const closeModal = document.querySelector('.close');
 
+        function formatUsername(username, userId) {{
+            if (username && username !== 'Unknown User') {{
+                return `<span class="username-display"><span class="username">${{username}}</span> <span class="user-id">(${{userId}})</span></span>`;
+            }} else {{
+                return `<span class="username-display"><span class="user-id">User: ${{userId}}</span></span>`;
+            }}
+        }}
+
         function renderCases() {{
             casesList.innerHTML = '';
             
@@ -1030,10 +1054,6 @@ def admin_panel():
                 return;
             }}
 
-            const userDisplay = caseData.username !== 'Unknown User' ? 
-                `${{caseData.username}} (${{caseData.user_id}})` : 
-                `${{caseData.user}} (ID: ${{caseData.user_id}})`;
-
             let evidenceHtml = '';
             if (caseData.evidence && caseData.evidence.length > 0) {{
                 evidenceHtml = `
@@ -1069,7 +1089,7 @@ def admin_panel():
 
                 <div class="detail-section">
                     <div class="detail-label">Target User</div>
-                    <div class="detail-value">${{userDisplay}}</div>
+                    <div class="detail-value">${{formatUsername(caseData.username, caseData.user_id)}}</div>
                 </div>
 
                 <div class="detail-section">
@@ -1086,6 +1106,13 @@ def admin_panel():
                     <div class="detail-label">Date & Time</div>
                     <div class="detail-value">${{caseData.date}}</div>
                 </div>
+
+                ${{caseData.moderator_note ? `
+                <div class="detail-section">
+                    <div class="detail-label">Moderator Notes</div>
+                    <div class="detail-value">${{caseData.moderator_note}}</div>
+                </div>
+                ` : ''}}
 
                 ${{evidenceHtml}}
 
@@ -1112,10 +1139,12 @@ def admin_panel():
                     caseData.case_id.toString().includes(searchTerm) ||
                     caseData.user.toLowerCase().includes(searchTerm) ||
                     caseData.username.toLowerCase().includes(searchTerm) ||
-                    caseData.reason.toLowerCase().includes(searchTerm) ||
+caseData.reason.toLowerCase().includes(searchTerm) ||
                     caseData.staff.toLowerCase().includes(searchTerm);
 
-                const matchesFilter = activeFilter === 'all' || caseData.type === activeFilter;
+                const matchesFilter = activeFilter === 'all' || 
+                    caseData.type === activeFilter ||
+                    (activeFilter === 'warning' && caseData.type === 'warn');
 
                 return matchesSearch && matchesFilter;
             }});
@@ -1135,10 +1164,9 @@ def admin_panel():
         }});
 
         projectSelector.addEventListener('change', () => {{
-            window.location.href = `/admin?project=${{projectSelector.value}}`;
+            window.location.href = `?project=${{projectSelector.value}}`;
         }});
 
-        // Modal event listeners
         closeModal.addEventListener('click', () => {{
             modal.style.display = 'none';
         }});
@@ -1149,7 +1177,7 @@ def admin_panel():
             }}
         }});
 
-        // Initial render
+        // Initialize
         renderCases();
     </script>
 </body>
