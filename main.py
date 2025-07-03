@@ -309,7 +309,7 @@ def admin_panel():
         
         js_cases.append({
             'case_id': case.get('reference_id', case['user_id']),
-            'type': case.get('punishment_type', 'unknown').lower(),
+            'type': case.get('punishment_type', 'unknown'),
             'user': str(case.get('user_id', 'Unknown')),
             'user_id': case.get('user_id', 'Unknown'),
             'username': case.get('username', 'Unknown User'),
