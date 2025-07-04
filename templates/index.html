@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Themis - Advanced Administration System</title>
@@ -494,7 +492,7 @@
     <header>
         <nav>
             <div class="logo">
-                <img src="https://cdn.discordapp.com/attachments/1237356893635088447/1357800550867140812/themis_logo.png?ex=6864384e&is=6862e6ce&hm=630a64562cc8b6402be751715b532791962c0abf918718b9d40263dbe8c6c7ed&" alt="Themis">
+                <img src="https://cdn.discordapp.com/attachments/1237356893635088447/1357800550867140812/themis_logo.png?ex=6864384e&amp;is=6862e6ce&amp;hm=630a64562cc8b6402be751715b532791962c0abf918718b9d40263dbe8c6c7ed&amp;" alt="Themis">
                 Themis
             </div>
 
@@ -516,7 +514,7 @@
         <!-- Login Modal -->
         <div class="login-modal" id="loginModal">
             <div class="login-content">
-                <button class="close-modal" onclick="closeLoginModal()">&times;</button>
+                <button class="close-modal" onclick="closeLoginModal()">×</button>
                 <h3>Authentication Required</h3>
                 <p class="subtitle">Access restricted to authorized fx-Studios personnel</p>
                 <div class="login-options">
@@ -534,7 +532,7 @@
         <div class="hero-container">
             <div class="hero-content">
                 <h1 id="heroTitle">Themis Administration</h1>
-                <p id="heroDescription">Advanced Discord & Roblox administration system built exclusively by fx-Studios. Cross-platform moderation with seamless integration for elite gaming communities.</p>
+                <p id="heroDescription">Advanced Discord &amp; Roblox administration system built exclusively by fx-Studios. Cross-platform moderation with seamless integration for elite gaming communities.</p>
                 
                 <!-- Private notice for non-authenticated users -->
                 <div class="private-notice" id="privateNotice">
@@ -546,10 +544,13 @@
                     <p><strong>Welcome back, <span id="welcomeUsername">User</span>!</strong> You have access to all administration features and community management tools.</p>
                 </div>
 
+                
                 <div class="hero-buttons">
                     <div class="hero-login" id="heroLoginBtn" onclick="openLoginModal()">Access System</div>
+                    <div class="hero-login" onclick="joinDiscord()">Join Discord</div>
                     <div class="admin-panel-btn hidden" id="adminPanelBtn" onclick="window.location.href='/admin'">Admin Dashboard</div>
                 </div>
+            
             </div>
         </div>
     </section>
@@ -567,7 +568,7 @@
                     <p>Automated moderation tools with custom rule sets, AI-powered content filtering, and comprehensive audit logging.</p>
                 </div>
                 <div class="info-item">
-                    <h3>Analytics & Insights</h3>
+                    <h3>Analytics &amp; Insights</h3>
                     <p>Detailed community analytics, user behavior tracking, and comprehensive reporting for data-driven decisions.</p>
                 </div>
                 <div class="info-item">
@@ -602,7 +603,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 fx-Studios. All rights reserved. Private administration system.</p>
+                <p>© 2024 fx-Studios. All rights reserved. Private administration system.</p>
             </div>
         </div>
     </footer>
@@ -669,6 +670,11 @@
             window.location.href = '/auth/discord';
         }
 
+        // Discord server invite function
+        function joinDiscord() {
+            window.open('https://discord.gg/HAuerMPxmM', '_blank');
+        }
+    
         // Handle OAuth callback (would be called from your backend)
         function handleAuthCallback(userData) {
             setCookie('themis_auth', JSON.stringify(userData), 7); // 7 days
@@ -810,5 +816,5 @@
             }
         });
     </script>
-</body>
-</html>
+
+</body></html>
