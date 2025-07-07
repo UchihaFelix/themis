@@ -696,7 +696,7 @@ def admin_cases():
                 }};
                 // View case detail (fetches from /api/case/discord/<case_id> and shows a modal with all info)
                 function viewCaseDetail(caseId) {{
-                    fetch(`/api/case/discord/${caseId}`)
+                    fetch(`/api/case/discord/${{caseId}}`)
                         .then(res => res.json())
                         .then(data => {{
                             if (data.error) {{
@@ -704,24 +704,24 @@ def admin_cases():
                                 return;
                             }}
                             let html = `<div style='padding:1.5rem 1.2rem 0.5rem 1.2rem;max-width:480px;'>`;
-                            html += `<h2 style='font-size:1.3rem;font-weight:700;margin-bottom:1rem;'>Case #${{data.reference_id || ''}}</h2>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Punishment Type:</b> <span style='background:${{get_type_color(data.punishment_type)}};color:#18181b;padding:0.2em 0.7em;border-radius:6px;font-weight:600;'>${{data.punishment_type || '-'}}</span></div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Status:</b> ${{data.appealed == 1 ? 'Appealed' : 'Active'}}</div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Reason:</b> ${{data.reason || '-'}}</div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Length:</b> ${{data.length || '-'}}</div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Moderator Note:</b> ${{data.moderator_note || '-'}}</div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Discord User ID:</b> ${{data.user_id || '-'}}</div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Discord Username:</b> ${{data.discord_username || '-'}}</div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Roblox User ID:</b> ${{data.roblox_user_id || '-'}}</div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Roblox Username:</b> ${{data.roblox_username || '-'}}</div>`;
+                            html += `<h2 style='font-size:1.3rem;font-weight:700;margin-bottom:1rem;'>Case #${{data.reference_id || ''}}<\/h2>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Punishment Type:</b> <span style='background:${{get_type_color(data.punishment_type)}};color:#18181b;padding:0.2em 0.7em;border-radius:6px;font-weight:600;'>${{data.punishment_type || '-'}}<\/span><\/div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Status:</b> ${{data.appealed == 1 ? 'Appealed' : 'Active'}}<\/div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Reason:</b> ${{data.reason || '-'}}<\/div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Length:</b> ${{data.length || '-'}}<\/div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Moderator Note:</b> ${{data.moderator_note || '-'}}<\/div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Discord User ID:</b> ${{data.user_id || '-'}}<\/div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Discord Username:</b> ${{data.discord_username || '-'}}<\/div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Roblox User ID:</b> ${{data.roblox_user_id || '-'}}<\/div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Roblox Username:</b> ${{data.roblox_username || '-'}}<\/div>`;
                             if (data.evidence && Array.isArray(data.evidence) && data.evidence.length > 0) {{
                                 html += `<div style='margin-bottom:0.7rem;'><b>Evidence:</b><ul style='margin:0.3em 0 0 1.2em;'>`;
                                 for (let url of data.evidence) {{
-                                    html += `<li><a href='${{url}}' target='_blank' style='color:#a977f8;'>${{url}}</a></li>`;
+                                    html += `<li><a href='${{url}}' target='_blank' style='color:#a977f8;'>${{url}}<\/a><\/li>`;
                                 }}
                                 html += `</ul></div>`;
                             }} else if (data.evidence) {{
-                                html += `<div style='margin-bottom:0.7rem;'><b>Evidence:</b> ${{data.evidence}}</div>`;
+                                html += `<div style='margin-bottom:0.7rem;'><b>Evidence:</b> ${{data.evidence}}<\/div>`;
                             }}
                             html += `</div>`;
                             showCaseDetailModal(html);
