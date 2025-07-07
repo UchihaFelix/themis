@@ -1376,7 +1376,7 @@
                     uniform sampler2D u_atlas;
                     void main() {
                         vec4 tex = texture2D(u_atlas, v_uv);
-                        gl_FragColor = vec4(0.0, 1.0, 0.0, tex.a * v_alpha); // green, use alpha from atlas
+                        gl_FragColor = vec4(1.0, 0.0, 1.0, tex.a * v_alpha); // green, use alpha from atlas
                     }
                 `;
             
