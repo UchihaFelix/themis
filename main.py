@@ -643,7 +643,6 @@ def create_modlog():
     Accepts: case_id (reference_id), type, reason, details (moderator_note)
     """
     data = request.get_json()
-    user = session.get('user', {})
     staff_id = user.get('id')
     staff_name = user.get('username', 'Unknown')
     case_id = data.get('case_id')
