@@ -507,16 +507,82 @@
         .hidden {
             display: none !important;
         }
+
+        /* Background Selector Button */
+        .bg-selector {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1001;
+            background: rgba(15, 15, 15, 0.9);
+            border: 1px solid rgba(169, 119, 248, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            backdrop-filter: blur(20px);
+            min-width: 200px;
+        }
+
+        .bg-selector h4 {
+            color: #ffffff;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            text-align: center;
+        }
+
+        .bg-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .bg-option {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            color: #ffffff;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .bg-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(169, 119, 248, 0.4);
+        }
+
+        .bg-option.active {
+            background: rgba(169, 119, 248, 0.15);
+            border-color: rgba(169, 119, 248, 0.5);
+            color: #a977f8;
+        }
+
+        @media (max-width: 768px) {
+            .bg-selector {
+                bottom: 1rem;
+                right: 1rem;
+                min-width: 150px;
+            }
+        }
     </style>
 </head>
 <body>
-    <canvas id="webglCanvas"></canvas>
+    <canvas id="webglCanvas" width="885" height="997"></canvas>
     <div class="interaction-overlay"></div>
+    <div class="bg-selector">
+        <h4>Background</h4>
+        <div class="bg-options">
+            <div class="bg-option active" data-bg="particles">Neural Network</div>
+            <div class="bg-option" data-bg="matrix">Matrix Rain</div>
+            <div class="bg-option" data-bg="geometric">Geometric</div>
+        </div>
+    </div>
     <!-- Header -->
     <header>
         <nav>
             <div class="logo">
-                <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
+                <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&amp;is=686b5d5a&amp;hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&amp;" alt="Themis">
                 Themis
             </div>
 
@@ -619,206 +685,824 @@
             </div>
         </div>
     </footer>
-
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const canvas = document.getElementById('webglCanvas');
-        const gl = canvas.getContext('webgl');
-        if (!gl) return console.error('WebGL not supported');
-
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        gl.viewport(0, 0, canvas.width, canvas.height);
-
-        const count = 1000;
-        const positions = new Float32Array(count * 2);
-        const velocities = new Float32Array(count * 2);
-
-        for (let i = 0; i < count; i++) {
-            positions[i*2] = Math.random() * canvas.width;
-            positions[i*2+1] = Math.random() * canvas.height;
-            velocities[i*2] = (Math.random() - 0.5) * 60;
-            velocities[i*2+1] = (Math.random() - 0.5) * 60;
-        }
-
-        let mouse = { x: canvas.width/2, y: canvas.height/2 };
-        window.addEventListener('mousemove', e => {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-        });
-
-        const densityMap = new Float32Array(canvas.width * canvas.height);
-
-        const vsSource = `
-            attribute vec2 aPosition;
-            void main() {
-                gl_Position = vec4(aPosition, 0.0, 1.0);
-                gl_PointSize = 4.0;
-            }
-        `;
-        const fsSource = `
-            precision mediump float;
-            void main() {
-                float d = distance(gl_PointCoord, vec2(0.5));
-                if (d > 0.5) discard;
-                float intensity = 1.0 - smoothstep(0.0, 0.5, d);
-                gl_FragColor = vec4(vec3(0.66, 0.46, 0.97) * intensity, intensity);
-            }
-        `;
-
-        function compileShader(type, source) {
-            const shader = gl.createShader(type);
-            gl.shaderSource(shader, source);
-            gl.compileShader(shader);
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                console.error('Shader compile failed:', gl.getShaderInfoLog(shader));
-            }
-            return shader;
-        }
-
-        const vertexShader = compileShader(gl.VERTEX_SHADER, vsSource);
-        const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fsSource);
-        const program = gl.createProgram();
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            console.error('Program link failed:', gl.getProgramInfoLog(program));
-        }
-        gl.useProgram(program);
-
-        const positionAttrib = gl.getAttribLocation(program, 'aPosition');
-        const buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        gl.enableVertexAttribArray(positionAttrib);
-        gl.vertexAttribPointer(positionAttrib, 2, gl.FLOAT, false, 0, 0);
-
-        const MAX_SPEED = 200;
-        const DAMPING = 0.999;
-        const GRAVITY_SENSITIVITY = 100;
-        const DENSITY_FACTOR = 50;
-
-        function simulatePhysics(dt) {
-            // Clear density map
-            densityMap.fill(0);
-
-            // Update density map
-            for (let i = 0; i < count; i++) {
-                const xi = Math.floor(positions[i*2]);
-                const yi = Math.floor(positions[i*2+1]);
-                if (xi >= 0 && xi < canvas.width && yi >= 0 && yi < canvas.height) {
-                    densityMap[yi * canvas.width + xi] += 1;
-                }
-            }
-
-            for (let i = 0; i < count; i++) {
-                let x = positions[i*2];
-                let y = positions[i*2+1];
-                let vx = velocities[i*2];
-                let vy = velocities[i*2+1];
-
-                if (x <= 0 || x >= canvas.width) vx *= -1;
-                if (y <= 0 || y >= canvas.height) vy *= -1;
-
-                const dx = x - mouse.x;
-                const dy = y - mouse.y;
-                const distSq = dx*dx + dy*dy;
-                if (distSq < 100000) {
-                    const force = 70000 / (distSq + 1);
-                    const fx = (dx / Math.sqrt(distSq + 1)) * force;
-                    const fy = (dy / Math.sqrt(distSq + 1)) * force;
-                    vx += fx * dt;
-                    vy += fy * dt;
-                }
-
-                for (let j = 0; j < count; j++) {
-                    if (i === j) continue;
-                    const dx2 = positions[j*2] - x;
-                    const dy2 = positions[j*2+1] - y;
-                    const dist2 = dx2 * dx2 + dy2 * dy2;
-                    const minDist = 4.0;
-                    if (dist2 > 0 && dist2 < minDist * minDist) {
-                        const factor = 0.2;
-                        vx -= dx2 * factor * dt;
-                        vy -= dy2 * factor * dt;
-                    }
-                }
-
-                // Gravitate to emptier zones
-                const sampleOffsets = [
-                    [-10, 0], [10, 0], [0, -10], [0, 10],
-                    [-10, -10], [10, -10], [-10, 10], [10, 10]
-                ];
-                let gx = 0;
-                let gy = 0;
-                const cx = Math.floor(x);
-                const cy = Math.floor(y);
-                const baseDensity = densityMap[cy * canvas.width + cx] || 0;
-                for (const [ox, oy] of sampleOffsets) {
-                    const sx = cx + ox;
-                    const sy = cy + oy;
-                    if (sx >= 0 && sx < canvas.width && sy >= 0 && sy < canvas.height) {
-                        const nearbyDensity = densityMap[sy * canvas.width + sx];
-                        const delta = baseDensity - nearbyDensity;
-                        gx += delta * ox * DENSITY_FACTOR;
-                        gy += delta * oy * DENSITY_FACTOR;
-                    }
-                }
-                vx += gx * GRAVITY_SENSITIVITY * dt * 0.01;
-                vy += gy * GRAVITY_SENSITIVITY * dt * 0.01;
-
-                vx *= DAMPING;
-                vy *= DAMPING;
-
-                const speed = Math.sqrt(vx * vx + vy * vy);
-                if (speed > MAX_SPEED) {
-                    vx = (vx / speed) * MAX_SPEED;
-                    vy = (vy / speed) * MAX_SPEED;
-                }
-
-                x += vx * dt;
-                y += vy * dt;
-
-                positions[i*2] = Math.max(0, Math.min(canvas.width, x));
-                positions[i*2+1] = Math.max(0, Math.min(canvas.height, y));
-                velocities[i*2] = vx;
-                velocities[i*2+1] = vy;
-            }
-        }
-
-        function render() {
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.clearColor(0, 0, 0, 0);
-            gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-
-            const pointData = new Float32Array(count * 2);
-            for (let i = 0; i < count; i++) {
-                pointData[i*2] = (positions[i*2] / canvas.width) * 2 - 1;
-                pointData[i*2+1] = (positions[i*2+1] / canvas.height) * -2 + 1;
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-            gl.bufferData(gl.ARRAY_BUFFER, pointData, gl.DYNAMIC_DRAW);
-            gl.vertexAttribPointer(positionAttrib, 2, gl.FLOAT, false, 0, 0);
-            gl.drawArrays(gl.POINTS, 0, count);
-        }
-
-        let last = performance.now();
-        function loop() {
-            const now = performance.now();
-            const dt = Math.min((now - last) / 1000, 0.1);
-            last = now;
-            simulatePhysics(dt);
-            render();
-            requestAnimationFrame(loop);
-        }
-
-        loop();
-    });
-    </script>
     
     <script>
+        // Background Visualization Manager
+        class BackgroundManager {
+            constructor() {
+                this.canvas = document.getElementById('webglCanvas');
+                this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+                this.currentVisualization = null;
+                this.visualizations = {};
+                this.currentType = 'particles';
+                
+                if (!this.gl) {
+                    console.warn('WebGL not supported');
+                    return;
+                }
+                
+                this.initVisualizations();
+                this.initUI();
+                this.start();
+            }
+            
+            initVisualizations() {
+                // Register all visualization types
+                this.visualizations = {
+                    particles: new ParticleVisualization(this.gl, this.canvas),
+                    matrix: new MatrixVisualization(this.gl, this.canvas),
+                    geometric: new GeometricVisualization(this.gl, this.canvas)
+                };
+            }
+            
+            initUI() {
+                const options = document.querySelectorAll('.bg-option');
+                options.forEach(option => {
+                    option.addEventListener('click', () => {
+                        const bgType = option.dataset.bg;
+                        this.switchVisualization(bgType);
+                        
+                        // Update UI
+                        options.forEach(opt => opt.classList.remove('active'));
+                        option.classList.add('active');
+                    });
+                });
+            }
+            
+            switchVisualization(type) {
+                if (this.currentVisualization) {
+                    this.currentVisualization.cleanup();
+                }
+                
+                this.currentType = type;
+                this.currentVisualization = this.visualizations[type];
+                
+                if (this.currentVisualization) {
+                    this.currentVisualization.init();
+                }
+            }
+            
+            start() {
+                this.resizeCanvas();
+                this.switchVisualization(this.currentType);
+                
+                window.addEventListener('resize', () => this.resizeCanvas());
+                this.render();
+            }
+            
+            resizeCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+                this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Notify current visualization of resize
+                if (this.currentVisualization) {
+                    this.currentVisualization.resize();
+                }
+            }
+            
+            render() {
+                if (this.currentVisualization) {
+                    this.currentVisualization.render();
+                }
+                
+                requestAnimationFrame(() => this.render());
+            }
+        }
+
+        // Base Visualization Class
+        class BaseVisualization {
+            constructor(gl, canvas) {
+                this.gl = gl;
+                this.canvas = canvas;
+                this.mouse = { x: 0, y: 0, isMoving: false };
+                this.time = 0;
+                this.programs = {};
+                this.buffers = {};
+                this.isInitialized = false;
+            }
+            
+            init() {
+                if (!this.isInitialized) {
+                    this.createShaders();
+                    this.createBuffers();
+                    this.setupEventListeners();
+                    this.isInitialized = true;
+                }
+                this.reset();
+            }
+            
+            createShaders() {
+                // Override in subclasses
+            }
+            
+            createBuffers() {
+                // Override in subclasses  
+            }
+            
+            setupEventListeners() {
+                this.canvas.addEventListener('mousemove', (e) => this.updateMouse(e));
+                this.canvas.addEventListener('mouseenter', () => { this.mouse.isMoving = true; });
+                this.canvas.addEventListener('mouseleave', () => { this.mouse.isMoving = false; });
+            }
+            
+            updateMouse(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                this.mouse.x = e.clientX - rect.left;
+                this.mouse.y = e.clientY - rect.top;
+                this.mouse.isMoving = true;
+                
+                clearTimeout(this.mouse.timeout);
+                this.mouse.timeout = setTimeout(() => {
+                    this.mouse.isMoving = false;
+                }, 100);
+            }
+            
+            reset() {
+                // Override in subclasses
+            }
+            
+            resize() {
+                // Override in subclasses
+            }
+            
+            render() {
+                this.time = Date.now();
+                
+                this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
+                this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+                this.gl.enable(this.gl.BLEND);
+                this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+                
+                this.draw();
+            }
+            
+            draw() {
+                // Override in subclasses
+            }
+            
+            cleanup() {
+                // Override in subclasses
+            }
+            
+            createShader(type, source) {
+                const shader = this.gl.createShader(type);
+                this.gl.shaderSource(shader, source);
+                this.gl.compileShader(shader);
+                
+                if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+                    console.error('Shader compilation error:', this.gl.getShaderInfoLog(shader));
+                    this.gl.deleteShader(shader);
+                    return null;
+                }
+                
+                return shader;
+            }
+            
+            createProgram(vertexShader, fragmentShader) {
+                const program = this.gl.createProgram();
+                this.gl.attachShader(program, vertexShader);
+                this.gl.attachShader(program, fragmentShader);
+                this.gl.linkProgram(program);
+                
+                if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
+                    console.error('Program linking error:', this.gl.getProgramInfoLog(program));
+                    this.gl.deleteProgram(program);
+                    return null;
+                }
+                
+                return program;
+            }
+        }
+
+        // Particle Visualization (your existing one)
+        class ParticleVisualization extends BaseVisualization {
+            constructor(gl, canvas) {
+                super(gl, canvas);
+                this.particles = [];
+                this.PARTICLE_COUNT = 150;
+                this.CONNECTION_DISTANCE = 120;
+                this.MOUSE_INFLUENCE_RADIUS = 150;
+                this.PARTICLE_SIZE = 2.0;
+                this.SEPARATION_DISTANCE = 45;
+                this.SEPARATION_FORCE = 0.002;
+            }
+            
+            createShaders() {
+                const vertexShaderSource = `
+                    attribute vec2 a_position;
+                    attribute float a_size;
+                    attribute float a_alpha;
+                    
+                    uniform vec2 u_resolution;
+                    uniform float u_time;
+                    
+                    varying float v_alpha;
+                    
+                    void main() {
+                        vec2 position = a_position / u_resolution * 2.0 - 1.0;
+                        position.y *= -1.0;
+                        
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        gl_PointSize = a_size;
+                        v_alpha = a_alpha;
+                    }
+                `;
+
+                const fragmentShaderSource = `
+                    precision mediump float;
+                    
+                    uniform vec3 u_color;
+                    varying float v_alpha;
+                    
+                    void main() {
+                        float dist = length(gl_PointCoord - vec2(0.5));
+                        float alpha = smoothstep(0.5, 0.0, dist);
+                        gl_FragColor = vec4(u_color, alpha * v_alpha);
+                    }
+                `;
+
+                const lineVertexShaderSource = `
+                    attribute vec2 a_position;
+                    attribute float a_alpha;
+                    
+                    uniform vec2 u_resolution;
+                    
+                    varying float v_alpha;
+                    
+                    void main() {
+                        vec2 position = a_position / u_resolution * 2.0 - 1.0;
+                        position.y *= -1.0;
+                        
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        v_alpha = a_alpha;
+                    }
+                `;
+
+                const lineFragmentShaderSource = `
+                    precision mediump float;
+                    
+                    uniform vec3 u_color;
+                    varying float v_alpha;
+                    
+                    void main() {
+                        gl_FragColor = vec4(u_color, v_alpha);
+                    }
+                `;
+
+                const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexShaderSource);
+                const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+                this.programs.particle = this.createProgram(vertexShader, fragmentShader);
+
+                const lineVertexShader = this.createShader(this.gl.VERTEX_SHADER, lineVertexShaderSource);
+                const lineFragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, lineFragmentShaderSource);
+                this.programs.line = this.createProgram(lineVertexShader, lineFragmentShader);
+
+                // Get locations
+                this.particleLocations = {
+                    position: this.gl.getAttribLocation(this.programs.particle, 'a_position'),
+                    size: this.gl.getAttribLocation(this.programs.particle, 'a_size'),
+                    alpha: this.gl.getAttribLocation(this.programs.particle, 'a_alpha'),
+                    resolution: this.gl.getUniformLocation(this.programs.particle, 'u_resolution'),
+                    color: this.gl.getUniformLocation(this.programs.particle, 'u_color'),
+                    time: this.gl.getUniformLocation(this.programs.particle, 'u_time')
+                };
+
+                this.lineLocations = {
+                    position: this.gl.getAttribLocation(this.programs.line, 'a_position'),
+                    alpha: this.gl.getAttribLocation(this.programs.line, 'a_alpha'),
+                    resolution: this.gl.getUniformLocation(this.programs.line, 'u_resolution'),
+                    color: this.gl.getUniformLocation(this.programs.line, 'u_color')
+                };
+            }
+            
+            createBuffers() {
+                this.buffers.particlePosition = this.gl.createBuffer();
+                this.buffers.particleSize = this.gl.createBuffer();
+                this.buffers.particleAlpha = this.gl.createBuffer();
+                this.buffers.linePosition = this.gl.createBuffer();
+                this.buffers.lineAlpha = this.gl.createBuffer();
+            }
+            
+            reset() {
+                this.particles = [];
+                for (let i = 0; i < this.PARTICLE_COUNT; i++) {
+                    this.particles.push(new Particle(this.canvas));
+                }
+            }
+            
+            draw() {
+                // Update particles
+                this.particles.forEach(particle => {
+                    particle.update(this.particles, this.mouse, this.time, this.canvas, {
+                        CONNECTION_DISTANCE: this.CONNECTION_DISTANCE,
+                        MOUSE_INFLUENCE_RADIUS: this.MOUSE_INFLUENCE_RADIUS,
+                        SEPARATION_DISTANCE: this.SEPARATION_DISTANCE,
+                        SEPARATION_FORCE: this.SEPARATION_FORCE
+                    });
+                    particle.findConnections(this.particles, this.CONNECTION_DISTANCE);
+                });
+
+                // Render connections
+                const linePositions = [];
+                const lineAlphas = [];
+                
+                this.particles.forEach(particle => {
+                    particle.connections.forEach(connection => {
+                        linePositions.push(particle.x, particle.y);
+                        linePositions.push(connection.particle.x, connection.particle.y);
+                        lineAlphas.push(connection.alpha);
+                        lineAlphas.push(connection.alpha);
+                    });
+                });
+
+                if (linePositions.length > 0) {
+                    this.gl.useProgram(this.programs.line);
+                    
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.linePosition);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(linePositions), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.lineLocations.position);
+                    this.gl.vertexAttribPointer(this.lineLocations.position, 2, this.gl.FLOAT, false, 0, 0);
+
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.lineAlpha);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(lineAlphas), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.lineLocations.alpha);
+                    this.gl.vertexAttribPointer(this.lineLocations.alpha, 1, this.gl.FLOAT, false, 0, 0);
+
+                    this.gl.uniform2f(this.lineLocations.resolution, this.canvas.width, this.canvas.height);
+                    this.gl.uniform3f(this.lineLocations.color, 0.663, 0.467, 0.973);
+
+                    this.gl.drawArrays(this.gl.LINES, 0, linePositions.length / 2);
+                }
+
+                // Render particles
+                this.gl.useProgram(this.programs.particle);
+                
+                const positions = [];
+                const sizes = [];
+                const alphas = [];
+                
+                this.particles.forEach(particle => {
+                    positions.push(particle.x, particle.y);
+                    sizes.push(particle.size);
+                    alphas.push(particle.alpha);
+                });
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.particlePosition);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.DYNAMIC_DRAW);
+                this.gl.enableVertexAttribArray(this.particleLocations.position);
+                this.gl.vertexAttribPointer(this.particleLocations.position, 2, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.particleSize);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(sizes), this.gl.DYNAMIC_DRAW);
+                this.gl.enableVertexAttribArray(this.particleLocations.size);
+                this.gl.vertexAttribPointer(this.particleLocations.size, 1, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.particleAlpha);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(alphas), this.gl.DYNAMIC_DRAW);
+                this.gl.enableVertexAttribArray(this.particleLocations.alpha);
+                this.gl.vertexAttribPointer(this.particleLocations.alpha, 1, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.uniform2f(this.particleLocations.resolution, this.canvas.width, this.canvas.height);
+                this.gl.uniform3f(this.particleLocations.color, 0.8, 0.8, 0.9);
+                this.gl.uniform1f(this.particleLocations.time, this.time);
+
+                this.gl.drawArrays(this.gl.POINTS, 0, this.particles.length);
+            }
+        }
+
+        // Particle class (extracted from your existing code)
+        class Particle {
+            constructor(canvas) {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.size = 2.0 + Math.random() * 2;
+                this.alpha = 0.3 + Math.random() * 0.4;
+                this.baseAlpha = this.alpha;
+                this.connections = [];
+            }
+
+            update(particles, mouse, time, canvas, config) {
+                let separationForceX = 0;
+                let separationForceY = 0;
+                let separationCount = 0;
+
+                for (let i = 0; i < particles.length; i++) {
+                    const other = particles[i];
+                    if (other === this) continue;
+                    
+                    const dx = this.x - other.x;
+                    const dy = this.y - other.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < config.SEPARATION_DISTANCE && distance > 0) {
+                        const force = (config.SEPARATION_DISTANCE - distance) / config.SEPARATION_DISTANCE;
+                        const normalizedX = dx / distance;
+                        const normalizedY = dy / distance;
+                        
+                        separationForceX += normalizedX * force;
+                        separationForceY += normalizedY * force;
+                        separationCount++;
+                    }
+                }
+
+                if (separationCount > 0) {
+                    separationForceX = (separationForceX / separationCount) * config.SEPARATION_FORCE;
+                    separationForceY = (separationForceY / separationCount) * config.SEPARATION_FORCE;
+                    
+                    this.vx += separationForceX;
+                    this.vy += separationForceY;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (mouse.isMoving) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < config.MOUSE_INFLUENCE_RADIUS) {
+                        const force = (config.MOUSE_INFLUENCE_RADIUS - distance) / config.MOUSE_INFLUENCE_RADIUS;
+                        this.vx += dx * force * 0.0001;
+                        this.vy += dy * force * 0.0001;
+                        this.alpha = Math.min(1.0, this.baseAlpha + force * 0.5);
+                    } else {
+                        this.alpha = this.baseAlpha;
+                    }
+                } else {
+                    this.alpha = this.baseAlpha;
+                }
+
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+
+                this.y += Math.sin(time * 0.001 + this.x * 0.01) * 0.1;
+            }
+
+            findConnections(particles, connectionDistance) {
+                this.connections = [];
+                
+                for (let i = 0; i < particles.length; i++) {
+                    const other = particles[i];
+                    if (other === this) continue;
+                    
+                    const dx = this.x - other.x;
+                    const dy = this.y - other.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < connectionDistance) {
+                        const alpha = 1.0 - (distance / connectionDistance);
+                        this.connections.push({
+                            particle: other,
+                            alpha: alpha * 0.15
+                        });
+                    }
+                }
+            }
+        }
+
+        // Geometric Visualization
+        class GeometricVisualization extends BaseVisualization {
+            constructor(gl, canvas) {
+                super(gl, canvas);
+                this.shapes = [];
+                this.SHAPE_COUNT = 15;
+            }
+            
+            createShaders() {
+                const vertexShaderSource = `
+                    attribute vec2 a_position;
+                    attribute float a_alpha;
+                    uniform vec2 u_resolution;
+                    uniform float u_time;
+                    
+                    varying float v_alpha;
+                    
+                    void main() {
+                        vec2 position = a_position / u_resolution * 2.0 - 1.0;
+                        position.y *= -1.0;
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        v_alpha = a_alpha;
+                    }
+                `;
+
+                const fragmentShaderSource = `
+                    precision mediump float;
+                    
+                    varying float v_alpha;
+                    
+                    void main() {
+                        gl_FragColor = vec4(0.6, 0.4, 1.0, v_alpha);
+                    }
+                `;
+
+                const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexShaderSource);
+                const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+                this.programs.geometric = this.createProgram(vertexShader, fragmentShader);
+
+                this.locations = {
+                    position: this.gl.getAttribLocation(this.programs.geometric, 'a_position'),
+                    alpha: this.gl.getAttribLocation(this.programs.geometric, 'a_alpha'),
+                    resolution: this.gl.getUniformLocation(this.programs.geometric, 'u_resolution'),
+                    time: this.gl.getUniformLocation(this.programs.geometric, 'u_time')
+                };
+            }
+            
+            createBuffers() {
+                this.buffers.position = this.gl.createBuffer();
+                this.buffers.alpha = this.gl.createBuffer();
+            }
+            
+            reset() {
+                this.shapes = [];
+                for (let i = 0; i < this.SHAPE_COUNT; i++) {
+                    this.shapes.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        size: Math.random() * 50 + 20,
+                        rotation: Math.random() * Math.PI * 2,
+                        rotationSpeed: (Math.random() - 0.5) * 0.02,
+                        alpha: Math.random() * 0.5 + 0.2
+                    });
+                }
+            }
+            
+            draw() {
+                const positions = [];
+                const alphas = [];
+                
+                this.shapes.forEach(shape => {
+                    shape.rotation += shape.rotationSpeed;
+                    
+                    // Create a simple diamond shape
+                    const cos = Math.cos(shape.rotation);
+                    const sin = Math.sin(shape.rotation);
+                    const size = shape.size;
+                    
+                    const vertices = [
+                        { x: 0, y: -size },
+                        { x: size, y: 0 },
+                        { x: 0, y: size },
+                        { x: -size, y: 0 }
+                    ];
+                    
+                    // Create triangles for the diamond
+                    for (let i = 0; i < 4; i++) {
+                        const next = (i + 1) % 4;
+                        
+                        // Center point
+                        positions.push(shape.x, shape.y);
+                        
+                        // First vertex
+                        const x1 = vertices[i].x * cos - vertices[i].y * sin + shape.x;
+                        const y1 = vertices[i].x * sin + vertices[i].y * cos + shape.y;
+                        positions.push(x1, y1);
+                        
+                        // Second vertex
+                        const x2 = vertices[next].x * cos - vertices[next].y * sin + shape.x;
+                        const y2 = vertices[next].x * sin + vertices[next].y * cos + shape.y;
+                        positions.push(x2, y2);
+                        
+                        // Alpha for all three vertices
+                        alphas.push(shape.alpha, shape.alpha, shape.alpha);
+                    }
+                });
+                
+                if (positions.length > 0) {
+                    this.gl.useProgram(this.programs.geometric);
+                    
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.position);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.locations.position);
+                    this.gl.vertexAttribPointer(this.locations.position, 2, this.gl.FLOAT, false, 0, 0);
+                    
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.alpha);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(alphas), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.locations.alpha);
+                    this.gl.vertexAttribPointer(this.locations.alpha, 1, this.gl.FLOAT, false, 0, 0);
+                    
+                    this.gl.uniform2f(this.locations.resolution, this.canvas.width, this.canvas.height);
+                    this.gl.uniform1f(this.locations.time, this.time * 0.001);
+                    
+                    this.gl.drawArrays(this.gl.TRIANGLES, 0, positions.length / 2);
+                }
+            }
+        }
+
+        // Matrix Rain Visualization
+        class MatrixVisualization extends BaseVisualization {
+            constructor(gl, canvas) {
+                super(gl, canvas);
+                this.drops = [];
+                this.COLUMN_COUNT = 50;
+            }
+            
+            createShaders() {
+                const vertexShaderSource = `
+                    attribute vec2 a_position;
+                    attribute float a_alpha;
+                    attribute vec2 a_uv;
+                    uniform vec2 u_resolution;
+                    
+                    varying float v_alpha;
+                    varying vec2 v_uv;
+                    
+                    void main() {
+                        vec2 position = a_position / u_resolution * 2.0 - 1.0;
+                        position.y *= -1.0;
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        v_alpha = a_alpha;
+                        v_uv = a_uv;
+                    }
+                `;
+            
+                const fragmentShaderSource = `
+                    precision mediump float;
+                    varying float v_alpha;
+                    varying vec2 v_uv;
+                    uniform sampler2D u_atlas;
+                    void main() {
+                        vec4 tex = texture2D(u_atlas, v_uv);
+                        gl_FragColor = vec4(0.0, 1.0, 0.0, tex.a * v_alpha); // green, use alpha from atlas
+                    }
+                `;
+            
+                const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexShaderSource);
+                const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+                this.programs.matrix = this.createProgram(vertexShader, fragmentShader);
+            
+                this.locations = {
+                    position: this.gl.getAttribLocation(this.programs.matrix, 'a_position'),
+                    alpha: this.gl.getAttribLocation(this.programs.matrix, 'a_alpha'),
+                    uv: this.gl.getAttribLocation(this.programs.matrix, 'a_uv'),
+                    resolution: this.gl.getUniformLocation(this.programs.matrix, 'u_resolution')
+                };
+            }
+            
+            createBuffers() {
+                this.buffers.position = this.gl.createBuffer();
+                this.buffers.alpha = this.gl.createBuffer();
+            }
+            
+            reset() {
+                this.drops = [];
+                const columnWidth = this.canvas.width / this.COLUMN_COUNT;
+                
+                for (let i = 0; i < this.COLUMN_COUNT; i++) {
+                    this.drops.push({
+                        x: i * columnWidth,
+                        y: Math.random() * -500,
+                        speed: Math.random() * 3 + 1,
+                        length: Math.random() * 20 + 10
+                    });
+                }
+            }
+            
+            draw() {
+                if (!this.atlasTexture) {
+                    // Only load the atlas once
+                    this.atlasTexture = this.gl.createTexture();
+                    this.atlasImage = new Image();
+                    this.atlasImage.crossOrigin = 'anonymous';
+                    this.atlasImage.onload = () => {
+                        this.gl.bindTexture(this.gl.TEXTURE_2D, this.atlasTexture);
+                        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.atlasImage);
+                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+                        this.atlasReady = true;
+                    };
+                    // Replace this URL with your actual atlas image URL
+                    this.atlasImage.src = 'https://media.discordapp.net/attachments/1375821722657492993/1391883562432729309/atlas.png?ex=686d8415&is=686c3295&hm=bbe5c0b4eb86efcc8131b5889c4029857a50a1797882ce53cef8b7d50deb5ef4&=';
+                    this.atlasReady = false;
+                }
+                if (!this.atlasReady) return;
+
+                // Matrix rain logic
+                const positions = [];
+                const alphas = [];
+                const uvs = [];
+                // Atlas parameters (adjust to your atlas)
+                const charCols = 36; // Number of columns in the atlas
+                const charRows = 3;  // Number of rows in the atlas
+                const charWidth = 8;  // Width of each char in px
+                const charHeight = 8; // Height of each char in px
+                const atlasWidth = 256;  // Atlas image width in px
+                const atlasHeight = 24; // Atlas image height in px
+
+                // For random char selection
+                const charCount = charCols * charRows;
+
+                // Used for quad generation
+                const charsPerRow = charCols;
+                const charsPerCol = charRows;
+                const charSizeX = charWidth;
+                const charSizeY = charHeight;
+
+                // Use delta time for consistent speed
+                if (!this.lastTime) this.lastTime = performance.now();
+                const now = performance.now();
+                const delta = (now - this.lastTime) / 1000; // seconds
+                this.lastTime = now;
+
+                this.drops.forEach(drop => {
+                    // Lower the speed multiplier for more reasonable movement
+                    drop.y += drop.speed * 50 * delta;
+                    if (drop.y > this.canvas.height + drop.length * charHeight) {
+                        drop.y = -Math.random() * 500;
+                        drop.length = Math.random() * 20 + 10;
+                        drop.speed = Math.random() * 3 + 1;
+                    }
+                    for (let i = 0; i < drop.length; i++) {
+                        const px = drop.x;
+                        const py = drop.y - i * charHeight;
+                        if (py < 0 || py > this.canvas.height) continue;
+
+                        // Pick a random char from the atlas
+                        const charIndex = Math.floor(Math.random() * charCount);
+                        const u = (charIndex % charsPerRow) * charWidth / atlasWidth;
+                        const v = Math.floor(charIndex / charsPerRow) * charHeight / atlasHeight;
+                        const uSize = charWidth / atlasWidth;
+                        const vSize = charHeight / atlasHeight;
+
+                        // Quad for the character
+                        // 2 triangles (6 vertices)
+                        const alpha = Math.max(0.1, 1.0 - i / drop.length);
+
+                        // Top-left
+                        positions.push(px, py);
+                        alphas.push(alpha);
+                        uvs.push(u, v);
+
+                        // Bottom-left
+                        positions.push(px, py + charHeight);
+                        alphas.push(alpha);
+                        uvs.push(u, v + vSize);
+
+                        // Bottom-right
+                        positions.push(px + charWidth, py + charHeight);
+                        alphas.push(alpha);
+                        uvs.push(u + uSize, v + vSize);
+
+                        // Top-left
+                        positions.push(px, py);
+                        alphas.push(alpha);
+                        uvs.push(u, v);
+
+                        // Bottom-right
+                        positions.push(px + charWidth, py + charHeight);
+                        alphas.push(alpha);
+                        uvs.push(u + uSize, v + vSize);
+
+                        // Top-right
+                        positions.push(px + charWidth, py);
+                        alphas.push(alpha);
+                        uvs.push(u + uSize, v);
+                    }
+                });
+
+                if (positions.length > 0) {
+                    this.gl.useProgram(this.programs.matrix);
+
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.position);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.locations.position);
+                    this.gl.vertexAttribPointer(this.locations.position, 2, this.gl.FLOAT, false, 0, 0);
+
+                    if (!this.buffers.uv) this.buffers.uv = this.gl.createBuffer();
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.uv);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(uvs), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.locations.uv);
+                    this.gl.vertexAttribPointer(this.locations.uv, 2, this.gl.FLOAT, false, 0, 0);
+
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.alpha);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(alphas), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.locations.alpha);
+                    this.gl.vertexAttribPointer(this.locations.alpha, 1, this.gl.FLOAT, false, 0, 0);
+
+                    this.gl.uniform2f(this.locations.resolution, this.canvas.width, this.canvas.height);
+
+                    // Bind atlas texture
+                    this.gl.activeTexture(this.gl.TEXTURE0);
+                    this.gl.bindTexture(this.gl.TEXTURE_2D, this.atlasTexture);
+                    const uAtlasLoc = this.gl.getUniformLocation(this.programs.matrix, 'u_atlas');
+                    this.gl.uniform1i(uAtlasLoc, 0);
+
+                    this.gl.drawArrays(this.gl.TRIANGLES, 0, positions.length / 2);
+                }
+            }
+        }
+
         // Cookie utility functions
         function setCookie(name, value, days) {
             const expires = new Date();
@@ -987,6 +1671,8 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            const backgroundManager = new BackgroundManager();
+
             checkAuthStatus();
             
             // Check for auth token in URL (OAuth callback)
@@ -1025,7 +1711,6 @@
                 closeLoginModal();
             }
         });
+
     </script>
-
-
 </body></html>
