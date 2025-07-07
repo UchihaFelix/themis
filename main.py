@@ -398,6 +398,7 @@ def admin_dashboard():
     user = session['user']
     staff_rank = user.get('staff_info', {}).get('role', 'Staff')
     rank_color = RANK_COLORS.get(staff_rank, '#a977f8')
+    # ...existing code...
     html = f'''
     <!DOCTYPE html>
     <html lang="en">
@@ -405,24 +406,27 @@ def admin_dashboard():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Themis Admin Dashboard</title>
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
         <style>
-            body {{ background: #0a0a0a; color: #fff; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
-            .sidebar {{ position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: #161b22; border-right: 1px solid #a977f8; display: flex; flex-direction: column; z-index: 100; }}
-            .sidebar a {{ color: #fff; text-decoration: none; padding: 1.2rem 2rem; font-size: 1.1rem; border-left: 4px solid transparent; transition: background 0.2s, border-color 0.2s; }}
-            .sidebar a.active, .sidebar a:hover {{ background: #23232b; border-left: 4px solid #a977f8; }}
-            .main {{ margin-left: 220px; padding: 2rem; }}
-            .dashboard-title {{ font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
-            .dashboard-subtitle {{ color: #a0a0a0; font-size: 1.125rem; margin-bottom: 2rem; }}
+            body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #ffffff; background: #0a0a0a; overflow-x: hidden; }}
+            header {{ position: fixed; top: 0; width: 100%; background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(20px); z-index: 1000; border-bottom: 1px solid rgba(169, 119, 248, 0.3); }}
+            nav {{ max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; }}
+            .logo {{ font-size: 1.5rem; font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 0.75rem; letter-spacing: -0.02em; }}
+            .logo img {{ width: 28px; height: 28px; border-radius: 6px; }}
+            .nav-links {{ display: flex; align-items: center; gap: 1rem; }}
+            .admin-btn {{ background: rgba(255, 255, 255, 0.06); color: #fff; padding: 0.5rem 1rem; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; text-decoration: none; transition: all 0.2s ease; font-weight: 500; font-size: 0.875rem; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }}
+            .admin-btn:hover {{ background: rgba(169, 119, 248, 0.1); border-color: rgba(169, 119, 248, 0.4); transform: translateY(-1px); }}
+            .main-content {{ max-width: 1200px; margin: 0 auto; padding: 6rem 2rem 2rem 2rem; }}
+            .dashboard-title {{ font-size: clamp(3rem, 8vw, 5.5rem); font-weight: 700; margin-bottom: 1.5rem; letter-spacing: -0.04em; line-height: 0.95; background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
+            .dashboard-subtitle {{ color: #a0a0a0; font-size: 1.125rem; margin-bottom: 2rem; max-width: 600px; line-height: 1.6; font-weight: 400; }}
             .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }}
-            .stat-card {{ background: #18181b; border: 1px solid #23232b; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px #a977f81a; }}
+            .stat-card {{ background: rgba(169, 119, 248, 0.05); border: 1px solid rgba(169, 119, 248, 0.2); border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 8px #a977f81a; }}
             .stat-card h3 {{ font-size: 0.875rem; font-weight: 500; color: #a0a0a0; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }}
             .stat-card .value {{ font-size: 2.25rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }}
             .quick-links {{ display: flex; gap: 2rem; }}
-            .nav-card {{ background: #23232b; border: 1px solid #a977f8; border-radius: 12px; padding: 2rem; text-decoration: none; color: inherit; transition: all 0.3s; cursor: pointer; display: flex; flex-direction: column; align-items: center; }}
-            .nav-card:hover {{ background: #a977f81a; border-color: #a977f8; }}
+            .nav-card {{ background: rgba(169, 119, 248, 0.1); border: 1px solid #a977f8; border-radius: 12px; padding: 2rem; text-decoration: none; color: inherit; transition: all 0.3s; cursor: pointer; display: flex; flex-direction: column; align-items: center; }}
+            .nav-card:hover {{ background: rgba(169, 119, 248, 0.2); border-color: #a977f8; }}
             .nav-card .icon {{ font-size: 2rem; margin-bottom: 1rem; }}
-            .user-info {{ display: flex; align-items: center; gap: 12px; background: #23232b; border: 1px solid #a977f8; border-radius: 6px; font-size: 14px; box-shadow: 0 0 8px #a977f84d; padding: 8px 12px; margin-bottom: 2rem; position: relative; }}
+            .user-info {{ display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.06); border: 1px solid #a977f8; border-radius: 6px; font-size: 14px; box-shadow: 0 0 8px #a977f84d; padding: 8px 12px; margin-bottom: 2rem; position: relative; }}
             .user-avatar {{ width: 32px; height: 32px; border-radius: 50%; background: #a977f8; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; overflow: hidden; }}
             .user-avatar img {{ width: 100%; height: 100%; object-fit: cover; }}
             .user-details {{ display: flex; flex-direction: column; align-items: flex-start; }}
@@ -432,14 +436,22 @@ def admin_dashboard():
         </style>
     </head>
     <body>
-        <div class="sidebar">
-            <a href="/admin/dashboard" class="active">Dashboard</a>
-            <a href="/admin/cases">Cases</a>
-            <a href="/">← Back to Home</a>
-        </div>
-        <div class="main">
+        <header>
+            <nav>
+                <div class="logo">
+                    <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
+                    Themis
+                </div>
+                <div class="nav-links">
+                    <a href="/admin/dashboard" class="admin-btn">Dashboard</a>
+                    <a href="/admin/cases" class="admin-btn">Cases</a>
+                    <a href="/" class="admin-btn">← Home</a>
+                </div>
+            </nav>
+        </header>
+        <div class="main-content">
             <div class="user-info">
-                <div class="user-avatar">{f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
+                <div class="user-avatar">{'<img src="'+user.get('avatar_url')+'" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
                 <div class="user-details">
                     <div class="user-name">{user.get('username', 'User')}</div>
                     <div class="user-rank" style="color: {rank_color};">{staff_rank}</div>
@@ -482,24 +494,23 @@ def admin_cases():
     user = session['user']
     staff_rank = user.get('staff_info', {}).get('role', 'Staff')
     rank_color = RANK_COLORS.get(staff_rank, '#a977f8')
-    # Fetch cases from the discord table, join users for username
+    # Fetch cases from the discord table ONLY (no join with users)
     connection = get_db_connection()
     cases = []
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
             query = '''
-                SELECT d.reference_id, d.user_id, d.punishment_type, d.reason, d.appealed, d.length, u.discord_username
-                FROM discord d
-                LEFT JOIN users u ON d.user_id = u.discord_user_id
-                ORDER BY d.reference_id DESC
+                SELECT reference_id, user_id, punishment_type, reason, appealed, length
+                FROM discord
+                ORDER BY reference_id DESC
                 LIMIT 100
             '''
             cursor.execute(query)
             for row in cursor.fetchall():
                 cases.append({
                     'id': row['reference_id'],
-                    'user': row['discord_username'] or row['user_id'],
+                    'user_id': row['user_id'],
                     'type': row['punishment_type'],
                     'reason': row['reason'],
                     'status': 'Appealed' if row['appealed'] == 1 else 'Active',
@@ -511,6 +522,19 @@ def admin_cases():
             cases = []
         finally:
             connection.close()
+    # Color coding for punishment types
+    PUNISHMENT_COLORS = {
+        'ban': '#ef4444',
+        'kick': '#f59e42',
+        'mute': '#fde047',
+        'warn': '#22d3ee',
+        'default': '#a0a0a0'
+    }
+    def get_type_color(ptype):
+        return PUNISHMENT_COLORS.get(ptype.lower(), PUNISHMENT_COLORS['default']) if ptype else PUNISHMENT_COLORS['default']
+
+    # The following HTML contains inline JS that references 'document', which is not a Python variable.
+    # noqa: E501, F405, F821  # For linters: ignore long lines and undefined names in inline JS
     html = f'''
     <!DOCTYPE html>
     <html lang="en">
@@ -520,42 +544,64 @@ def admin_cases():
         <title>Themis Admin Cases</title>
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
         <style>
-            body {{ background: #0a0a0a; color: #fff; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
-            .sidebar {{ position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: #161b22; border-right: 1px solid #a977f8; display: flex; flex-direction: column; z-index: 100; }}
-            .sidebar a {{ color: #fff; text-decoration: none; padding: 1.2rem 2rem; font-size: 1.1rem; border-left: 4px solid transparent; transition: background 0.2s, border-color 0.2s; }}
-            .sidebar a.active, .sidebar a:hover {{ background: #23232b; border-left: 4px solid #a977f8; }}
-            .main {{ margin-left: 220px; padding: 2rem; }}
-            .user-info {{ display: flex; align-items: center; gap: 12px; background: #23232b; border: 1px solid #a977f8; border-radius: 6px; font-size: 14px; box-shadow: 0 0 8px #a977f84d; padding: 8px 12px; margin-bottom: 2rem; position: relative; }}
+            body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #ffffff; background: #0a0a0a; overflow-x: hidden; }}
+            header {{ position: fixed; top: 0; width: 100%; background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(20px); z-index: 1000; border-bottom: 1px solid rgba(169, 119, 248, 0.3); }}
+            nav {{ max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; }}
+            .logo {{ font-size: 1.5rem; font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 0.75rem; letter-spacing: -0.02em; }}
+            .logo img {{ width: 28px; height: 28px; border-radius: 6px; }}
+            .nav-links {{ display: flex; align-items: center; gap: 1rem; }}
+            .admin-btn {{ background: rgba(255, 255, 255, 0.06); color: #fff; padding: 0.5rem 1rem; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; text-decoration: none; transition: all 0.2s ease; font-weight: 500; font-size: 0.875rem; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }}
+            .admin-btn:hover {{ background: rgba(169, 119, 248, 0.1); border-color: rgba(169, 119, 248, 0.4); transform: translateY(-1px); }}
+            .main-content {{ max-width: 1200px; margin: 0 auto; padding: 6rem 2rem 2rem 2rem; }}
+            .user-info {{ display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.06); border: 1px solid #a977f8; border-radius: 6px; font-size: 14px; box-shadow: 0 0 8px #a977f84d; padding: 8px 12px; margin-bottom: 2rem; position: relative; }}
             .user-avatar {{ width: 32px; height: 32px; border-radius: 50%; background: #a977f8; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; overflow: hidden; }}
             .user-avatar img {{ width: 100%; height: 100%; object-fit: cover; }}
             .user-details {{ display: flex; flex-direction: column; align-items: flex-start; }}
             .user-name {{ color: #fff; font-weight: 600; line-height: 1.2; }}
             .user-rank {{ font-size: 12px; text-transform: capitalize; line-height: 1; font-weight: 600; margin-bottom: 2px; }}
             .fx-employee {{ font-size: 11px; color: #8b949e; opacity: 0.7; font-style: italic; }}
-            .cases-title {{ font-size: 2rem; font-weight: 700; margin-bottom: 2rem; }}
-            .cases-table {{ background: #18181b; border: 1px solid #23232b; border-radius: 12px; overflow: hidden; margin-bottom: 2rem; }}
+            .cases-header {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }}
+            .cases-title {{ font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
+            .create-log-btn {{ background: #a977f8; color: #fff; border: none; border-radius: 8px; padding: 0.7rem 1.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 8px #a977f84d; }}
+            .create-log-btn:hover {{ background: #9966e6; }}
+            .cases-table {{ background: rgba(169, 119, 248, 0.05); border: 1px solid rgba(169, 119, 248, 0.2); border-radius: 12px; overflow: hidden; margin-bottom: 2rem; box-shadow: 0 2px 8px #a977f81a; }}
             .cases-table table {{ width: 100%; border-collapse: collapse; }}
             .cases-table th, .cases-table td {{ padding: 1rem; text-align: left; border-bottom: 1px solid #23232b; }}
-            .cases-table th {{ background: #23232b; font-weight: 600; color: #fff; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }}
-            .cases-table td {{ color: #a0a0a0; font-size: 0.9rem; }}
-            .action-btn {{ background: #a977f8; color: #fff; border: none; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer; font-size: 1rem; transition: background 0.2s; }}
-            .action-btn:hover {{ background: #9966e6; }}
+            .cases-table th {{ background: rgba(169, 119, 248, 0.10); font-weight: 600; color: #fff; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }}
+            .cases-table td {{ color: #a0a0a0; font-size: 0.98rem; }}
+            .type-badge {{ display: inline-block; padding: 0.3em 0.8em; border-radius: 6px; font-weight: 600; font-size: 0.95em; color: #18181b; margin-right: 0.2em; }}
+            .action-link {{ color: #a977f8; text-decoration: underline; cursor: pointer; font-weight: 500; }}
+            .action-link:hover {{ color: #fff; }}
+            /* Modal Styles */
             .modal {{ display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 2000; }}
-            .modal-content {{ background: #18181b; border-radius: 12px; padding: 2rem; min-width: 320px; max-width: 90vw; box-shadow: 0 8px 32px #a977f826; position: relative; }}
-            .close-modal {{ position: absolute; top: 1rem; right: 1rem; font-size: 2rem; color: #a0a0a0; cursor: pointer; }}
-            .form-group {{ margin-bottom: 1.2rem; }}
-            .form-group label {{ display: block; margin-bottom: 0.5rem; color: #fff; }}
-            .form-group input, .form-group select, .form-group textarea {{ width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #333; background: #23232b; color: #fff; font-size: 1rem; }}
-            .form-group textarea {{ min-height: 60px; }}
+            .modal-content {{ background: rgba(35,35,43,0.98); border-radius: 16px; padding: 2.5rem 2rem 2rem 2rem; min-width: 340px; max-width: 95vw; box-shadow: 0 8px 32px #a977f826; position: relative; border: 1.5px solid #a977f8; }}
+            .close-modal {{ position: absolute; top: 1.2rem; right: 1.5rem; font-size: 2.2rem; color: #a0a0a0; cursor: pointer; font-weight: 700; transition: color 0.2s; }}
+            .close-modal:hover {{ color: #fff; }}
+            .modal-title {{ font-size: 1.4rem; font-weight: 700; margin-bottom: 1.5rem; color: #fff; text-align: center; letter-spacing: -0.01em; }}
+            .form-group {{ margin-bottom: 1.3rem; }}
+            .form-group label {{ display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500; }}
+            .form-group input, .form-group select, .form-group textarea {{ width: 100%; padding: 0.7rem; border-radius: 8px; border: 1px solid #a977f8; background: #18181b; color: #fff; font-size: 1rem; font-family: inherit; transition: border 0.2s; }}
+            .form-group input:focus, .form-group select:focus, .form-group textarea:focus {{ border-color: #fff; outline: none; }}
+            .form-group textarea {{ min-height: 70px; resize: vertical; }}
+            .submit-btn {{ background: linear-gradient(90deg, #a977f8 0%, #7c3aed 100%); color: #fff; border: none; border-radius: 8px; padding: 0.8rem 2rem; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 8px #a977f84d; margin-top: 0.5rem; width: 100%; }}
+            .submit-btn:hover {{ background: linear-gradient(90deg, #7c3aed 0%, #a977f8 100%); }}
         </style>
     </head>
     <body>
-        <div class="sidebar">
-            <a href="/admin/dashboard">Dashboard</a>
-            <a href="/admin/cases" class="active">Cases</a>
-            <a href="/">← Back to Home</a>
-        </div>
-        <div class="main">
+        <header>
+            <nav>
+                <div class="logo">
+                    <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
+                    Themis
+                </div>
+                <div class="nav-links">
+                    <a href="/admin/dashboard" class="admin-btn">Dashboard</a>
+                    <a href="/admin/cases" class="admin-btn" style="background:rgba(169,119,248,0.13);border-color:#a977f8;">Cases</a>
+                    <a href="/" class="admin-btn">← Home</a>
+                </div>
+            </nav>
+        </header>
+        <div class="main-content">
             <div class="user-info">
                 <div class="user-avatar">{f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
                 <div class="user-details">
@@ -564,14 +610,17 @@ def admin_cases():
                     <div class="fx-employee">fx-Studios Employee</div>
                 </div>
             </div>
-            <h2 class="cases-title">Cases</h2>
+            <div class="cases-header">
+                <h2 class="cases-title">Cases</h2>
+                <button class="create-log-btn" onclick="openModlogModal()"><i class="fa fa-plus"></i> Create Moderation Log</button>
+            </div>
             <div class="cases-table">
                 <table>
                     <thead>
-                        <tr><th>ID</th><th>User</th><th>Type</th><th>Reason</th><th>Status</th><th>Length</th><th>Actions</th></tr>
+                        <tr><th>ID</th><th>User ID</th><th>Type</th><th>Reason</th><th>Status</th><th>Length</th><th>Details</th></tr>
                     </thead>
                     <tbody>
-                        {''.join(f'<tr><td>{c["id"]}</td><td>{c["user"]}</td><td>{c["type"]}</td><td>{c["reason"]}</td><td>{c["status"]}</td><td>{c["length"]}</td><td><button class="action-btn" onclick="openModlogModal({c["id"]})">Create Moderation Log</button></td></tr>' for c in cases)}
+                        {''.join(f'<tr><td>{c["id"]}</td><td>{c["user_id"]}</td><td><span class="type-badge" style="background:{get_type_color(c["type"])}">{c["type"] or "-"}</span></td><td>{c["reason"]}</td><td>{c["status"]}</td><td>{c["length"]}</td><td><span class="action-link" onclick="viewCaseDetail(\'{c["id"]}\')">View</span></td></tr>' for c in cases)}
                     </tbody>
                 </table>
             </div>
@@ -579,9 +628,12 @@ def admin_cases():
             <div id="modlog-modal" class="modal">
                 <div class="modal-content">
                     <span class="close-modal" onclick="closeModlogModal()">&times;</span>
-                    <h2>Create Moderation Log</h2>
+                    <div class="modal-title">Create Moderation Log</div>
                     <form id="modlog-form">
-                        <input type="hidden" id="modlog-case-id" name="case_id">
+                        <div class="form-group">
+                            <label for="modlog-case-id">Case ID (optional, for updating existing case)</label>
+                            <input type="text" id="modlog-case-id" name="case_id" placeholder="Enter Case ID or leave blank for new">
+                        </div>
                         <div class="form-group">
                             <label for="modlog-type">Type</label>
                             <select id="modlog-type" name="type" required>
@@ -593,54 +645,109 @@ def admin_cases():
                         </div>
                         <div class="form-group">
                             <label for="modlog-reason">Reason</label>
-                            <textarea id="modlog-reason" name="reason" required></textarea>
+                            <textarea id="modlog-reason" name="reason" required placeholder="Enter reason for moderation action..."></textarea>
                         </div>
                         <div class="form-group">
-                            <label for="modlog-details">Details</label>
-                            <textarea id="modlog-details" name="details"></textarea>
+                            <label for="modlog-details">Details (optional)</label>
+                            <textarea id="modlog-details" name="details" placeholder="Additional details, evidence, etc."></textarea>
                         </div>
-                        <button type="submit" class="action-btn">Submit Log</button>
+                        <button type="submit" class="submit-btn">Submit Moderation Log</button>
                     </form>
                 </div>
             </div>
             <script>
-                function openModlogModal(caseId) {{
-                document.getElementById('modlog-modal').style.display = 'flex';
-                document.getElementById('modlog-case-id').value = caseId;
-            }}
-            function closeModlogModal() {{
-                document.getElementById('modlog-modal').style.display = 'none';
-            }}
-            document.getElementById('modlog-form').onsubmit = async function(event) {{
-                event.preventDefault();
-                const caseId = document.getElementById('modlog-case-id').value;
-                const type = document.getElementById('modlog-type').value;
-                const reason = document.getElementById('modlog-reason').value;
-                const details = document.getElementById('modlog-details').value;
-                try {{
-                    const resp = await fetch('/api/modlog/create', {{
-                        method: 'POST',
-                        headers: {{ 'Content-Type': 'application/json' }},
-                        body: JSON.stringify({{ case_id: caseId, type, reason, details }})
-                    }});
-                    const data = await resp.json();
-                    closeModlogModal();
-                    if (resp.ok) {{
-                        alert('Moderation log created!');
-                    }} else {{
-                        alert('Error: ' + (data.error || 'Failed to create log.'));
-                    }}
-                }} catch (err) {{
-                    closeModlogModal();
-                    alert('Network error.');
+                // The following JS is inside a Python f-string. Linter: ignore 'document' not defined.
+                function openModlogModal() {{
+                    document.getElementById('modlog-modal').style.display = 'flex';
+                    document.getElementById('modlog-form').reset();
                 }}
-            }};
+                function closeModlogModal() {{
+                    document.getElementById('modlog-modal').style.display = 'none';
+                }}
+                document.getElementById('modlog-form').onsubmit = async function(event) {{
+                    event.preventDefault();
+                    const caseId = document.getElementById('modlog-case-id').value;
+                    const type = document.getElementById('modlog-type').value;
+                    const reason = document.getElementById('modlog-reason').value;
+                    const details = document.getElementById('modlog-details').value;
+                    try {{
+                        const resp = await fetch('/api/modlog/create', {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{ case_id: caseId, type, reason, details }})
+                        }});
+                        const data = await resp.json();
+                        closeModlogModal();
+                        if (resp.ok) {{
+                            alert('Moderation log created!');
+                        }} else {{
+                            alert('Error: ' + (data.error || 'Failed to create log.'));
+                        }}
+                    }} catch (err) {{
+                        closeModlogModal();
+                        alert('Network error.');
+                    }}
+                }};
                 window.onclick = function(event) {{
                     var modal = document.getElementById('modlog-modal');
                     if (event.target == modal) {{
                         closeModlogModal();
                     }}
                 }};
+                // View case detail (fetches from /api/case/discord/<case_id> and shows a modal with all info)
+                function viewCaseDetail(caseId) {{
+                    fetch(`/api/case/discord/${caseId}`)
+                        .then(res => res.json())
+                        .then(data => {{
+                            if (data.error) {{
+                                alert('Error: ' + data.error);
+                                return;
+                            }}
+                            let html = `<div style='padding:1.5rem 1.2rem 0.5rem 1.2rem;max-width:480px;'>`;
+                            html += `<h2 style='font-size:1.3rem;font-weight:700;margin-bottom:1rem;'>Case #${{data.reference_id || ''}}</h2>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Punishment Type:</b> <span style='background:${{get_type_color(data.punishment_type)}};color:#18181b;padding:0.2em 0.7em;border-radius:6px;font-weight:600;'>${{data.punishment_type || '-'}}</span></div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Status:</b> ${{data.appealed == 1 ? 'Appealed' : 'Active'}}</div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Reason:</b> ${{data.reason || '-'}}</div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Length:</b> ${{data.length || '-'}}</div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Moderator Note:</b> ${{data.moderator_note || '-'}}</div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Discord User ID:</b> ${{data.user_id || '-'}}</div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Discord Username:</b> ${{data.discord_username || '-'}}</div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Roblox User ID:</b> ${{data.roblox_user_id || '-'}}</div>`;
+                            html += `<div style='margin-bottom:0.7rem;'><b>Roblox Username:</b> ${{data.roblox_username || '-'}}</div>`;
+                            if (data.evidence && Array.isArray(data.evidence) && data.evidence.length > 0) {{
+                                html += `<div style='margin-bottom:0.7rem;'><b>Evidence:</b><ul style='margin:0.3em 0 0 1.2em;'>`;
+                                for (let url of data.evidence) {{
+                                    html += `<li><a href='${{url}}' target='_blank' style='color:#a977f8;'>${{url}}</a></li>`;
+                                }}
+                                html += `</ul></div>`;
+                            }} else if (data.evidence) {{
+                                html += `<div style='margin-bottom:0.7rem;'><b>Evidence:</b> ${{data.evidence}}</div>`;
+                            }}
+                            html += `</div>`;
+                            showCaseDetailModal(html);
+                        }})
+                        .catch(() => alert('Failed to fetch case details.'));
+                }}
+
+                // Modal for case details
+                function showCaseDetailModal(contentHtml) {{
+                    let modal = document.getElementById('case-detail-modal');
+                    let modalContent = document.getElementById('case-detail-modal-content');
+                    if (!modal) {{
+                        modal = document.createElement('div');
+                        modal.id = 'case-detail-modal';
+                        modal.className = 'modal';
+                        modal.innerHTML = `<div class=\"modal-content\" id=\"case-detail-modal-content\"><span class=\"close-modal\" onclick=\"closeCaseDetailModal()\">&times;</span></div>`;
+                        document.body.appendChild(modal);
+                        modalContent = document.getElementById('case-detail-modal-content');
+                    }}
+                    modalContent.innerHTML = `<span class=\"close-modal\" onclick=\"closeCaseDetailModal()\">&times;</span>` + contentHtml;
+                    modal.style.display = 'flex';
+                }}
+                function closeCaseDetailModal() {{
+                    let modal = document.getElementById('case-detail-modal');
+                    if (modal) modal.style.display = 'none';
+                }}
             </script>
         </div>
     </body>
@@ -707,25 +814,33 @@ def get_case_detail(project, case_id):
             return jsonify({'error': 'DB connection error'}), 500
             
         cursor = connection.cursor(dictionary=True)
-        
-        # Use reference_id in the WHERE clause
+        # Get case from main table
         cursor.execute(f"SELECT * FROM {project} WHERE reference_id = %s OR user_id = %s", (case_id, case_id))
         case = cursor.fetchone()
-        
+        # Try to get user info from users table if possible
+        discord_username = None
+        roblox_user_id = None
+        roblox_username = None
+        if case and 'user_id' in case:
+            # Discord username
+            cursor.execute("SELECT discord_username, roblox_user_id, roblox_username FROM users WHERE discord_user_id = %s", (case['user_id'],))
+            user_row = cursor.fetchone()
+            if user_row:
+                discord_username = user_row.get('discord_username')
+                roblox_user_id = user_row.get('roblox_user_id')
+                roblox_username = user_row.get('roblox_username')
         cursor.close()
         connection.close()
-        
         if not case:
             return jsonify({'error': 'Case not found'}), 404
-            
-        # Convert datetime to string for JSON serialization
-        
-        # Handle evidence field if it exists
+        # Convert evidence field if it exists
         if case.get('evidence'):
-            # If evidence is stored as a multi-line string, convert to list
             if isinstance(case['evidence'], str):
                 case['evidence'] = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
-            
+        # Add user info to response
+        case['discord_username'] = discord_username
+        case['roblox_user_id'] = roblox_user_id
+        case['roblox_username'] = roblox_username
         return jsonify(case)
         
     except Exception as e:
