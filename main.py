@@ -503,7 +503,17 @@ def admin_dashboard():
 
 @app.route('/admin/cases')
 @login_required
-@staff_required
+@require_ranks([
+    'Executive Director',
+    'Administration Director',
+    'Project Director',
+    'Community Director',
+    'Administrator',
+    'Junior Administrator',
+    'Senior Moderator',
+    'Moderator',
+    'Trial Moderator',
+])
 def admin_cases():
     user = session['user']
     staff_rank = user.get('staff_info', {}).get('role', 'Staff')
