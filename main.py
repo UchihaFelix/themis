@@ -507,6 +507,7 @@ def admin_cases():
                 })
             cursor.close()
         except Exception as e:
+            print('Error in /admin/cases:', e)
             cases = []
         finally:
             connection.close()
