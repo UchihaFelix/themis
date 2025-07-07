@@ -398,8 +398,8 @@ def admin_dashboard():
     user = session['user']
     staff_rank = user.get('staff_info', {}).get('role', 'Staff')
     rank_color = RANK_COLORS.get(staff_rank, '#a977f8')
-    # ...existing code...
-    html = f'''
+    # Use a raw string for HTML/JS and match the new sidebar/user info layout
+    html = rf'''
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -408,75 +408,56 @@ def admin_dashboard():
         <title>Themis Admin Dashboard</title>
         <style>
             body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #ffffff; background: #0a0a0a; overflow-x: hidden; }}
-            header {{ position: fixed; top: 0; width: 100%; background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(20px); z-index: 1000; border-bottom: 1px solid rgba(169, 119, 248, 0.3); }}
-            nav {{ max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; }}
-            .logo {{ font-size: 1.5rem; font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 0.75rem; letter-spacing: -0.02em; }}
-            .logo img {{ width: 28px; height: 28px; border-radius: 6px; }}
-            .nav-links {{ display: flex; align-items: center; gap: 1rem; }}
-            .admin-btn {{ background: rgba(255, 255, 255, 0.06); color: #fff; padding: 0.5rem 1rem; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; text-decoration: none; transition: all 0.2s ease; font-weight: 500; font-size: 0.875rem; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }}
-            .admin-btn:hover {{ background: rgba(169, 119, 248, 0.1); border-color: rgba(169, 119, 248, 0.4); transform: translateY(-1px); }}
-            .main-content {{ max-width: 1200px; margin: 0 auto; padding: 6rem 2rem 2rem 2rem; }}
-            .dashboard-title {{ font-size: clamp(3rem, 8vw, 5.5rem); font-weight: 700; margin-bottom: 1.5rem; letter-spacing: -0.04em; line-height: 0.95; background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
-            .dashboard-subtitle {{ color: #a0a0a0; font-size: 1.125rem; margin-bottom: 2rem; max-width: 600px; line-height: 1.6; font-weight: 400; }}
-            .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }}
-            .stat-card {{ background: rgba(169, 119, 248, 0.05); border: 1px solid rgba(169, 119, 248, 0.2); border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 8px #a977f81a; }}
-            .stat-card h3 {{ font-size: 0.875rem; font-weight: 500; color: #a0a0a0; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }}
-            .stat-card .value {{ font-size: 2.25rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }}
+            .sidebar {{ position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: rgba(20,20,30,0.92); border-right: 1.5px solid #a977f8; display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 16px #a977f81a; }}
+            .sidebar .logo {{ font-size: 1.5rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 0.75rem; letter-spacing: -0.02em; padding: 2rem 1.5rem 1.2rem 1.5rem; }}
+            .sidebar .logo img {{ width: 32px; height: 32px; border-radius: 8px; }}
+            .sidebar .nav-links {{ display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.5rem; }}
+            .sidebar .admin-btn {{ background: rgba(255,255,255,0.06); color: #fff; padding: 0.7rem 1.2rem; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; text-decoration: none; transition: all 0.2s; font-weight: 500; font-size: 1rem; margin: 0 1.2rem; display: flex; align-items: center; gap: 0.7rem; cursor: pointer; }}
+            .sidebar .admin-btn.active, .sidebar .admin-btn:hover {{ background: rgba(169,119,248,0.13); border-color: #a977f8; color: #fff; }}
+            .main-content {{ margin-left: 220px; max-width: 1200px; padding: 2.5rem 2rem 2rem 2rem; min-height: 100vh; }}
+            .user-info-box {{ position: fixed; top: 1.5rem; right: 2.5rem; z-index: 1100; display: flex; align-items: center; gap: 1rem; background: rgba(255,255,255,0.07); border: 1.5px solid #a977f8; border-radius: 8px; box-shadow: 0 0 12px #a977f84d; padding: 0.6rem 1.2rem 0.6rem 0.8rem; }}
+            .user-avatar {{ width: 36px; height: 36px; border-radius: 50%; background: #a977f8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; overflow: hidden; }}
+            .user-avatar img {{ width: 100%; height: 100%; object-fit: cover; }}
+            .user-details {{ display: flex; flex-direction: column; align-items: flex-start; }}
+            .user-name {{ color: #fff; font-weight: 600; line-height: 1.2; font-size: 1.08rem; }}
+            .user-rank {{ font-size: 12px; text-transform: capitalize; line-height: 1; font-weight: 600; color: {rank_color}; }}
+            .logout-btn {{ background: rgba(255,255,255,0.10); color: #fff; border: 1px solid #a977f8; border-radius: 6px; padding: 0.4rem 1rem; font-size: 0.95rem; font-weight: 500; margin-left: 0.7rem; cursor: pointer; transition: background 0.2s; }}
+            .logout-btn:hover {{ background: #a977f8; color: #fff; }}
+            .dashboard-title {{ font-size: clamp(2.5rem, 7vw, 4.5rem); font-weight: 700; margin-bottom: 1.1rem; letter-spacing: -0.04em; line-height: 0.95; background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
+            .dashboard-subtitle {{ color: #a0a0a0; font-size: 1.15rem; margin-bottom: 2.2rem; max-width: 600px; line-height: 1.6; font-weight: 400; }}
             .quick-links {{ display: flex; gap: 2rem; }}
             .nav-card {{ background: rgba(169, 119, 248, 0.1); border: 1px solid #a977f8; border-radius: 12px; padding: 2rem; text-decoration: none; color: inherit; transition: all 0.3s; cursor: pointer; display: flex; flex-direction: column; align-items: center; }}
             .nav-card:hover {{ background: rgba(169, 119, 248, 0.2); border-color: #a977f8; }}
-            .nav-card .icon {{ font-size: 2rem; margin-bottom: 1rem; }}
-            .user-info {{ display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.06); border: 1px solid #a977f8; border-radius: 6px; font-size: 14px; box-shadow: 0 0 8px #a977f84d; padding: 8px 12px; margin-bottom: 2rem; position: relative; }}
-            .user-avatar {{ width: 32px; height: 32px; border-radius: 50%; background: #a977f8; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; overflow: hidden; }}
-            .user-avatar img {{ width: 100%; height: 100%; object-fit: cover; }}
-            .user-details {{ display: flex; flex-direction: column; align-items: flex-start; }}
-            .user-name {{ color: #fff; font-weight: 600; line-height: 1.2; }}
-            .user-rank {{ font-size: 12px; text-transform: capitalize; line-height: 1; font-weight: 600; margin-bottom: 2px; }}
-            .fx-employee {{ font-size: 11px; color: #8b949e; opacity: 0.7; font-style: italic; }}
+            .nav-card .icon {{ width: 2.2rem; height: 2.2rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; }}
+            .nav-card .icon img {{ width: 2.2rem; height: 2.2rem; object-fit: contain; filter: drop-shadow(0 0 6px #a977f8cc); }}
         </style>
     </head>
     <body>
-        <header>
-            <nav>
-                <div class="logo">
-                    <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
-                    Themis
-                </div>
-                <div class="nav-links">
-                    <a href="/admin/dashboard" class="admin-btn">Dashboard</a>
-                    <a href="/admin/cases" class="admin-btn">Cases</a>
-                    <a href="/" class="admin-btn">← Home</a>
-                </div>
-            </nav>
-        </header>
+        <div class="sidebar">
+            <div class="logo">
+                <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
+                Themis
+            </div>
+            <div class="nav-links">
+                <a href="/admin/dashboard" class="admin-btn active">Dashboard</a>
+                <a href="/admin/cases" class="admin-btn">Cases</a>
+                <a href="/" class="admin-btn">← Home</a>
+            </div>
+        </div>
+        <div class="user-info-box">
+            <div class="user-avatar">{f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
+            <div class="user-details">
+                <div class="user-name">{user.get('username', 'User')}</div>
+                <div class="user-rank">{staff_rank}</div>
+            </div>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
         <div class="main-content">
-            <div class="user-info">
-                <div class="user-avatar">{'<img src="'+user.get('avatar_url')+'" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
-                <div class="user-details">
-                    <div class="user-name">{user.get('username', 'User')}</div>
-                    <div class="user-rank" style="color: {rank_color};">{staff_rank}</div>
-                    <div class="fx-employee">fx-Studios Employee</div>
-                </div>
-            </div>
-            <h1 class="dashboard-title">Admin Dashboard</h1>
-            <p class="dashboard-subtitle">Monitor and manage your Themis administration system</p>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <h3>Total Cases</h3>
-                    <div class="value">--</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Open Cases</h3>
-                    <div class="value">--</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Staff Members</h3>
-                    <div class="value">--</div>
-                </div>
-            </div>
+            <h1 class="dashboard-title">Welcome back, <span style='color: {rank_color};'>{user.get('username', 'User')}</span></h1>
+            <p class="dashboard-subtitle">Access moderation tools, review cases, and manage your Themis administration system.</p>
             <div class="quick-links">
                 <a href="/admin/cases" class="nav-card">
-                    <div class="icon">📂</div>
+                    <div class="icon"><img src="https://cdn.discordapp.com/attachments/1346136182379122798/1391910863832875018/discotools-xyz-icon_4.png?ex=686d9d82&is=686c4c02&hm=9c63e6b8dd489969258c4e84681ea446be3efe786f2fa434c02fd48c064d4948&" alt="View Cases"></div>
                     <h3>View Cases</h3>
                     <p>Review, manage, and log moderation actions.</p>
                 </a>
@@ -494,7 +475,7 @@ def admin_cases():
     user = session['user']
     staff_rank = user.get('staff_info', {}).get('role', 'Staff')
     rank_color = RANK_COLORS.get(staff_rank, '#a977f8')
-    # Fetch cases from the discord table ONLY (no join with users)
+    # Fetch cases from the discord table ONLY (no join with users), filter out those without punishment_type
     connection = get_db_connection()
     cases = []
     if connection:
@@ -503,6 +484,7 @@ def admin_cases():
             query = '''
                 SELECT reference_id, user_id, punishment_type, reason, appealed, length
                 FROM discord
+                WHERE punishment_type IS NOT NULL AND punishment_type != ''
                 ORDER BY reference_id DESC
                 LIMIT 100
             '''
@@ -535,7 +517,8 @@ def admin_cases():
 
     # The following HTML contains inline JS that references 'document', which is not a Python variable.
     # noqa: E501, F405, F821  # For linters: ignore long lines and undefined names in inline JS
-    html = f'''
+    # Use a raw string to avoid SyntaxWarning for backslashes in JS/HTML
+    html = rf'''
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -545,22 +528,22 @@ def admin_cases():
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
         <style>
             body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #ffffff; background: #0a0a0a; overflow-x: hidden; }}
-            header {{ position: fixed; top: 0; width: 100%; background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(20px); z-index: 1000; border-bottom: 1px solid rgba(169, 119, 248, 0.3); }}
-            nav {{ max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; }}
-            .logo {{ font-size: 1.5rem; font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 0.75rem; letter-spacing: -0.02em; }}
-            .logo img {{ width: 28px; height: 28px; border-radius: 6px; }}
-            .nav-links {{ display: flex; align-items: center; gap: 1rem; }}
-            .admin-btn {{ background: rgba(255, 255, 255, 0.06); color: #fff; padding: 0.5rem 1rem; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; text-decoration: none; transition: all 0.2s ease; font-weight: 500; font-size: 0.875rem; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }}
-            .admin-btn:hover {{ background: rgba(169, 119, 248, 0.1); border-color: rgba(169, 119, 248, 0.4); transform: translateY(-1px); }}
-            .main-content {{ max-width: 1200px; margin: 0 auto; padding: 6rem 2rem 2rem 2rem; }}
-            .user-info {{ display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.06); border: 1px solid #a977f8; border-radius: 6px; font-size: 14px; box-shadow: 0 0 8px #a977f84d; padding: 8px 12px; margin-bottom: 2rem; position: relative; }}
-            .user-avatar {{ width: 32px; height: 32px; border-radius: 50%; background: #a977f8; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; overflow: hidden; }}
+            .sidebar {{ position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: rgba(20,20,30,0.92); border-right: 1.5px solid #a977f8; display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 16px #a977f81a; }}
+            .sidebar .logo {{ font-size: 1.5rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 0.75rem; letter-spacing: -0.02em; padding: 2rem 1.5rem 1.2rem 1.5rem; }}
+            .sidebar .logo img {{ width: 32px; height: 32px; border-radius: 8px; }}
+            .sidebar .nav-links {{ display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.5rem; }}
+            .sidebar .admin-btn {{ background: rgba(255,255,255,0.06); color: #fff; padding: 0.7rem 1.2rem; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; text-decoration: none; transition: all 0.2s; font-weight: 500; font-size: 1rem; margin: 0 1.2rem; display: flex; align-items: center; gap: 0.7rem; cursor: pointer; }}
+            .sidebar .admin-btn.active, .sidebar .admin-btn:hover {{ background: rgba(169,119,248,0.13); border-color: #a977f8; color: #fff; }}
+            .main-content {{ margin-left: 220px; max-width: 1200px; padding: 2.5rem 2rem 2rem 2rem; min-height: 100vh; }}
+            .user-info-box {{ position: fixed; top: 1.5rem; right: 2.5rem; z-index: 1100; display: flex; align-items: center; gap: 1rem; background: rgba(255,255,255,0.07); border: 1.5px solid #a977f8; border-radius: 8px; box-shadow: 0 0 12px #a977f84d; padding: 0.6rem 1.2rem 0.6rem 0.8rem; }}
+            .user-avatar {{ width: 36px; height: 36px; border-radius: 50%; background: #a977f8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; overflow: hidden; }}
             .user-avatar img {{ width: 100%; height: 100%; object-fit: cover; }}
             .user-details {{ display: flex; flex-direction: column; align-items: flex-start; }}
-            .user-name {{ color: #fff; font-weight: 600; line-height: 1.2; }}
-            .user-rank {{ font-size: 12px; text-transform: capitalize; line-height: 1; font-weight: 600; margin-bottom: 2px; }}
-            .fx-employee {{ font-size: 11px; color: #8b949e; opacity: 0.7; font-style: italic; }}
-            .cases-header {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }}
+            .user-name {{ color: #fff; font-weight: 600; line-height: 1.2; font-size: 1.08rem; }}
+            .user-rank {{ font-size: 12px; text-transform: capitalize; line-height: 1; font-weight: 600; color: {rank_color}; }}
+            .logout-btn {{ background: rgba(255,255,255,0.10); color: #fff; border: 1px solid #a977f8; border-radius: 6px; padding: 0.4rem 1rem; font-size: 0.95rem; font-weight: 500; margin-left: 0.7rem; cursor: pointer; transition: background 0.2s; }}
+            .logout-btn:hover {{ background: #a977f8; color: #fff; }}
+            .cases-header {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; margin-top: 0.5rem; }}
             .cases-title {{ font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
             .create-log-btn {{ background: #a977f8; color: #fff; border: none; border-radius: 8px; padding: 0.7rem 1.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 8px #a977f84d; }}
             .create-log-btn:hover {{ background: #9966e6; }}
@@ -588,28 +571,26 @@ def admin_cases():
         </style>
     </head>
     <body>
-        <header>
-            <nav>
-                <div class="logo">
-                    <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
-                    Themis
-                </div>
-                <div class="nav-links">
-                    <a href="/admin/dashboard" class="admin-btn">Dashboard</a>
-                    <a href="/admin/cases" class="admin-btn" style="background:rgba(169,119,248,0.13);border-color:#a977f8;">Cases</a>
-                    <a href="/" class="admin-btn">← Home</a>
-                </div>
-            </nav>
-        </header>
-        <div class="main-content">
-            <div class="user-info">
-                <div class="user-avatar">{f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
-                <div class="user-details">
-                    <div class="user-name">{user.get('username', 'User')}</div>
-                    <div class="user-rank" style="color: {rank_color};">{staff_rank}</div>
-                    <div class="fx-employee">fx-Studios Employee</div>
-                </div>
+        <div class="sidebar">
+            <div class="logo">
+                <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
+                Themis
             </div>
+            <div class="nav-links">
+                <a href="/admin/dashboard" class="admin-btn">Dashboard</a>
+                <a href="/admin/cases" class="admin-btn active">Cases</a>
+                <a href="/" class="admin-btn">← Home</a>
+            </div>
+        </div>
+        <div class="user-info-box">
+            <div class="user-avatar">{f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
+            <div class="user-details">
+                <div class="user-name">{user.get('username', 'User')}</div>
+                <div class="user-rank">{staff_rank}</div>
+            </div>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+        <div class="main-content">
             <div class="cases-header">
                 <h2 class="cases-title">Cases</h2>
                 <button class="create-log-btn" onclick="openModlogModal()"><i class="fa fa-plus"></i> Create Moderation Log</button>
