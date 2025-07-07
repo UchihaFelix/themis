@@ -21,20 +21,20 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'     # Adjust as needed
 
 # Discord OAuth2 Configuration
-DISCORD_CLIENT_ID = "1389347057432662119"
-DISCORD_CLIENT_SECRET = "Bb9wrx5aQWGFL0sa020AtqKJu4uMa_Sr"
-DISCORD_REDIRECT_URI = os.environ.get('DISCORD_REDIRECT_URI', 'https://fxs-host.xyz/auth/discord/callback')
+DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
+DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
+DISCORD_REDIRECT_URI = os.getenv('DISCORD_REDIRECT_URI')
 
 # Database Configuration
 DB_CONFIG = {
-    'host': "uk02-sql.pebblehost.com",
-    'user': "customer_981025_sql",
-    'password': "NdSyBj2@++36J^tcPVUUor8I",
-    'database': "customer_981025_sql",
-    'port': 3306
+    'host': os.getenv('DB_HOST'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'),
+    'database': os.getenv('DB_DATABASE'),
+    'port': int(os.getenv('DB_PORT', 3306))
 }
 
-BOT_OWNER_ID = 937721482170216468
+BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
 
 # Initialize OAuth
 oauth = OAuth(app)
