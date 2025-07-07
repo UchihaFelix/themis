@@ -146,6 +146,10 @@
             background-clip: text;
         }
 
+        .hero .physics-canvas {
+            pointer-events: auto;
+        }
+        
         .hero p {
             font-size: 1.125rem;
             margin-bottom: 2rem;
@@ -460,7 +464,52 @@
                 gap: 0.5rem;
             }
         }
+        /* Physics Engine :skull: */
+        .physics-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.8;
+        }
 
+        .physics-canvas.interactive {
+            pointer-events: auto;
+        }
+
+        /* Add a toggle button for the physics */
+        .physics-toggle {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: rgba(169, 119, 248, 0.1);
+            border: 1px solid rgba(169, 119, 248, 0.3);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 1001;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .physics-toggle:hover {
+            background: rgba(169, 119, 248, 0.2);
+            border-color: rgba(169, 119, 248, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .physics-toggle {
+                right: 10px;
+                padding: 8px 12px;
+                font-size: 0.7rem;
+            }
+        }
+        
         /* Smooth scrolling */
         html {
             scroll-behavior: smooth;
@@ -488,6 +537,11 @@
     </style>
 </head>
 <body>
+    <!-- Physics canvas initiate -->
+    <canvas id="physicsCanvas" class="physics-canvas"></canvas>
+    <div class="physics-toggle" id="physicsToggle" onclick="togglePhysics()">
+        <span id="toggleText">🌟 Interactive</span>
+    </div>
     <!-- Header -->
     <header>
         <nav>
@@ -609,6 +663,337 @@
     </footer>
 
     <script>
+        // WebGL Physics System
+        class PhysicsSystem {
+            constructor() {
+                this.canvas = document.getElementById('physicsCanvas');
+                this.gl = this.canvas.getContext('webgl');
+                this.particles = [];
+                this.mouseX = 0;
+                this.mouseY = 0;
+                this.isActive = true;
+                this.time = 0;
+                
+                this.initWebGL();
+                this.createParticles();
+                this.setupEventListeners();
+                this.animate();
+            }
+
+            initWebGL() {
+                if (!this.gl) {
+                    console.error('WebGL not supported');
+                    return;
+                }
+
+                this.resizeCanvas();
+                
+                // Vertex shader
+                const vertexShaderSource = `
+                    attribute vec2 a_position;
+                    attribute float a_size;
+                    attribute vec3 a_color;
+                    
+                    uniform vec2 u_resolution;
+                    uniform float u_time;
+                    
+                    varying vec3 v_color;
+                    varying float v_alpha;
+                    
+                    void main() {
+                        vec2 position = a_position / u_resolution * 2.0 - 1.0;
+                        position.y *= -1.0;
+                        
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        gl_PointSize = a_size;
+                        
+                        v_color = a_color;
+                        v_alpha = 0.8 + 0.2 * sin(u_time * 0.01 + a_position.x * 0.01);
+                    }
+                `;
+
+                // Fragment shader
+                const fragmentShaderSource = `
+                    precision mediump float;
+                    
+                    varying vec3 v_color;
+                    varying float v_alpha;
+                    
+                    void main() {
+                        vec2 coord = gl_PointCoord - vec2(0.5);
+                        float dist = length(coord);
+                        
+                        if (dist > 0.5) {
+                            discard;
+                        }
+                        
+                        float alpha = v_alpha * (1.0 - dist * 2.0);
+                        gl_FragColor = vec4(v_color, alpha);
+                    }
+                `;
+
+                this.program = this.createProgram(vertexShaderSource, fragmentShaderSource);
+                this.gl.useProgram(this.program);
+
+                // Get attribute and uniform locations
+                this.positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
+                this.sizeLocation = this.gl.getAttribLocation(this.program, 'a_size');
+                this.colorLocation = this.gl.getAttribLocation(this.program, 'a_color');
+                this.resolutionLocation = this.gl.getUniformLocation(this.program, 'u_resolution');
+                this.timeLocation = this.gl.getUniformLocation(this.program, 'u_time');
+
+                // Enable blending for transparency
+                this.gl.enable(this.gl.BLEND);
+                this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+            }
+
+            createShader(type, source) {
+                const shader = this.gl.createShader(type);
+                this.gl.shaderSource(shader, source);
+                this.gl.compileShader(shader);
+                
+                if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+                    console.error('Shader compilation error:', this.gl.getShaderInfoLog(shader));
+                    this.gl.deleteShader(shader);
+                    return null;
+                }
+                
+                return shader;
+            }
+
+            createProgram(vertexSource, fragmentSource) {
+                const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexSource);
+                const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentSource);
+                
+                const program = this.gl.createProgram();
+                this.gl.attachShader(program, vertexShader);
+                this.gl.attachShader(program, fragmentShader);
+                this.gl.linkProgram(program);
+                
+                if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
+                    console.error('Program linking error:', this.gl.getProgramInfoLog(program));
+                    return null;
+                }
+                
+                return program;
+            }
+
+            createParticles() {
+                const count = 150;
+                for (let i = 0; i < count; i++) {
+                    this.particles.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        size: Math.random() * 8 + 2,
+                        color: this.getThemeColor(),
+                        mass: Math.random() * 0.5 + 0.5,
+                        life: 1.0
+                    });
+                }
+            }
+
+            getThemeColor() {
+                const colors = [
+                    [169/255, 119/255, 248/255], // Purple
+                    [255/255, 255/255, 255/255], // White
+                    [160/255, 160/255, 160/255], // Gray
+                    [34/255, 197/255, 94/255],   // Green
+                ];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            setupEventListeners() {
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                this.canvas.addEventListener('mousemove', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    this.mouseX = e.clientX - rect.left;
+                    this.mouseY = e.clientY - rect.top;
+                });
+
+                this.canvas.addEventListener('click', (e) => {
+                    this.addParticleExplosion(this.mouseX, this.mouseY);
+                });
+
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const rect = this.canvas.getBoundingClientRect();
+                    this.mouseX = e.touches[0].clientX - rect.left;
+                    this.mouseY = e.touches[0].clientY - rect.top;
+                });
+
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const rect = this.canvas.getBoundingClientRect();
+                    this.mouseX = e.touches[0].clientX - rect.left;
+                    this.mouseY = e.touches[0].clientY - rect.top;
+                    this.addParticleExplosion(this.mouseX, this.mouseY);
+                });
+            }
+
+            addParticleExplosion(x, y) {
+                const count = 20;
+                for (let i = 0; i < count; i++) {
+                    const angle = (i / count) * Math.PI * 2;
+                    const speed = Math.random() * 5 + 2;
+                    this.particles.push({
+                        x: x,
+                        y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        size: Math.random() * 6 + 3,
+                        color: this.getThemeColor(),
+                        mass: 0.3,
+                        life: 1.0
+                    });
+                }
+            }
+
+            updateParticles() {
+                if (!this.isActive) return;
+
+                this.particles.forEach((particle, index) => {
+                    // Mouse attraction
+                    const dx = this.mouseX - particle.x;
+                    const dy = this.mouseY - particle.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 100) {
+                        const force = (100 - distance) / 100;
+                        particle.vx += (dx / distance) * force * 0.1;
+                        particle.vy += (dy / distance) * force * 0.1;
+                    }
+
+                    // Physics
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    particle.vx *= 0.99; // Friction
+                    particle.vy *= 0.99;
+
+                    // Gravity
+                    particle.vy += 0.02;
+
+                    // Boundaries
+                    if (particle.x < 0 || particle.x > this.canvas.width) {
+                        particle.vx *= -0.8;
+                        particle.x = Math.max(0, Math.min(this.canvas.width, particle.x));
+                    }
+                    if (particle.y < 0 || particle.y > this.canvas.height) {
+                        particle.vy *= -0.8;
+                        particle.y = Math.max(0, Math.min(this.canvas.height, particle.y));
+                    }
+
+                    // Life decay
+                    particle.life -= 0.002;
+                    if (particle.life <= 0) {
+                        this.particles.splice(index, 1);
+                    }
+                });
+
+                // Maintain particle count
+                while (this.particles.length < 100) {
+                    this.particles.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        size: Math.random() * 8 + 2,
+                        color: this.getThemeColor(),
+                        mass: Math.random() * 0.5 + 0.5,
+                        life: 1.0
+                    });
+                }
+            }
+
+            render() {
+                if (!this.gl) return;
+
+                this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+                this.gl.clearColor(0, 0, 0, 0);
+                this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+
+                if (this.particles.length === 0) return;
+
+                // Prepare data arrays
+                const positions = [];
+                const sizes = [];
+                const colors = [];
+
+                this.particles.forEach(particle => {
+                    positions.push(particle.x, particle.y);
+                    sizes.push(particle.size * particle.life);
+                    colors.push(...particle.color);
+                });
+
+                // Create and bind buffers
+                const positionBuffer = this.gl.createBuffer();
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.STATIC_DRAW);
+                this.gl.enableVertexAttribArray(this.positionLocation);
+                this.gl.vertexAttribPointer(this.positionLocation, 2, this.gl.FLOAT, false, 0, 0);
+
+                const sizeBuffer = this.gl.createBuffer();
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, sizeBuffer);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(sizes), this.gl.STATIC_DRAW);
+                this.gl.enableVertexAttribArray(this.sizeLocation);
+                this.gl.vertexAttribPointer(this.sizeLocation, 1, this.gl.FLOAT, false, 0, 0);
+
+                const colorBuffer = this.gl.createBuffer();
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, colorBuffer);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
+                this.gl.enableVertexAttribArray(this.colorLocation);
+                this.gl.vertexAttribPointer(this.colorLocation, 3, this.gl.FLOAT, false, 0, 0);
+
+                // Set uniforms
+                this.gl.uniform2f(this.resolutionLocation, this.canvas.width, this.canvas.height);
+                this.gl.uniform1f(this.timeLocation, this.time);
+
+                // Draw
+                this.gl.drawArrays(this.gl.POINTS, 0, this.particles.length);
+            }
+
+            resizeCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                if (this.gl) {
+                    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+                }
+            }
+
+            animate() {
+                this.time += 1;
+                this.updateParticles();
+                this.render();
+                requestAnimationFrame(() => this.animate());
+            }
+
+            toggle() {
+                this.isActive = !this.isActive;
+                this.canvas.style.display = this.isActive ? 'block' : 'none';
+            }
+        }
+
+        // Initialize physics system
+        let physicsSystem;
+        
+        // Toggle function
+        function togglePhysics() {
+            if (!physicsSystem) {
+                physicsSystem = new PhysicsSystem();
+            } else {
+                physicsSystem.toggle();
+            }
+            
+            const toggleText = document.getElementById('toggleText');
+            if (physicsSystem.isActive) {
+                toggleText.textContent = '🌟 Interactive';
+            } else {
+                toggleText.textContent = '✨ Enable';
+            }
+        }
+        
         // Cookie utility functions
         function setCookie(name, value, days) {
             const expires = new Date();
@@ -778,7 +1163,10 @@
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             checkAuthStatus();
-            
+            // Delay initialization to ensure page is fully loaded
+            setTimeout(() => {
+                physicsSystem = new PhysicsSystem();
+            }, 1000);
             // Check for auth token in URL (OAuth callback)
             const urlParams = new URLSearchParams(window.location.search);
             const authToken = urlParams.get('token');
