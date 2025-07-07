@@ -854,7 +854,77 @@
             updateParticles() {
                 if (!this.isActive) return;
 
+                this.particles.forEaupdateParticles() {
+                if (!this.isActive) return;
+
                 this.particles.forEach((particle, index) => {
+                    // Mouse interaction - both attraction and repulsion
+                    const dx = this.mouseX - particle.x;
+                    const dy = this.mouseY - particle.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 150 && distance > 0) {
+                        const force = (150 - distance) / 150;
+                        const normalizedDx = dx / distance;
+                        const normalizedDy = dy / distance;
+                        
+                        // Attraction when far, repulsion when close
+                        if (distance > 80) {
+                            particle.vx += normalizedDx * force * 0.15;
+                            particle.vy += normalizedDy * force * 0.15;
+                        } else {
+                            particle.vx -= normalizedDx * force * 0.3;
+                            particle.vy -= normalizedDy * force * 0.3;
+                        }
+                    }
+
+                    // Add subtle floating motion
+                    particle.vx += Math.sin(this.time * 0.01 + particle.x * 0.01) * 0.02;
+                    particle.vy += Math.cos(this.time * 0.01 + particle.y * 0.01) * 0.02;
+
+                    // Physics
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    particle.vx *= 0.985; // Reduced friction for more movement
+                    particle.vy *= 0.985;
+
+                    // Very subtle gravity - much weaker
+                    particle.vy += 0.005;
+
+                    // Gentle boundaries with wrapping
+                    if (particle.x < -20) {
+                        particle.x = this.canvas.width + 20;
+                    } else if (particle.x > this.canvas.width + 20) {
+                        particle.x = -20;
+                    }
+                    
+                    if (particle.y < -20) {
+                        particle.y = this.canvas.height + 20;
+                    } else if (particle.y > this.canvas.height + 20) {
+                        particle.y = -20;
+                    }
+
+                    // Slower life decay for longer-lasting particles
+                    particle.life -= 0.0005;
+                    if (particle.life <= 0) {
+                        this.particles.splice(index, 1);
+                    }
+                });
+
+                // Maintain particle count
+                while (this.particles.length < 120) {
+                    this.particles.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        vx: (Math.random() - 0.5) * 1.5,
+                        vy: (Math.random() - 0.5) * 1.5,
+                        size: Math.random() * 6 + 3,
+                        color: this.getThemeColor(),
+                        mass: Math.random() * 0.5 + 0.5,
+                        life: 1.0
+                    });
+                }
+            }ch((particle, index) => {
                     // Mouse attraction
                     const dx = this.mouseX - particle.x;
                     const dy = this.mouseY - particle.y;
