@@ -18,8 +18,10 @@ from flask import Response # type: ignore
 load_dotenv()
 
 # Initialize Flask app
+# Use a strong secret key from environment variable for production
+SECRET_KEY = os.getenv('SECRET_KEY')
 app = Flask(__name__)
-app.secret_key = "ehwodbwelenwkshyuxisid"
+app.secret_key = SECRET_KEY
 
 # --- Rank Authorization Mapping and Decorators ---
 # Rank order: lower number = higher privilege
@@ -409,8 +411,35 @@ def admin_dashboard():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Themis Admin Dashboard</title>
         <style>
+            /* --- Mobile/Responsive Polish --- */
+            @media (max-width: 900px) {{
+                .main-content {{ margin-left: 0 !important; padding: 1.5rem 0.5rem 5rem 0.5rem !important; }}
+                .sidebar {{ width: 100vw !important; height: 60px !important; flex-direction: row !important; top: unset !important; bottom: 0 !important; left: 0 !important; border-right: none !important; border-top: 1.5px solid #a977f8 !important; box-shadow: 0 -2px 16px #a977f81a !important; z-index: 2000 !important; }}
+                .sidebar .logo {{ display: none !important; }}
+                .sidebar .nav-links {{ flex-direction: row !important; gap: 0.5rem !important; margin: 0 !important; width: 100% !important; justify-content: space-around !important; align-items: center !important; }}
+                .sidebar .admin-btn {{ margin: 0 !important; padding: 0.7rem 0.9rem !important; font-size: 0.98rem !important; border-radius: 8px !important; }}
+                .user-info-box {{ right: 1rem !important; top: 0.7rem !important; padding: 0.5rem 0.8rem !important; }}
+            }}
+            @media (max-width: 600px) {{
+                .main-content {{ padding: 0.7rem 0.1rem 5rem 0.1rem !important; }}
+                .cases-title, .dashboard-title {{ font-size: 1.3rem !important; }}
+                .cases-header {{ flex-direction: column !important; align-items: flex-start !important; gap: 0.7rem !important; }}
+                .cases-table th, .cases-table td {{ padding: 0.5rem !important; font-size: 0.92rem !important; }}
+                .cases-table th {{ font-size: 0.8rem !important; }}
+                .user-info-box {{ top: 0.3rem !important; right: 0.3rem !important; padding: 0.3rem 0.5rem !important; }}
+                .user-avatar {{ width: 28px !important; height: 28px !important; font-size: 13px !important; }}
+                .user-details .user-name {{ font-size: 0.98rem !important; }}
+                .user-details .user-rank {{ font-size: 10px !important; }}
+                .logout-btn {{ padding: 0.3rem 0.7rem !important; font-size: 0.85rem !important; }}
+                .modal-content {{ padding: 1.2rem 0.5rem 1rem 0.5rem !important; min-width: 90vw !important; }}
+            }}
+            @media (max-width: 400px) {{
+                .main-content {{ padding: 0.2rem 0 5rem 0 !important; }}
+                .cases-table th, .cases-table td {{ padding: 0.25rem !important; font-size: 0.85rem !important; }}
+                .modal-content {{ padding: 0.5rem 0.1rem 0.5rem 0.1rem !important; min-width: 98vw !important; }}
+            }}
             body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #fff; background: #0a0a0a; overflow-x: hidden; }}
-            .sidebar {{ position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: rgba(20,20,30,0.92); border-right: 1.5px solid #a977f8; display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 16px #a977f81a; }}
+            .sidebar {{ position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: rgba(20,20,30,0.92); border-right: 1.5px solid #a977f8; display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 16px #a977f81a; transition: all 0.25s; }}
             .sidebar .logo {{ font-size: 1.7rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 0.85rem; letter-spacing: -0.03em; padding: 2.2rem 1.5rem 1.2rem 1.5rem; text-shadow: 0 2px 16px #a977f84d; }}
             .sidebar .logo img {{ width: 36px; height: 36px; border-radius: 10px; box-shadow: 0 2px 12px #a977f84d; }}
             .sidebar .nav-links {{ display: flex; flex-direction: column; gap: 0.7rem; margin-top: 2rem; }}
@@ -516,6 +545,10 @@ def admin_cases():
         'warn': '#22d3ee',
         'default': '#a0a0a0'
     }
+    # Expose punishment color mapping to JS for modal
+    punishment_colors_js = json.dumps(PUNISHMENT_COLORS)
+
+    # Helper for inline rendering
     def get_type_color(ptype):
         return PUNISHMENT_COLORS.get(ptype.lower(), PUNISHMENT_COLORS['default']) if ptype else PUNISHMENT_COLORS['default']
 
@@ -538,7 +571,7 @@ def admin_cases():
             .sidebar .nav-links {{ display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.5rem; }}
             .sidebar .admin-btn {{ background: rgba(255,255,255,0.06); color: #fff; padding: 0.7rem 1.2rem; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; text-decoration: none; transition: all 0.2s; font-weight: 500; font-size: 1rem; margin: 0 1.2rem; display: flex; align-items: center; gap: 0.7rem; cursor: pointer; }}
             .sidebar .admin-btn.active, .sidebar .admin-btn:hover {{ background: rgba(169,119,248,0.13); border-color: #a977f8; color: #fff; }}
-            .main-content {{ margin-left: 220px; max-width: 1200px; padding: 2.5rem 2rem 2rem 2rem; min-height: 100vh; }}
+            .main-content {{ margin-left: 220px; max-width: 1200px; padding: 2.5rem 2rem 2rem 2rem; min-height: 100vh; transition: all 0.25s; }}
             .user-info-box {{ position: fixed; top: 1.5rem; right: 2.5rem; z-index: 1100; display: flex; align-items: center; gap: 1rem; background: rgba(255,255,255,0.07); border: 1.5px solid #a977f8; border-radius: 8px; box-shadow: 0 0 12px #a977f84d; padding: 0.6rem 1.2rem 0.6rem 0.8rem; }}
             .user-avatar {{ width: 36px; height: 36px; border-radius: 50%; background: #a977f8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; overflow: hidden; }}
             .user-avatar img {{ width: 100%; height: 100%; object-fit: cover; }}
@@ -547,23 +580,25 @@ def admin_cases():
             .user-rank {{ font-size: 12px; text-transform: capitalize; line-height: 1; font-weight: 600; color: {rank_color}; }}
             .logout-btn {{ background: rgba(255,255,255,0.10); color: #fff; border: 1px solid #a977f8; border-radius: 6px; padding: 0.4rem 1rem; font-size: 0.95rem; font-weight: 500; margin-left: 0.7rem; cursor: pointer; transition: background 0.2s; }}
             .logout-btn:hover {{ background: #a977f8; color: #fff; }}
-            .cases-header {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; margin-top: 0.5rem; }}
+            .cases-header {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; margin-top: 0.5rem; gap: 1.2rem; flex-wrap: wrap; }}
             .cases-title {{ font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
             .create-log-btn {{ background: #a977f8; color: #fff; border: none; border-radius: 8px; padding: 0.7rem 1.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 8px #a977f84d; }}
             .create-log-btn:hover {{ background: #9966e6; }}
             .cases-table {{ background: rgba(169, 119, 248, 0.05); border: 1px solid rgba(169, 119, 248, 0.2); border-radius: 12px; overflow: hidden; margin-bottom: 2rem; box-shadow: 0 2px 8px #a977f81a; }}
             .cases-table table {{ width: 100%; border-collapse: collapse; }}
-            .cases-table th, .cases-table td {{ padding: 1rem; text-align: left; border-bottom: 1px solid #23232b; }}
+            .cases-table th, .cases-table td {{ padding: 1rem; text-align: left; border-bottom: 1px solid #23232b; word-break: break-word; }}
             .cases-table th {{ background: rgba(169, 119, 248, 0.10); font-weight: 600; color: #fff; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }}
             .cases-table td {{ color: #a0a0a0; font-size: 0.98rem; }}
             .type-badge {{ display: inline-block; padding: 0.3em 0.8em; border-radius: 6px; font-weight: 600; font-size: 0.95em; color: #18181b; margin-right: 0.2em; }}
-            .action-link {{ color: #a977f8; text-decoration: underline; cursor: pointer; font-weight: 500; }}
-            .action-link:hover {{ color: #fff; }}
+            .action-link {{ color: #a977f8; text-decoration: none; cursor: pointer; font-weight: 500; border-radius: 5px; padding: 0.1em 0.5em; transition: background 0.18s, color 0.18s; outline: none; }}
+            .action-link:hover, .action-link:focus {{ color: #fff; background: #a977f8; text-decoration: none; outline: none; }}
+            .logout-btn, .logout-btn:visited, .logout-btn:active {{ text-decoration: none !important; }}
             /* Modal Styles */
-            .modal {{ display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 2000; }}
-            .modal-content {{ background: rgba(35,35,43,0.98); border-radius: 16px; padding: 2.5rem 2rem 2rem 2rem; min-width: 340px; max-width: 95vw; box-shadow: 0 8px 32px #a977f826; position: relative; border: 1.5px solid #a977f8; }}
-            .close-modal {{ position: absolute; top: 1.2rem; right: 1.5rem; font-size: 2.2rem; color: #a0a0a0; cursor: pointer; font-weight: 700; transition: color 0.2s; }}
-            .close-modal:hover {{ color: #fff; }}
+            .modal {{ display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 2000; outline: none; }}
+            .modal[aria-modal="true"] {{ display: flex; }}
+            .modal-content {{ background: rgba(35,35,43,0.98); border-radius: 16px; padding: 2.5rem 2rem 2rem 2rem; min-width: 340px; max-width: 95vw; box-shadow: 0 8px 32px #a977f826; position: relative; border: 1.5px solid #a977f8; outline: none; transition: all 0.2s; }}
+            .close-modal {{ position: absolute; top: 1.2rem; right: 1.5rem; font-size: 2.2rem; color: #a0a0a0; cursor: pointer; font-weight: 700; transition: color 0.2s; background: none; border: none; }}
+            .close-modal:hover, .close-modal:focus {{ color: #fff; outline: none; }}
             .modal-title {{ font-size: 1.4rem; font-weight: 700; margin-bottom: 1.5rem; color: #fff; text-align: center; letter-spacing: -0.01em; }}
             .form-group {{ margin-bottom: 1.3rem; }}
             .form-group label {{ display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500; }}
@@ -605,15 +640,15 @@ def admin_cases():
                         <tr><th>ID</th><th>User ID</th><th>Type</th><th>Reason</th><th>Status</th><th>Length</th><th>Details</th></tr>
                     </thead>
                     <tbody>
-                        {''.join(f'<tr><td>{c["id"]}</td><td>{c["user_id"]}</td><td><span class="type-badge" style="background:{get_type_color(c["type"])}">{c["type"] or "-"}</span></td><td>{c["reason"]}</td><td>{c["status"]}</td><td>{c["length"]}</td><td><span class="action-link" onclick="viewCaseDetail(\'{c["id"]}\')">View</span></td></tr>' for c in cases)}
+                        {''.join(f'<tr><td>{c["id"]}</td><td>{c["user_id"]}</td><td><span class="type-badge" style="background:{get_type_color(c["type"])}">{c["type"] or "-"}</span></td><td>{c["reason"]}</td><td>{c["status"]}</td><td>{c["length"]}</td><td><span class="action-link" tabindex="0" onclick="viewCaseDetail(\'{c["id"]}\')">View</span></td></tr>' for c in cases)}
                     </tbody>
                 </table>
             </div>
             <!-- Moderation Log Modal -->
-            <div id="modlog-modal" class="modal">
+            <div id="modlog-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modlog-modal-title" tabindex="-1">
                 <div class="modal-content">
-                    <span class="close-modal" onclick="closeModlogModal()">&times;</span>
-                    <div class="modal-title">Create Moderation Log</div>
+                    <button class="close-modal" onclick="closeModlogModal()" aria-label="Close modal">&times;</button>
+                    <div class="modal-title" id="modlog-modal-title">Create Moderation Log</div>
                     <form id="modlog-form">
                         <div class="form-group">
                             <label for="modlog-case-id">Case ID (optional, for updating existing case)</label>
@@ -641,13 +676,42 @@ def admin_cases():
                 </div>
             </div>
             <script>
+                // Accessibility: trap focus in modal
+                function trapFocus(modal) {{
+                    var focusableEls = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                    var first = focusableEls[0];
+                    var last = focusableEls[focusableEls.length - 1];
+                    modal.addEventListener('keydown', function(e) {{
+                        if (e.key === 'Tab') {{
+                            if (e.shiftKey) {{ if (document.activeElement === first) {{ e.preventDefault(); last.focus(); }} }}
+                            else {{ if (document.activeElement === last) {{ e.preventDefault(); first.focus(); }} }}
+                        }}
+                        if (e.key === 'Escape') {{ closeModlogModal(); }}
+                    }});
+                }}
+                // Expose punishment colors to JS
+                const PUNISHMENT_COLORS = {punishment_colors_js};
+                function get_type_color(ptype) {{
+                    if (!ptype) {{ return PUNISHMENT_COLORS['default']; }}
+                    var key = ptype.toLowerCase();
+                    return PUNISHMENT_COLORS[key] || PUNISHMENT_COLORS['default'];
+                }}
                 // The following JS is inside a Python f-string. Linter: ignore 'document' not defined.
                 function openModlogModal() {{
-                    document.getElementById('modlog-modal').style.display = 'flex';
+                    const modal = document.getElementById('modlog-modal');
+                    modal.setAttribute('aria-modal', 'true');
+                    modal.style.display = 'flex';
                     document.getElementById('modlog-form').reset();
+                    setTimeout(() => {{
+                        const firstInput = modal.querySelector('input, select, textarea, button');
+                        if (firstInput) firstInput.focus();
+                    }}, 100);
+                    trapFocus(modal);
                 }}
                 function closeModlogModal() {{
-                    document.getElementById('modlog-modal').style.display = 'none';
+                    const modal = document.getElementById('modlog-modal');
+                    modal.removeAttribute('aria-modal');
+                    modal.style.display = 'none';
                 }}
                 document.getElementById('modlog-form').onsubmit = async function(event) {{
                     event.preventDefault();
@@ -681,37 +745,39 @@ def admin_cases():
                 }};
                 // View case detail (fetches from /api/case/discord/<case_id> and shows a modal with all info)
                 function viewCaseDetail(caseId) {{
-                    fetch(`/api/case/discord/${{caseId}}`)
-                        .then(res => res.json())
-                        .then(data => {{
+                    var url = '/api/case/discord/' + caseId;
+                    fetch(url)
+                        .then(function(res) {{ return res.json(); }})
+                        .then(function(data) {{
                             if (data.error) {{
                                 alert('Error: ' + data.error);
                                 return;
                             }}
-                            let html = `<div style='padding:1.5rem 1.2rem 0.5rem 1.2rem;max-width:480px;'>`;
-                            html += `<h2 style='font-size:1.3rem;font-weight:700;margin-bottom:1rem;'>Case #${{data.reference_id || ''}}<\/h2>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Punishment Type:</b> <span style='background:${{get_type_color(data.punishment_type)}};color:#18181b;padding:0.2em 0.7em;border-radius:6px;font-weight:600;'>${{data.punishment_type || '-'}}<\/span><\/div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Status:</b> ${{data.appealed == 1 ? 'Appealed' : 'Active'}}<\/div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Reason:</b> ${{data.reason || '-'}}<\/div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Length:</b> ${{data.length || '-'}}<\/div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Moderator Note:</b> ${{data.moderator_note || '-'}}<\/div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Discord User ID:</b> ${{data.user_id || '-'}}<\/div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Discord Username:</b> ${{data.discord_username || '-'}}<\/div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Roblox User ID:</b> ${{data.roblox_user_id || '-'}}<\/div>`;
-                            html += `<div style='margin-bottom:0.7rem;'><b>Roblox Username:</b> ${{data.roblox_username || '-'}}<\/div>`;
+                            var html = "<div style='padding:1.5rem 1.2rem 0.5rem 1.2rem;max-width:480px;'>";
+                            html += "<h2 style='font-size:1.3rem;font-weight:700;margin-bottom:1rem;'>Case #" + (data.reference_id || '') + "</h2>";
+                            html += "<div style='margin-bottom:0.7rem;'><b>Punishment Type:</b> <span style='background:" + get_type_color(data.punishment_type) + ";color:#18181b;padding:0.2em 0.7em;border-radius:6px;font-weight:600;'>" + (data.punishment_type || '-') + "</span></div>";
+                            html += "<div style='margin-bottom:0.7rem;'><b>Status:</b> " + (data.appealed == 1 ? 'Appealed' : 'Active') + "</div>";
+                            html += "<div style='margin-bottom:0.7rem;'><b>Reason:</b> " + (data.reason || '-') + "</div>";
+                            html += "<div style='margin-bottom:0.7rem;'><b>Length:</b> " + (data.length || '-') + "</div>";
+                            html += "<div style='margin-bottom:0.7rem;'><b>Moderator Note:</b> " + (data.moderator_note || '-') + "</div>";
+                            html += "<div style='margin-bottom:0.7rem;'><b>Discord User ID:</b> " + (data.user_id || '-') + "</div>";
+                            html += "<div style='margin-bottom:0.7rem;'><b>Discord Username:</b> " + (data.discord_username || '-') + "</div>";
+                            html += "<div style='margin-bottom:0.7rem;'><b>Roblox User ID:</b> " + (data.roblox_user_id || '-') + "</div>";
+                            html += "<div style='margin-bottom:0.7rem;'><b>Roblox Username:</b> " + (data.roblox_username || '-') + "</div>";
                             if (data.evidence && Array.isArray(data.evidence) && data.evidence.length > 0) {{
-                                html += `<div style='margin-bottom:0.7rem;'><b>Evidence:</b><ul style='margin:0.3em 0 0 1.2em;'>`;
-                                for (let url of data.evidence) {{
-                                    html += `<li><a href='${{url}}' target='_blank' style='color:#a977f8;'>${{url}}<\/a><\/li>`;
+                                html += "<div style='margin-bottom:0.7rem;'><b>Evidence:</b><ul style='margin:0.3em 0 0 1.2em;'>";
+                                for (var i = 0; i < data.evidence.length; i++) {{
+                                    var url = data.evidence[i];
+                                    html += "<li><a href='" + url + "' target='_blank' style='color:#a977f8;'>" + url + "</a></li>";
                                 }}
-                                html += `</ul></div>`;
+                                html += "</ul></div>";
                             }} else if (data.evidence) {{
-                                html += `<div style='margin-bottom:0.7rem;'><b>Evidence:</b> ${{data.evidence}}<\/div>`;
+                                html += "<div style='margin-bottom:0.7rem;'><b>Evidence:</b> " + data.evidence + "</div>";
                             }}
-                            html += `</div>`;
+                            html += "</div>";
                             showCaseDetailModal(html);
                         }})
-                        .catch(() => alert('Failed to fetch case details.'));
+                        .catch(function() {{ alert('Failed to fetch case details.'); }});
                 }}
 
                 // Modal for case details
@@ -831,5 +897,6 @@ def get_case_detail(project, case_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# For production, use a WSGI server (e.g. gunicorn/uwsgi) instead of Flask's built-in server.
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
