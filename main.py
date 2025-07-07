@@ -571,7 +571,7 @@ def admin_cases():
                         <tr><th>ID</th><th>User</th><th>Type</th><th>Reason</th><th>Status</th><th>Length</th><th>Actions</th></tr>
                     </thead>
                     <tbody>
-                        {''.join(f'<tr><td>{c["id"]}</td><td>{c["user"]}</td><td>{c["type"]}</td><td>{c["reason"]}</td><td>{c["status"]}</td><td>{c["length"]}</td><td><button class="action-btn" onclick="openModlogModal({{{{c["id"]}}}})">Create Moderation Log</button></td></tr>' for c in cases)}
+                        {''.join(f'<tr><td>{c["id"]}</td><td>{c["user"]}</td><td>{c["type"]}</td><td>{c["reason"]}</td><td>{c["status"]}</td><td>{c["length"]}</td><td><button class="action-btn" onclick="openModlogModal({c["id"]})">Create Moderation Log</button></td></tr>' for c in cases)}
                     </tbody>
                 </table>
             </div>
@@ -635,6 +635,20 @@ def admin_cases():
                     alert('Network error.');
                 }}
             }};
+                window.onclick = function(event) {{
+                    var modal = document.getElementById('modlog-modal');
+                    if (event.target == modal) {{
+                        closeModlogModal();
+                    }}
+                }};
+            </script>
+        </div>
+    </body>
+    </html>
+    '''
+    return render_template_string(html)
+
+# Move /api/modlog/create route OUTSIDE the HTML string and function
 @app.route('/api/modlog/create', methods=['POST'])
 @login_required
 @staff_required
@@ -643,6 +657,7 @@ def create_modlog():
     Create a moderation log entry in the discord table (as a new case).
     Accepts: case_id (reference_id), type, reason, details (moderator_note)
     """
+    user = session.get('user', {})
     data = request.get_json()
     staff_id = user.get('id')
     staff_name = user.get('username', 'Unknown')
@@ -676,18 +691,6 @@ def create_modlog():
         return jsonify({'message': 'Moderation log updated for case'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-                window.onclick = function(event) {{
-                    var modal = document.getElementById('modlog-modal');
-                    if (event.target == modal) {{
-                        closeModlogModal();
-                    }}
-                }};
-            </script>
-        </div>
-    </body>
-    </html>
-    '''
-    return render_template_string(html)
     
 @app.route('/api/case/<project>/<case_id>')
 @login_required
