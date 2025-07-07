@@ -694,9 +694,9 @@
         gl.vertexAttribPointer(positionAttrib, 2, gl.FLOAT, false, 0, 0);
 
         const MAX_SPEED = 200;
-        const DAMPING = 0.98;
+        const DAMPING = 0.999;
         const GRAVITY_SENSITIVITY = 100;
-        const DENSITY_FACTOR = 20;
+        const DENSITY_FACTOR = 50;
 
         function simulatePhysics(dt) {
             // Clear density map
