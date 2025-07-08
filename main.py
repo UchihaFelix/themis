@@ -611,7 +611,7 @@ def admin_cases():
             .cases-table th, .cases-table td {{ padding: 1rem; text-align: left; border-bottom: 1px solid #23232b; word-break: break-word; }}
             .cases-table th {{ background: rgba(169, 119, 248, 0.10); font-weight: 600; color: #fff; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }}
             .cases-table td {{ color: #a0a0a0; font-size: 0.98rem; }}
-            .type-badge {{ display: inline-block; padding: 0.3em 0.8em; border-radius: 6px; font-weight: 600; font-size: 0.95em; color: #18181b; margin-right: 0.2em; }}
+            .type-badge {{ display: inline-block; padding: 0.3em 0.8em; border-radius: 6px; font-weight: 600; font-size: 0.95em; color: #18181b; margin-right: 0.2em; white-space: nowrap; }}
             .action-link {{ color: #a977f8; text-decoration: none; cursor: pointer; font-weight: 500; border-radius: 5px; padding: 0.1em 0.5em; transition: background 0.18s, color 0.18s; outline: none; }}
             .action-link:hover, .action-link:focus {{ color: #fff; background: #a977f8; text-decoration: none; outline: none; }}
             .logout-btn, .logout-btn:visited, .logout-btn:active {{ text-decoration: none !important; }}
