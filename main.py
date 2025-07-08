@@ -476,7 +476,7 @@ def admin_dashboard():
                 width: 100%;
                 height: 100%;
                 z-index: -2;
-                opacity: 0.3;
+                opacity: 0.6;
                 pointer-events: none;
             }}
             
@@ -1044,235 +1044,261 @@ def admin_dashboard():
             </div>
         </main>
         <script>
-        class FluidSimulation {{
-            constructor() {{
-                this.canvas = document.getElementById('fluid-canvas');
-                this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
-                
-                if (!this.gl) {{
-                    console.warn('WebGL not supported');
-                    return;
+            class FluidSimulation {{
+                constructor() {{
+                    this.canvas = document.getElementById('fluid-canvas');
+                    this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+                    
+                    if (!this.gl) {{
+                        console.warn('WebGL not supported');
+                        // Fallback: create a simple CSS animation instead
+                        this.createCSSFallback();
+                        return;
+                    }}
+                    
+                    console.log('WebGL initialized successfully');
+                    
+                    this.mouse = {{ x: 0, y: 0, prevX: 0, prevY: 0 }};
+                    this.isMouseDown = false;
+                    this.time = 0;
+                    
+                    this.init();
+                    this.setupEventListeners();
+                    this.animate();
                 }}
                 
-                this.mouse = {{ x: 0, y: 0, prevX: 0, prevY: 0 }};
-                this.isMouseDown = false;
-                this.time = 0;
-                
-                this.init();
-                this.setupEventListeners();
-                this.animate();
-            }}
-            
-            init() {{
-                this.resizeCanvas();
-                
-                // Vertex shader
-                const vertexShader = this.createShader(this.gl.VERTEX_SHADER, `
-                    attribute vec2 a_position;
-                    void main() {{
-                        gl_Position = vec4(a_position, 0.0, 1.0);
-                    }}
-                `);
-                
-                // Fragment shader with subtle fluid effect
-                const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, `
-                    precision mediump float;
-                    uniform vec2 u_resolution;
-                    uniform float u_time;
-                    uniform vec2 u_mouse;
-                    uniform float u_mouseIntensity;
+                createCSSFallback() {{
+                    this.canvas.style.background = `
+                        radial-gradient(circle at 20% 30%, rgba(169, 119, 248, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 70%, rgba(169, 119, 248, 0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 80%, rgba(169, 119, 248, 0.06) 0%, transparent 50%)
+                    `;
+                    this.canvas.style.animation = 'pulse 4s ease-in-out infinite alternate';
                     
-                    float noise(vec2 p) {{
-                        return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-                    }}
+                    // Add CSS animation
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        @keyframes pulse {{
+                            0% {{ opacity: 0.3; }}
+                            100% {{ opacity: 0.6; }}
+                        }}
+                    `;
+                    document.head.appendChild(style);
+                }}
+                
+                init() {{
+                    this.resizeCanvas();
                     
-                    float smoothNoise(vec2 p) {{
-                        vec2 i = floor(p);
-                        vec2 f = fract(p);
-                        f = f * f * (3.0 - 2.0 * f);
-                        
-                        float a = noise(i);
-                        float b = noise(i + vec2(1.0, 0.0));
-                        float c = noise(i + vec2(0.0, 1.0));
-                        float d = noise(i + vec2(1.0, 1.0));
-                        
-                        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-                    }}
+                    // Vertex shader
+                    const vertexShader = this.createShader(this.gl.VERTEX_SHADER, `
+                        attribute vec2 a_position;
+                        void main() {{
+                            gl_Position = vec4(a_position, 0.0, 1.0);
+                        }}
+                    `);
                     
-                    float fbm(vec2 p) {{
-                        float value = 0.0;
-                        float amplitude = 0.5;
-                        float frequency = 1.0;
+                    // Fragment shader with subtle fluid effect
+                    const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, `
+                        precision mediump float;
+                        uniform vec2 u_resolution;
+                        uniform float u_time;
+                        uniform vec2 u_mouse;
+                        uniform float u_mouseIntensity;
                         
-                        for(int i = 0; i < 4; i++) {{
-                            value += amplitude * smoothNoise(p * frequency);
-                            amplitude *= 0.5;
-                            frequency *= 2.0;
+                        float noise(vec2 p) {{
+                            return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
                         }}
                         
-                        return value;
+                        float smoothNoise(vec2 p) {{
+                            vec2 i = floor(p);
+                            vec2 f = fract(p);
+                            f = f * f * (3.0 - 2.0 * f);
+                            
+                            float a = noise(i);
+                            float b = noise(i + vec2(1.0, 0.0));
+                            float c = noise(i + vec2(0.0, 1.0));
+                            float d = noise(i + vec2(1.0, 1.0));
+                            
+                            return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+                        }}
+                        
+                        float fbm(vec2 p) {{
+                            float value = 0.0;
+                            float amplitude = 0.5;
+                            float frequency = 1.0;
+                            
+                            for(int i = 0; i < 4; i++) {{
+                                value += amplitude * smoothNoise(p * frequency);
+                                amplitude *= 0.5;
+                                frequency *= 2.0;
+                            }}
+                            
+                            return value;
+                        }}
+                        
+                        void main() {{
+                            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+                            
+                            // Slow-moving fluid distortion
+                            vec2 p = uv * 2.0 + u_time * 0.2;
+                            float flow = fbm(p + vec2(sin(u_time * 0.5), cos(u_time * 0.3)));
+                            
+                            // Mouse interaction
+                            vec2 mouseUV = u_mouse / u_resolution.xy;
+                            float mouseDist = length(uv - mouseUV);
+                            float mouseEffect = smoothstep(0.4, 0.0, mouseDist) * u_mouseIntensity;
+                            
+                            // Base animated pattern
+                            float wave = sin(uv.x * 10.0 + u_time) * sin(uv.y * 10.0 + u_time * 0.8) * 0.1;
+                            
+                            // Combine effects
+                            float intensity = (flow * 0.3 + mouseEffect * 0.7 + wave) * 0.5;
+                            
+                            // Purple tint matching the theme
+                            vec3 color = vec3(0.66, 0.47, 0.97) * (intensity + 0.1);
+                            
+                            gl_FragColor = vec4(color, (intensity + 0.05) * 0.8);
+                        }}
+                    `);
+                    
+                    // Create program
+                    this.program = this.createProgram(vertexShader, fragmentShader);
+                    
+                    // Get uniform locations
+                    this.uniforms = {{
+                        resolution: this.gl.getUniformLocation(this.program, 'u_resolution'),
+                        time: this.gl.getUniformLocation(this.program, 'u_time'),
+                        mouse: this.gl.getUniformLocation(this.program, 'u_mouse'),
+                        mouseIntensity: this.gl.getUniformLocation(this.program, 'u_mouseIntensity')
+                    }};
+                    
+                    // Create buffer
+                    const positions = new Float32Array([
+                        -1, -1,
+                        1, -1,
+                        -1,  1,
+                        1,  1
+                    ]);
+                    
+                    this.positionBuffer = this.gl.createBuffer();
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
+                    
+                    // Setup attributes
+                    const positionAttribute = this.gl.getAttribLocation(this.program, 'a_position');
+                    this.gl.enableVertexAttribArray(positionAttribute);
+                    this.gl.vertexAttribPointer(positionAttribute, 2, this.gl.FLOAT, false, 0, 0);
+                    
+                    // WebGL settings
+                    this.gl.enable(this.gl.BLEND);
+                    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+                }}
+                
+                createShader(type, source) {{
+                    const shader = this.gl.createShader(type);
+                    this.gl.shaderSource(shader, source);
+                    this.gl.compileShader(shader);
+                    
+                    if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {{
+                        console.error('Shader compilation error:', this.gl.getShaderInfoLog(shader));
+                        this.gl.deleteShader(shader);
+                        return null;
                     }}
                     
-                    void main() {{
-                        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-                        
-                        // Slow-moving fluid distortion
-                        vec2 p = uv * 3.0 + u_time * 0.1;
-                        float flow = fbm(p + vec2(sin(u_time * 0.3), cos(u_time * 0.2)));
-                        
-                        // Mouse interaction
-                        vec2 mouseUV = u_mouse / u_resolution.xy;
-                        float mouseDist = length(uv - mouseUV);
-                        float mouseEffect = smoothstep(0.3, 0.0, mouseDist) * u_mouseIntensity * 0.5;
-                        
-                        // Combine effects
-                        float intensity = (flow + mouseEffect) * 0.15;
-                        
-                        // Purple tint matching the theme
-                        vec3 color = vec3(0.66, 0.47, 0.97) * intensity;
-                        
-                        gl_FragColor = vec4(color, intensity * 0.8);
+                    return shader;
+                }}
+                
+                createProgram(vertexShader, fragmentShader) {{
+                    const program = this.gl.createProgram();
+                    this.gl.attachShader(program, vertexShader);
+                    this.gl.attachShader(program, fragmentShader);
+                    this.gl.linkProgram(program);
+                    
+                    if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {{
+                        console.error('Program linking error:', this.gl.getProgramInfoLog(program));
+                        this.gl.deleteProgram(program);
+                        return null;
                     }}
-                `);
-                
-                // Create program
-                this.program = this.createProgram(vertexShader, fragmentShader);
-                
-                // Get uniform locations
-                this.uniforms = {{
-                    resolution: this.gl.getUniformLocation(this.program, 'u_resolution'),
-                    time: this.gl.getUniformLocation(this.program, 'u_time'),
-                    mouse: this.gl.getUniformLocation(this.program, 'u_mouse'),
-                    mouseIntensity: this.gl.getUniformLocation(this.program, 'u_mouseIntensity')
-                }};
-                
-                // Create buffer
-                const positions = new Float32Array([
-                    -1, -1,
-                     1, -1,
-                    -1,  1,
-                     1,  1
-                ]);
-                
-                this.positionBuffer = this.gl.createBuffer();
-                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
-                this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
-                
-                // Setup attributes
-                const positionAttribute = this.gl.getAttribLocation(this.program, 'a_position');
-                this.gl.enableVertexAttribArray(positionAttribute);
-                this.gl.vertexAttribPointer(positionAttribute, 2, this.gl.FLOAT, false, 0, 0);
-                
-                // WebGL settings
-                this.gl.enable(this.gl.BLEND);
-                this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-            }}
-            
-            createShader(type, source) {{
-                const shader = this.gl.createShader(type);
-                this.gl.shaderSource(shader, source);
-                this.gl.compileShader(shader);
-                
-                if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {{
-                    console.error('Shader compilation error:', this.gl.getShaderInfoLog(shader));
-                    this.gl.deleteShader(shader);
-                    return null;
+                    
+                    return program;
                 }}
                 
-                return shader;
-            }}
-            
-            createProgram(vertexShader, fragmentShader) {{
-                const program = this.gl.createProgram();
-                this.gl.attachShader(program, vertexShader);
-                this.gl.attachShader(program, fragmentShader);
-                this.gl.linkProgram(program);
-                
-                if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {{
-                    console.error('Program linking error:', this.gl.getProgramInfoLog(program));
-                    this.gl.deleteProgram(program);
-                    return null;
+                setupEventListeners() {{
+                    window.addEventListener('resize', () => this.resizeCanvas());
+                    
+                    // Mouse events
+                    window.addEventListener('mousemove', (e) => {{
+                        this.mouse.prevX = this.mouse.x;
+                        this.mouse.prevY = this.mouse.y;
+                        this.mouse.x = e.clientX;
+                        this.mouse.y = this.canvas.height - e.clientY;
+                    }});
+                    
+                    window.addEventListener('mousedown', () => {{
+                        this.isMouseDown = true;
+                    }});
+                    
+                    window.addEventListener('mouseup', () => {{
+                        this.isMouseDown = false;
+                    }});
+                    
+                    // Touch events for mobile
+                    window.addEventListener('touchmove', (e) => {{
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        this.mouse.prevX = this.mouse.x;
+                        this.mouse.prevY = this.mouse.y;
+                        this.mouse.x = touch.clientX;
+                        this.mouse.y = this.canvas.height - touch.clientY;
+                    }});
+                    
+                    window.addEventListener('touchstart', () => {{
+                        this.isMouseDown = true;
+                    }});
+                    
+                    window.addEventListener('touchend', () => {{
+                        this.isMouseDown = false;
+                    }});
                 }}
                 
-                return program;
+                resizeCanvas() {{
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+                }}
+                
+                render() {{
+                    this.gl.useProgram(this.program);
+                    
+                    // Update uniforms
+                    this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
+                    this.gl.uniform1f(this.uniforms.time, this.time);
+                    this.gl.uniform2f(this.uniforms.mouse, this.mouse.x, this.mouse.y);
+                    
+                    // Mouse intensity based on movement and click
+                    const mouseVelocity = Math.sqrt(
+                        (this.mouse.x - this.mouse.prevX) ** 2 + 
+                        (this.mouse.y - this.mouse.prevY) ** 2
+                    );
+                    const intensity = Math.min(mouseVelocity * 0.01 + (this.isMouseDown ? 0.5 : 0), 1.0);
+                    this.gl.uniform1f(this.uniforms.mouseIntensity, intensity);
+                    
+                    // Draw
+                    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+                }}
+                
+                animate() {{
+                    this.time += 0.016;
+                    this.render();
+                    requestAnimationFrame(() => this.animate());
+                }}
             }}
             
-            setupEventListeners() {{
-                window.addEventListener('resize', () => this.resizeCanvas());
-                
-                // Mouse events
-                window.addEventListener('mousemove', (e) => {{
-                    this.mouse.prevX = this.mouse.x;
-                    this.mouse.prevY = this.mouse.y;
-                    this.mouse.x = e.clientX;
-                    this.mouse.y = this.canvas.height - e.clientY;
-                }});
-                
-                window.addEventListener('mousedown', () => {{
-                    this.isMouseDown = true;
-                }});
-                
-                window.addEventListener('mouseup', () => {{
-                    this.isMouseDown = false;
-                }});
-                
-                // Touch events for mobile
-                window.addEventListener('touchmove', (e) => {{
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    this.mouse.prevX = this.mouse.x;
-                    this.mouse.prevY = this.mouse.y;
-                    this.mouse.x = touch.clientX;
-                    this.mouse.y = this.canvas.height - touch.clientY;
-                }});
-                
-                window.addEventListener('touchstart', () => {{
-                    this.isMouseDown = true;
-                }});
-                
-                window.addEventListener('touchend', () => {{
-                    this.isMouseDown = false;
-                }});
-            }}
-            
-            resizeCanvas() {{
-                this.canvas.width = window.innerWidth;
-                this.canvas.height = window.innerHeight;
-                this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-            }}
-            
-            render() {{
-                this.gl.useProgram(this.program);
-                
-                // Update uniforms
-                this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
-                this.gl.uniform1f(this.uniforms.time, this.time);
-                this.gl.uniform2f(this.uniforms.mouse, this.mouse.x, this.mouse.y);
-                
-                // Mouse intensity based on movement and click
-                const mouseVelocity = Math.sqrt(
-                    (this.mouse.x - this.mouse.prevX) ** 2 + 
-                    (this.mouse.y - this.mouse.prevY) ** 2
-                );
-                const intensity = Math.min(mouseVelocity * 0.01 + (this.isMouseDown ? 0.5 : 0), 1.0);
-                this.gl.uniform1f(this.uniforms.mouseIntensity, intensity);
-                
-                // Draw
-                this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-            }}
-            
-            animate() {{
-                this.time += 0.016;
-                this.render();
-                requestAnimationFrame(() => this.animate());
-            }}
-        }}
-        
-        // Initialize when page loads
-        window.addEventListener('load', () => {{
-            new FluidSimulation();
-        }});
-    </script>
+            // Initialize when page loads
+            window.addEventListener('load', () => {{
+                new FluidSimulation();
+            }});
+        </script>
     </body>
     </html>
     '''
