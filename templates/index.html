@@ -876,7 +876,7 @@
             }
         }
 
-        // Particle Visualization (your existing one)
+        // Particle Visualization
         class ParticleVisualization extends BaseVisualization {
             constructor(gl, canvas) {
                 super(gl, canvas);
@@ -1072,7 +1072,7 @@
             }
         }
 
-        // Particle class (extracted from your existing code)
+        // Particle class
         class Particle {
             constructor(canvas) {
                 this.x = Math.random() * canvas.width;
@@ -1348,7 +1348,7 @@
                 super(gl, canvas);
                 this.drops = [];
                 this.COLUMN_COUNT = 50;
-                this.DEPTH_LAYERS = 5; // Number of depth layers
+                this.DEPTH_LAYERS = 5;
             }
             
             createShaders() {
