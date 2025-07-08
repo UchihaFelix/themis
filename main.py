@@ -480,7 +480,7 @@ def admin_dashboard():
     <body>
         <div class="sidebar">
             <div class="logo">
-                <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
+                <img src="https://i.imgur.com/S3FBo0I.png" alt="Themis">
                 Themis
             </div>
             <div class="nav-links">
@@ -634,7 +634,7 @@ def admin_cases():
     <body>
         <div class="sidebar">
             <div class="logo">
-                <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
+                <img src="https://i.imgur.com/S3FBo0I.png" alt="Themis">
                 Themis
             </div>
             <div class="nav-links">
