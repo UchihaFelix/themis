@@ -1994,28 +1994,28 @@ def admin_cases():
                 document.body.style.overflow = 'hidden';
 
                 // Fetch latest case info from backend
-                fetch(`/api/case/discord/${caseId}`)
+                fetch('/api/case/discord/' + caseId)
                     .then(res => res.json())
                     .then(data => {{
                         if (data.error) {{
-                            detailsContainer.innerHTML = `<div style="color:red;">${{data.error}}</div>`;
+                            detailsContainer.innerHTML = '<div style="color:red;">' + data.error + '</div>';
                             return;
                         }}
                         const typeColor = punishmentColors[(data.punishment_type || '').toLowerCase()] || punishmentColors['default'];
                         // Evidence rendering: show images and videos inline, others as links
                         let evidenceHtml = '';
                         if (data.evidence && Array.isArray(data.evidence) && data.evidence.length) {{
-                            evidenceHtml = `<div class="form-group"><label>Evidence</label><div style="display:flex;flex-direction:column;gap:12px;">` +
+                            evidenceHtml = '<div class="form-group"><label>Evidence</label><div style="display:flex;flex-direction:column;gap:12px;">' +
                                 data.evidence.map(function(url) {{
                                     const ext = url.split('.').pop().toLowerCase().split('?')[0];
                                     if (["jpg","jpeg","png","gif","webp","bmp"].includes(ext)) {{
-                                        return `<a href="${{url}}" target="_blank"><img src="${{url}}" alt="evidence" style="max-width:100%;max-height:220px;border-radius:8px;box-shadow:0 2px 8px #0002;"></a>`;
+                                        return '<a href="' + url + '" target="_blank"><img src="' + url + '" alt="evidence" style="max-width:100%;max-height:220px;border-radius:8px;box-shadow:0 2px 8px #0002;"></a>';
                                     }} else if (["mp4","webm","ogg","mov","m4v"].includes(ext)) {{
-                                        return `<video controls style="max-width:100%;max-height:220px;border-radius:8px;box-shadow:0 2px 8px #0002;"><source src="${{url}}"></video>`;
+                                        return '<video controls style="max-width:100%;max-height:220px;border-radius:8px;box-shadow:0 2px 8px #0002;"><source src="' + url + '"></video>';
                                     }} else {{
-                                        return `<a href="${{url}}" target="_blank">${{url}}</a>`;
+                                        return '<a href="' + url + '" target="_blank">' + url + '</a>';
                                     }}
-                                }}).join('') + `</div></div>`;
+                                }}).join('') + '</div></div>';
                         }}
                         detailsContainer.innerHTML = `
                             <div style="display: flex; flex-direction: column; gap: 20px;">
@@ -2050,7 +2050,7 @@ def admin_cases():
                         `;
                     }})
                     .catch(err => {{
-                        detailsContainer.innerHTML = `<div style="color:red;">Error loading case details.</div>`;
+                        detailsContainer.innerHTML = '<div style="color:red;">Error loading case details.</div>';
                     }});
             }}
 
@@ -2119,7 +2119,6 @@ def admin_cases():
     
     return render_template_string(html)
 
-# Move /api/modlog/create route OUTSIDE the HTML string and function
 @app.route('/admin/create-modlog', methods=['POST'])
 @login_required
 @staff_required
@@ -2153,7 +2152,80 @@ def create_modlog():
         return jsonify({'success': True, 'message': 'Moderation log created'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/admin/update-modlog/<int:reference_id>', methods=['PUT'])
+@login_required
+@staff_required
+def update_modlog(reference_id):
+    """
+    Update an existing moderation log entry with evidence and moderator notes.
+    Accepts: evidence, moderatorNote (from request body)
+    """
+    user = session.get('user', {})
+    data = request.get_json()
     
+    evidence = data.get('evidence')
+    moderator_note = data.get('moderatorNote')
+    
+    if not evidence and not moderator_note:
+        return jsonify({'success': False, 'message': 'No update data provided'}), 400
+    
+    try:
+        connection = get_db_connection()
+        if connection is None:
+            return jsonify({'success': False, 'message': 'DB connection error'}), 500
+        
+        cursor = connection.cursor()
+        
+        # First check if the modlog entry exists
+        check_query = "SELECT reference_id FROM discord WHERE reference_id = %s"
+        cursor.execute(check_query, (reference_id,))
+        
+        if not cursor.fetchone():
+            cursor.close()
+            connection.close()
+            return jsonify({'success': False, 'message': 'Moderation log entry not found'}), 404
+        
+        # Build dynamic update query based on provided fields
+        update_fields = []
+        update_values = []
+        
+        if evidence:
+            update_fields.append("evidence = %s")
+            update_values.append(evidence)
+        
+        if moderator_note:
+            update_fields.append("moderator_note = %s")
+            update_values.append(moderator_note)
+        
+        # Add the reference_id at the end for the WHERE clause
+        update_values.append(reference_id)
+        
+        update_query = f"""
+            UPDATE discord 
+            SET {', '.join(update_fields)}
+            WHERE reference_id = %s
+        """
+        
+        cursor.execute(update_query, update_values)
+        connection.commit()
+        
+        cursor.close()
+        connection.close()
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Moderation log updated successfully',
+            'updated_fields': {
+                'evidence': evidence is not None,
+                'moderator_note': moderator_note is not None
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/api/case/<project>/<case_id>')
 @login_required
 @staff_required
@@ -2209,6 +2281,6 @@ def get_case_detail(project, case_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# For production, use a WSGI server (e.g. gunicorn/uwsgi) instead of Flask's built-in server.
+
 if __name__ == '__main__':
     app.run(debug=False)
