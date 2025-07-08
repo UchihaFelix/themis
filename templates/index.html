@@ -568,7 +568,7 @@
     </style>
 </head>
 <body>
-    <canvas id="webglCanvas" width="885" height="997"></canvas>
+    <canvas id="webglCanvas" width="885" height="997" style="pointer-events:auto;z-index:1;position:fixed;top:0;left:0;"></canvas>
     <div class="interaction-overlay"></div>
     <div class="bg-selector">
         <h4>Background</h4>
@@ -1342,12 +1342,13 @@
             }
         }
 
-        // Matrix Rain Visualization
+        // Matrix Rain Visualization with Parallax Effect
         class MatrixVisualization extends BaseVisualization {
             constructor(gl, canvas) {
                 super(gl, canvas);
                 this.drops = [];
                 this.COLUMN_COUNT = 50;
+                this.DEPTH_LAYERS = 5; // Number of depth layers
             }
             
             createShaders() {
@@ -1355,13 +1356,17 @@
                     attribute vec2 a_position;
                     attribute float a_alpha;
                     attribute vec2 a_uv;
+                    attribute float a_scale;
                     uniform vec2 u_resolution;
                     
                     varying float v_alpha;
                     varying vec2 v_uv;
                     
                     void main() {
-                        vec2 position = a_position / u_resolution * 2.0 - 1.0;
+                        vec2 scaledPosition = a_position;
+                        scaledPosition *= a_scale;
+                        
+                        vec2 position = scaledPosition / u_resolution * 2.0 - 1.0;
                         position.y *= -1.0;
                         gl_Position = vec4(position, 0.0, 1.0);
                         v_alpha = a_alpha;
@@ -1376,7 +1381,7 @@
                     uniform sampler2D u_atlas;
                     void main() {
                         vec4 tex = texture2D(u_atlas, v_uv);
-                        gl_FragColor = vec4(0.6627, 0.4667, 0.9725, tex.a * v_alpha); // themis's colour, alpha dependent on the atlas.
+                        gl_FragColor = vec4(0.6627, 0.4667, 0.9725, tex.a * v_alpha);
                     }
                 `;
             
@@ -1388,6 +1393,7 @@
                     position: this.gl.getAttribLocation(this.programs.matrix, 'a_position'),
                     alpha: this.gl.getAttribLocation(this.programs.matrix, 'a_alpha'),
                     uv: this.gl.getAttribLocation(this.programs.matrix, 'a_uv'),
+                    scale: this.gl.getAttribLocation(this.programs.matrix, 'a_scale'),
                     resolution: this.gl.getUniformLocation(this.programs.matrix, 'u_resolution')
                 };
             }
@@ -1395,6 +1401,8 @@
             createBuffers() {
                 this.buffers.position = this.gl.createBuffer();
                 this.buffers.alpha = this.gl.createBuffer();
+                this.buffers.uv = this.gl.createBuffer();
+                this.buffers.scale = this.gl.createBuffer();
             }
             
             reset() {
@@ -1402,18 +1410,39 @@
                 const columnWidth = this.canvas.width / this.COLUMN_COUNT;
                 
                 for (let i = 0; i < this.COLUMN_COUNT; i++) {
+                    // Assign depth layer (0 = closest, DEPTH_LAYERS-1 = furthest)
+                    const depthLayer = Math.floor(Math.random() * this.DEPTH_LAYERS);
+                    const depthRatio = depthLayer / (this.DEPTH_LAYERS - 1); // 0 to 1
+                    
+                    // Calculate properties based on depth
+                    const scale = this.lerp(1.5, 0.6, depthRatio); // Closer = larger
+                    const baseSpeed = this.lerp(4, 1, depthRatio); // Closer = faster
+                    const length = Math.floor(this.lerp(25, 8, depthRatio)); // Closer = longer
+                    const baseAlpha = this.lerp(1.0, 0.4, depthRatio); // Closer = brighter
+                    
                     this.drops.push({
                         x: i * columnWidth,
-                        y: Math.random() * -500,
-                        speed: Math.random() * 3 + 1,
-                        length: Math.random() * 20 + 10
+                        y: Math.random() * -500 - (depthLayer * 100), // Stagger start positions
+                        speed: baseSpeed * (0.8 + Math.random() * 0.4), // Add slight variation
+                        length: length,
+                        depthLayer: depthLayer,
+                        scale: scale,
+                        baseAlpha: baseAlpha,
+                        charWidth: 8 * scale,
+                        charHeight: 8 * scale
                     });
                 }
+                
+                // Sort drops by depth layer for proper rendering order (back to front)
+                this.drops.sort((a, b) => b.depthLayer - a.depthLayer);
+            }
+            
+            lerp(a, b, t) {
+                return a + (b - a) * t;
             }
             
             draw() {
                 if (!this.atlasTexture) {
-                    // Only load the atlas once
                     this.atlasTexture = this.gl.createTexture();
                     this.atlasImage = new Image();
                     this.atlasImage.crossOrigin = 'anonymous';
@@ -1426,114 +1455,124 @@
                         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
                         this.atlasReady = true;
                     };
-                    // Replace this URL with your actual atlas image URL
                     this.atlasImage.src = 'https://media.discordapp.net/attachments/1375821722657492993/1391883562432729309/atlas.png?ex=686d8415&is=686c3295&hm=bbe5c0b4eb86efcc8131b5889c4029857a50a1797882ce53cef8b7d50deb5ef4&=';
                     this.atlasReady = false;
                 }
                 if (!this.atlasReady) return;
 
-                // Matrix rain logic
                 const positions = [];
                 const alphas = [];
                 const uvs = [];
-                // Atlas parameters (adjust to your atlas)
-                const charCols = 36; // Number of columns in the atlas
-                const charRows = 3;  // Number of rows in the atlas
-                const charWidth = 8;  // Width of each char in px
-                const charHeight = 8; // Height of each char in px
-                const atlasWidth = 256;  // Atlas image width in px
-                const atlasHeight = 24; // Atlas image height in px
-
-                // For random char selection
+                const scales = [];
+                
+                // Atlas parameters
+                const charCols = 36;
+                const charRows = 3;
+                const charWidth = 8;
+                const charHeight = 8;
+                const atlasWidth = 256;
+                const atlasHeight = 24;
                 const charCount = charCols * charRows;
 
-                // Used for quad generation
-                const charsPerRow = charCols;
-                const charsPerCol = charRows;
-                const charSizeX = charWidth;
-                const charSizeY = charHeight;
-
-                // Use delta time for consistent speed
+                // Delta time for consistent speed
                 if (!this.lastTime) this.lastTime = performance.now();
                 const now = performance.now();
-                const delta = (now - this.lastTime) / 1000; // seconds
+                const delta = (now - this.lastTime) / 1000;
                 this.lastTime = now;
 
                 this.drops.forEach(drop => {
-                    // Lower the speed multiplier for more reasonable movement
+                    // Update position based on depth-adjusted speed
                     drop.y += drop.speed * 50 * delta;
-                    if (drop.y > this.canvas.height + drop.length * charHeight) {
-                        drop.y = -Math.random() * 500;
-                        drop.length = Math.random() * 20 + 10;
-                        drop.speed = Math.random() * 3 + 1;
+                    
+                    // Reset drop when it goes off screen
+                    if (drop.y > this.canvas.height + drop.length * drop.charHeight) {
+                        drop.y = -Math.random() * 500 - (drop.depthLayer * 100);
                     }
+                    
+                    // Draw characters for this drop
                     for (let i = 0; i < drop.length; i++) {
                         const px = drop.x;
-                        const py = drop.y - i * charHeight;
-                        if (py < 0 || py > this.canvas.height) continue;
+                        const py = drop.y - i * drop.charHeight;
+                        
+                        // Skip if character is off screen
+                        if (py < -drop.charHeight || py > this.canvas.height) continue;
 
-                        // Pick a random char from the atlas
+                        // Pick random character from atlas
                         const charIndex = Math.floor(Math.random() * charCount);
-                        const u = (charIndex % charsPerRow) * charWidth / atlasWidth;
-                        const v = Math.floor(charIndex / charsPerRow) * charHeight / atlasHeight;
+                        const u = (charIndex % charCols) * charWidth / atlasWidth;
+                        const v = Math.floor(charIndex / charCols) * charHeight / atlasHeight;
                         const uSize = charWidth / atlasWidth;
                         const vSize = charHeight / atlasHeight;
 
-                        // Quad for the character
-                        // 2 triangles (6 vertices)
-                        const alpha = Math.max(0.1, 1.0 - i / drop.length);
+                        // Calculate alpha based on position in drop and depth
+                        const positionAlpha = Math.max(0.1, 1.0 - (i / drop.length));
+                        const finalAlpha = drop.baseAlpha * positionAlpha;
 
-                        // Top-left
-                        positions.push(px, py);
-                        alphas.push(alpha);
-                        uvs.push(u, v);
+                        // Create quad (2 triangles = 6 vertices)
+                        const vertices = [
+                            // Triangle 1
+                            px, py,                                    // Top-left
+                            px, py + drop.charHeight,                  // Bottom-left
+                            px + drop.charWidth, py + drop.charHeight, // Bottom-right
+                            
+                            // Triangle 2
+                            px, py,                                    // Top-left
+                            px + drop.charWidth, py + drop.charHeight, // Bottom-right
+                            px + drop.charWidth, py                    // Top-right
+                        ];
 
-                        // Bottom-left
-                        positions.push(px, py + charHeight);
-                        alphas.push(alpha);
-                        uvs.push(u, v + vSize);
+                        const uvCoords = [
+                            // Triangle 1
+                            u, v,                    // Top-left
+                            u, v + vSize,           // Bottom-left
+                            u + uSize, v + vSize,   // Bottom-right
+                            
+                            // Triangle 2
+                            u, v,                    // Top-left
+                            u + uSize, v + vSize,   // Bottom-right
+                            u + uSize, v            // Top-right
+                        ];
 
-                        // Bottom-right
-                        positions.push(px + charWidth, py + charHeight);
-                        alphas.push(alpha);
-                        uvs.push(u + uSize, v + vSize);
-
-                        // Top-left
-                        positions.push(px, py);
-                        alphas.push(alpha);
-                        uvs.push(u, v);
-
-                        // Bottom-right
-                        positions.push(px + charWidth, py + charHeight);
-                        alphas.push(alpha);
-                        uvs.push(u + uSize, v + vSize);
-
-                        // Top-right
-                        positions.push(px + charWidth, py);
-                        alphas.push(alpha);
-                        uvs.push(u + uSize, v);
+                        // Add to arrays
+                        positions.push(...vertices);
+                        uvs.push(...uvCoords);
+                        
+                        // Add alpha and scale for each vertex
+                        for (let j = 0; j < 6; j++) {
+                            alphas.push(finalAlpha);
+                            scales.push(drop.scale);
+                        }
                     }
                 });
 
                 if (positions.length > 0) {
                     this.gl.useProgram(this.programs.matrix);
 
+                    // Position buffer
                     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.position);
                     this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.DYNAMIC_DRAW);
                     this.gl.enableVertexAttribArray(this.locations.position);
                     this.gl.vertexAttribPointer(this.locations.position, 2, this.gl.FLOAT, false, 0, 0);
 
-                    if (!this.buffers.uv) this.buffers.uv = this.gl.createBuffer();
+                    // UV buffer
                     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.uv);
                     this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(uvs), this.gl.DYNAMIC_DRAW);
                     this.gl.enableVertexAttribArray(this.locations.uv);
                     this.gl.vertexAttribPointer(this.locations.uv, 2, this.gl.FLOAT, false, 0, 0);
 
+                    // Alpha buffer
                     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.alpha);
                     this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(alphas), this.gl.DYNAMIC_DRAW);
                     this.gl.enableVertexAttribArray(this.locations.alpha);
                     this.gl.vertexAttribPointer(this.locations.alpha, 1, this.gl.FLOAT, false, 0, 0);
 
+                    // Scale buffer
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.scale);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(scales), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.locations.scale);
+                    this.gl.vertexAttribPointer(this.locations.scale, 1, this.gl.FLOAT, false, 0, 0);
+
+                    // Set uniforms
                     this.gl.uniform2f(this.locations.resolution, this.canvas.width, this.canvas.height);
 
                     // Bind atlas texture
