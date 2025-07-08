@@ -468,7 +468,6 @@ def admin_dashboard():
                 min-height: 100vh;
             }}
 
-            /* Add this to your existing CSS */
             #fluid-canvas {{
                 position: fixed;
                 top: 0;
@@ -480,7 +479,6 @@ def admin_dashboard():
                 pointer-events: none;
             }}
             
-            /* Update your existing .background-pattern class */
             .background-pattern {{
                 position: fixed;
                 top: 0;
@@ -495,7 +493,6 @@ def admin_dashboard():
                     radial-gradient(circle at 40% 80%, rgba(var(--primary-rgb), 0.02) 0%, transparent 50%);
             }}
             
-            /* Sidebar */
             .sidebar {{
                 position: fixed;
                 top: 0;
@@ -615,7 +612,6 @@ def admin_dashboard():
                 opacity: 1;
             }}
             
-            /* Main content */
             .main-content {{
                 margin-left: 280px;
                 padding: 40px;
@@ -623,7 +619,6 @@ def admin_dashboard():
                 position: relative;
             }}
             
-            /* User info */
             .user-info {{
                 position: fixed;
                 top: 24px;
@@ -699,7 +694,6 @@ def admin_dashboard():
                 box-shadow: var(--shadow-primary);
             }}
             
-            /* Dashboard content */
             .dashboard-header {{
                 margin-bottom: 48px;
                 padding-top: 20px;
@@ -732,7 +726,6 @@ def admin_dashboard():
                 font-weight: 400;
             }}
             
-            /* Quick actions grid */
             .quick-actions {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -808,7 +801,6 @@ def admin_dashboard():
                 line-height: 1.5;
             }}
             
-            /* Stats grid */
             .stats-grid {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -839,7 +831,6 @@ def admin_dashboard():
                 letter-spacing: 0.05em;
             }}
             
-            /* Responsive design */
             @media (max-width: 1024px) {{
                 .sidebar {{
                     width: 240px;
@@ -894,10 +885,17 @@ def admin_dashboard():
                 }}
                 
                 .user-info {{
-                    top: 16px;
-                    right: 16px;
+                    position: static;
+                    margin: 0 0 16px 0;
+                    top: auto;
+                    right: auto;
+                    left: auto;
+                    width: 100%;
+                    justify-content: flex-end;
+                    border-radius: 12px;
                     padding: 8px 12px;
                     gap: 12px;
+                    box-sizing: border-box;
                 }}
                 
                 .user-avatar {{
@@ -924,9 +922,13 @@ def admin_dashboard():
                 }}
                 
                 .user-info {{
-                    top: 12px;
-                    right: 12px;
+                    position: static;
+                    margin: 0 0 12px 0;
+                    width: 100%;
                     padding: 6px 8px;
+                    flex-direction: column;
+                    align-items: flex-end;
+                    gap: 6px;
                 }}
                 
                 .user-details {{
