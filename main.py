@@ -480,7 +480,7 @@ def admin_dashboard():
     <body>
         <div class="sidebar">
             <div class="logo">
-                <img src="https://i.imgur.com/S3FBo0I.png" alt="Themis">
+                <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
                 Themis
             </div>
             <div class="nav-links">
@@ -490,15 +490,15 @@ def admin_dashboard():
             </div>
         </div>
         <div class="user-info-box">
-            <div class="user-avatar">U</div>
+            <div class="user-avatar">{f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
             <div class="user-details">
-                <div class="user-name">User</div>
-                <div class="user-rank">admin</div>
+                <div class="user-name">{user.get('username', 'User')}</div>
+                <div class="user-rank">{staff_rank}</div>
             </div>
             <a href="/logout" class="logout-btn">Logout</a>
         </div>
         <div class="main-content">
-            <h1 class="dashboard-title">Welcome back, <span class="username-highlight">User</span></h1>
+            <h1 class="dashboard-title">Welcome back, <span class="username-highlight">{user.get('username', 'User')}</span></h1>
             <p class="dashboard-subtitle">Access moderation tools, review cases, and manage your Themis administration system.</p>
             <div class="quick-links">
                 <a href="/admin/cases" class="nav-card">
