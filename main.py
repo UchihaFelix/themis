@@ -43,21 +43,22 @@ RANK_LEVELS = {
 }
 
 # Rank color mapping for user info box
+# Set the colours to match staff server role colours for consistency. (can't be bothered changing the colour names)
 RANK_COLORS = {
-    'Executive Director': '#7c3aed',         # indigo purple
+    'Executive Director': '#3d0079',         # indigo purple
     'Administration Director': '#a11a1a',    # darker-red
-    'Project Director': '#1e3a8a',           # dark blue
+    'Project Director': "#70006c",           # dark blue
     'Community Director': '#166534',         # dark green
-    'Administrator': '#b91c1c',              # darkish-red
-    'Junior Administrator': '#ef4444',       # red
-    'Senior Moderator': '#ea580c',           # dark orange
+    'Administrator': '#8b0000',              # darkish-red
+    'Junior Administrator': '#ff0000',       # red
+    'Senior Moderator': '#992d22',           # dark orange
     'Moderator': '#f59e42',                  # orange
-    'Trial Moderator': '#fde047',            # yellow
-    'Senior Developer': '#1e40af',           # dark blue
-    'Developer': '#3b82f6',                  # blue
-    'Junior Developer': '#7dd3fc',           # pastel blue
-    'Senior Coordinator': '#15803d',         # darkish green
-    'Coordinator': '#22d3ee'                 # neon green
+    'Trial Moderator': '#c27c0e',            # yellow
+    'Senior Developer': '#0004d3',           # dark blue
+    'Developer': '#4750ff',                  # blue
+    'Junior Developer': '#848cff',           # pastel blue
+    'Senior Coordinator': '#006428',         # darkish green
+    'Coordinator': "#2ecc71"                 # neon green
 }
 
 def require_rank(min_rank):
