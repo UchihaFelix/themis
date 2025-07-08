@@ -124,7 +124,30 @@ def upload_evidence():
         s3.upload_fileobj(file, BUCKET_NAME, object_name, ExtraArgs={'ACL': 'public-read'})
         # File URL through proxy
         file_url = f"https://fxs-host.xyz/files/{object_name}"
-        # Optionally: Save file_url to your DB here
+
+        # Save file_url to the evidence column in the discord table
+        connection = get_db_connection()
+        if connection is None:
+            return jsonify({'error': 'DB connection error'}), 500
+        cursor = connection.cursor(dictionary=True)
+        # Fetch current evidence (if any)
+        cursor.execute("SELECT evidence FROM discord WHERE reference_id = %s", (case_id,))
+        row = cursor.fetchone()
+        if row and row.get('evidence'):
+            import ast
+            try:
+                evidence_list = ast.literal_eval(row['evidence']) if row['evidence'].strip().startswith('[') else [url.strip() for url in row['evidence'].split('\n') if url.strip()]
+            except Exception:
+                evidence_list = [url.strip() for url in row['evidence'].split('\n') if url.strip()]
+        else:
+            evidence_list = []
+        evidence_list.append(file_url)
+        # Save back as stringified list
+        cursor.execute("UPDATE discord SET evidence = %s WHERE reference_id = %s", (str(evidence_list), case_id))
+        connection.commit()
+        cursor.close()
+        connection.close()
+
         return jsonify({'message': 'Upload successful', 'url': file_url}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -403,7 +426,8 @@ def admin_dashboard():
     user = session['user']
     staff_rank = user.get('staff_info', {}).get('role', 'Staff')
     rank_color = RANK_COLORS.get(staff_rank, '#a977f8')
-    # Use a raw string for HTML/JS and match the new sidebar/user info layout
+    
+    # Modern admin dashboard with enhanced design
     html = rf'''
     <!DOCTYPE html>
     <html lang="en">
@@ -411,104 +435,602 @@ def admin_dashboard():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Themis Admin Dashboard</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
         <style>
-            /* --- Mobile/Responsive Polish --- */
-            @media (max-width: 900px) {{
-                .main-content {{ margin-left: 0 !important; padding: 1.5rem 0.5rem 5rem 0.5rem !important; }}
-                .sidebar {{ width: 100vw !important; height: 60px !important; flex-direction: row !important; top: unset !important; bottom: 0 !important; left: 0 !important; border-right: none !important; border-top: 1.5px solid #a977f8 !important; box-shadow: 0 -2px 16px #a977f81a !important; z-index: 2000 !important; }}
-                .sidebar .logo {{ display: none !important; }}
-                .sidebar .nav-links {{ flex-direction: row !important; gap: 0.5rem !important; margin: 0 !important; width: 100% !important; justify-content: space-around !important; align-items: center !important; }}
-                .sidebar .admin-btn {{ margin: 0 !important; padding: 0.7rem 0.9rem !important; font-size: 0.98rem !important; border-radius: 8px !important; }}
-                .user-info-box {{ right: 1rem !important; top: 0.7rem !important; padding: 0.5rem 0.8rem !important; }}
+            :root {{
+                --primary-color: #a977f8;
+                --primary-rgb: 169, 119, 248;
+                --background-dark: #0a0a0a;
+                --surface-dark: #141418;
+                --surface-light: rgba(255, 255, 255, 0.05);
+                --border-color: rgba(169, 119, 248, 0.3);
+                --text-primary: #ffffff;
+                --text-secondary: #b7b7c9;
+                --text-muted: #8b8b99;
+                --rank-color: {rank_color};
+                --shadow-primary: 0 4px 32px rgba(169, 119, 248, 0.15);
+                --shadow-elevated: 0 8px 48px rgba(169, 119, 248, 0.2);
+                --backdrop-blur: blur(16px);
             }}
-            @media (max-width: 600px) {{
-                .main-content {{ padding: 0.7rem 0.1rem 5rem 0.1rem !important; }}
-                .cases-title, .dashboard-title {{ font-size: 1.3rem !important; }}
-                .cases-header {{ flex-direction: column !important; align-items: flex-start !important; gap: 0.7rem !important; }}
-                .cases-table th, .cases-table td {{ padding: 0.5rem !important; font-size: 0.92rem !important; }}
-                .cases-table th {{ font-size: 0.8rem !important; }}
-                .user-info-box {{ top: 0.3rem !important; right: 0.3rem !important; padding: 0.3rem 0.5rem !important; }}
-                .user-avatar {{ width: 28px !important; height: 28px !important; font-size: 13px !important; }}
-                .user-details .user-name {{ font-size: 0.98rem !important; }}
-                .user-details .user-rank {{ font-size: 10px !important; }}
-                .logout-btn {{ padding: 0.3rem 0.7rem !important; font-size: 0.85rem !important; }}
-                .modal-content {{ padding: 1.2rem 0.5rem 1rem 0.5rem !important; min-width: 90vw !important; }}
+            
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
             }}
-            @media (max-width: 400px) {{
-                .main-content {{ padding: 0.2rem 0 5rem 0 !important; }}
-                .cases-table th, .cases-table td {{ padding: 0.25rem !important; font-size: 0.85rem !important; }}
-                .modal-content {{ padding: 0.5rem 0.1rem 0.5rem 0.1rem !important; min-width: 98vw !important; }}
+            
+            body {{
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: var(--background-dark);
+                color: var(--text-primary);
+                line-height: 1.6;
+                overflow-x: hidden;
+                min-height: 100vh;
             }}
-            body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #fff; background: #0a0a0a; overflow-x: hidden; }}
-            .sidebar {{ position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: rgba(20,20,30,0.92); border-right: 1.5px solid #a977f8; display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 16px #a977f81a; transition: all 0.25s; }}
-            .sidebar .logo {{ font-size: 1.7rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 0.85rem; letter-spacing: -0.03em; padding: 2.2rem 1.5rem 1.2rem 1.5rem; text-shadow: 0 2px 16px #a977f84d; }}
-            .sidebar .logo img {{ width: 36px; height: 36px; border-radius: 10px; box-shadow: 0 2px 12px #a977f84d; }}
-            .sidebar .nav-links {{ display: flex; flex-direction: column; gap: 0.7rem; margin-top: 2rem; }}
-            .sidebar .admin-btn {{ background: rgba(255,255,255,0.08); color: #fff; padding: 0.8rem 1.3rem; border: 1.5px solid rgba(255,255,255,0.13); border-radius: 10px; text-decoration: none; transition: all 0.22s cubic-bezier(.4,0,.2,1); font-weight: 600; font-size: 1.07rem; margin: 0 1.2rem; display: flex; align-items: center; gap: 0.8rem; cursor: pointer; box-shadow: 0 2px 8px #a977f81a; letter-spacing: 0.01em; }}
-            .sidebar .admin-btn.active, .sidebar .admin-btn:hover {{ background: rgba(169,119,248,0.18); border-color: #a977f8; color: #fff; transform: translateY(-2px) scale(1.03); box-shadow: 0 4px 24px #a977f84d; }}
-            .main-content {{ margin-left: 220px; max-width: 1200px; padding: 3.5rem 2.5rem 2.5rem 2.5rem; min-height: 100vh; background: radial-gradient(ellipse 80% 50% at 50% 40%, rgba(169, 119, 248, 0.04) 0%, transparent 60%); }}
-            .user-info-box {{ position: fixed; top: 1.7rem; right: 2.7rem; z-index: 1100; display: flex; align-items: center; gap: 1.1rem; background: rgba(255,255,255,0.10); border: 1.7px solid #a977f8; border-radius: 10px; box-shadow: 0 0 18px #a977f84d; padding: 0.7rem 1.4rem 0.7rem 1rem; backdrop-filter: blur(12px); }}
-            .user-avatar {{ width: 40px; height: 40px; border-radius: 50%; background: #a977f8; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; overflow: hidden; box-shadow: 0 2px 8px #a977f84d; }}
-            .user-avatar img {{ width: 100%; height: 100%; object-fit: cover; }}
-            .user-details {{ display: flex; flex-direction: column; align-items: flex-start; }}
-            .user-name {{ font-weight: 700; line-height: 1.2; font-size: 1.13rem; color: {{rank_color}}; letter-spacing: 0.01em; text-shadow: 0 2px 8px #000a; }}
-            .user-rank {{ font-size: 12px; text-transform: capitalize; line-height: 1; font-weight: 600; color: #a0a0a0; letter-spacing: 0.01em; }}
-            .logout-btn {{ background: rgba(255,255,255,0.13); color: #fff; border: 1.5px solid #a977f8; border-radius: 7px; padding: 0.45rem 1.1rem; font-size: 1.01rem; font-weight: 600; margin-left: 0.8rem; cursor: pointer; transition: background 0.2s, box-shadow 0.2s; box-shadow: 0 2px 8px #a977f84d; }}
-            .logout-btn:hover {{ background: #a977f8; color: #fff; box-shadow: 0 4px 24px #a977f84d; }}
-            .dashboard-title {{ 
-                font-size: clamp(3.2rem, 8vw, 5.7rem); 
-                font-weight: 800; 
-                margin-bottom: 1.2rem; 
-                letter-spacing: -0.045em; 
-                line-height: 1.1; /* Fixed: Changed from 0.93 to 1.1 to prevent clipping */
-                background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); 
-                -webkit-background-clip: text; 
-                -webkit-text-fill-color: transparent; 
-                background-clip: text; 
-                text-shadow: 0 2px 24px #a977f84d; 
-                padding: 0.1em 0; /* Added padding to ensure characters don't get clipped */
+            
+            /* Animated background */
+            .background-pattern {{
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: -1;
+                background: 
+                    radial-gradient(circle at 20% 30%, rgba(var(--primary-rgb), 0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 70%, rgba(var(--primary-rgb), 0.06) 0%, transparent 50%),
+                    radial-gradient(circle at 40% 80%, rgba(var(--primary-rgb), 0.04) 0%, transparent 50%);
             }}
-            .dashboard-title .username-highlight {{ color: {rank_color}; background: none; -webkit-background-clip: unset; -webkit-text-fill-color: {rank_color}; background-clip: unset; font-weight: 800; text-shadow: 0 2px 12px {rank_color}; }}
-            .dashboard-subtitle {{ color: #b7b7c9; font-size: 1.18rem; margin-bottom: 2.8rem; max-width: 650px; line-height: 1.7; font-weight: 500; letter-spacing: 0.01em; text-shadow: 0 2px 8px #000a; }}
-            .quick-links {{ display: flex; gap: 2.5rem; margin-top: 2.5rem; }}
-            .nav-card {{ background: rgba(169, 119, 248, 0.13); border: 1.5px solid #a977f8; border-radius: 16px; padding: 2.3rem 2.2rem 2rem 2.2rem; text-decoration: none; color: inherit; transition: all 0.32s cubic-bezier(.4,0,.2,1); cursor: pointer; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 32px #a977f81a, 0 1.5px 0 #a977f8; position: relative; overflow: hidden; }}
-            .nav-card:hover {{ background: rgba(169, 119, 248, 0.22); border-color: #a977f8; transform: translateY(-3px) scale(1.04) rotate(-1deg); box-shadow: 0 8px 48px #a977f84d, 0 1.5px 0 #a977f8; }}
-            .nav-card .icon-img {{ width: 2.7rem; height: 2.7rem; margin-bottom: 1.2rem; border-radius: 10px; box-shadow: 0 2px 12px #a977f84d; background: #23232b; object-fit: cover; filter: drop-shadow(0 0 12px #a977f8cc); }}
-            .nav-card h3 {{ font-size: 1.18rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: 0.01em; text-shadow: 0 2px 8px #000a; }}
-            .nav-card p {{ color: #b7b7c9; font-size: 1.01rem; font-weight: 500; text-align: center; margin: 0; letter-spacing: 0.01em; text-shadow: 0 2px 8px #000a; }}
+            
+            /* Sidebar */
+            .sidebar {{
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 280px;
+                height: 100vh;
+                background: rgba(20, 20, 24, 0.95);
+                backdrop-filter: var(--backdrop-blur);
+                border-right: 1px solid var(--border-color);
+                display: flex;
+                flex-direction: column;
+                z-index: 1000;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }}
+            
+            .sidebar::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(180deg, 
+                    rgba(var(--primary-rgb), 0.02) 0%, 
+                    transparent 100%);
+                pointer-events: none;
+            }}
+            
+            .logo {{
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 32px 24px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                position: relative;
+            }}
+            
+            .logo img {{
+                width: 42px;
+                height: 42px;
+                border-radius: 12px;
+                filter: drop-shadow(0 4px 16px rgba(var(--primary-rgb), 0.3));
+            }}
+            
+            .logo-text {{
+                font-size: 1.75rem;
+                font-weight: 800;
+                background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-color) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                letter-spacing: -0.02em;
+            }}
+            
+            .nav-links {{
+                flex: 1;
+                padding: 24px 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }}
+            
+            .nav-item {{
+                position: relative;
+                text-decoration: none;
+                color: var(--text-secondary);
+                padding: 16px 20px;
+                border-radius: 12px;
+                font-weight: 500;
+                font-size: 0.95rem;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                border: 1px solid transparent;
+            }}
+            
+            .nav-item::before {{
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 3px;
+                height: 0;
+                background: var(--primary-color);
+                border-radius: 0 2px 2px 0;
+                transition: height 0.2s ease;
+            }}
+            
+            .nav-item:hover {{
+                background: rgba(var(--primary-rgb), 0.08);
+                color: var(--text-primary);
+                transform: translateX(4px);
+                border-color: rgba(var(--primary-rgb), 0.2);
+            }}
+            
+            .nav-item.active {{
+                background: rgba(var(--primary-rgb), 0.12);
+                color: var(--primary-color);
+                border-color: rgba(var(--primary-rgb), 0.3);
+            }}
+            
+            .nav-item.active::before {{
+                height: 24px;
+            }}
+            
+            .nav-icon {{
+                width: 20px;
+                height: 20px;
+                opacity: 0.7;
+                transition: opacity 0.2s ease;
+            }}
+            
+            .nav-item:hover .nav-icon,
+            .nav-item.active .nav-icon {{
+                opacity: 1;
+            }}
+            
+            /* Main content */
+            .main-content {{
+                margin-left: 280px;
+                padding: 40px;
+                min-height: 100vh;
+                position: relative;
+            }}
+            
+            /* User info */
+            .user-info {{
+                position: fixed;
+                top: 24px;
+                right: 40px;
+                z-index: 1100;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                background: rgba(255, 255, 255, 0.08);
+                backdrop-filter: var(--backdrop-blur);
+                border: 1px solid rgba(var(--primary-rgb), 0.3);
+                border-radius: 16px;
+                padding: 12px 16px;
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            .user-avatar {{
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                background: var(--primary-color);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 1.1rem;
+                overflow: hidden;
+                border: 2px solid rgba(var(--primary-rgb), 0.3);
+            }}
+            
+            .user-avatar img {{
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }}
+            
+            .user-details {{
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }}
+            
+            .user-name {{
+                font-weight: 600;
+                font-size: 0.95rem;
+                color: var(--rank-color);
+            }}
+            
+            .user-rank {{
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }}
+            
+            .logout-btn {{
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(var(--primary-rgb), 0.3);
+                color: var(--text-primary);
+                padding: 8px 16px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                text-decoration: none;
+                transition: all 0.2s ease;
+                cursor: pointer;
+            }}
+            
+            .logout-btn:hover {{
+                background: var(--primary-color);
+                color: white;
+                transform: translateY(-1px);
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            /* Dashboard content */
+            .dashboard-header {{
+                margin-bottom: 48px;
+                padding-top: 20px;
+            }}
+            
+            .dashboard-title {{
+                font-size: clamp(2.5rem, 5vw, 4rem);
+                font-weight: 800;
+                line-height: 1.1;
+                margin-bottom: 16px;
+                background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                letter-spacing: -0.02em;
+            }}
+            
+            .username-highlight {{
+                background: linear-gradient(135deg, var(--primary-color) 0%, #d946ef 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }}
+            
+            .dashboard-subtitle {{
+                font-size: 1.1rem;
+                color: var(--text-secondary);
+                max-width: 600px;
+                line-height: 1.6;
+                font-weight: 400;
+            }}
+            
+            /* Quick actions grid */
+            .quick-actions {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+                gap: 24px;
+                margin-top: 40px;
+            }}
+            
+            .action-card {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(var(--primary-rgb), 0.2);
+                border-radius: 20px;
+                padding: 32px;
+                text-decoration: none;
+                color: inherit;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+                overflow: hidden;
+                backdrop-filter: var(--backdrop-blur);
+            }}
+            
+            .action-card::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, 
+                    rgba(var(--primary-rgb), 0.05) 0%, 
+                    transparent 100%);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }}
+            
+            .action-card:hover {{
+                transform: translateY(-8px);
+                border-color: rgba(var(--primary-rgb), 0.4);
+                box-shadow: var(--shadow-elevated);
+            }}
+            
+            .action-card:hover::before {{
+                opacity: 1;
+            }}
+            
+            .card-icon {{
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                background: linear-gradient(135deg, var(--primary-color) 0%, #d946ef 100%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 20px;
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            .card-icon img {{
+                width: 28px;
+                height: 28px;
+                filter: brightness(0) invert(1);
+            }}
+            
+            .card-title {{
+                font-size: 1.25rem;
+                font-weight: 700;
+                margin-bottom: 8px;
+                color: var(--text-primary);
+            }}
+            
+            .card-description {{
+                color: var(--text-secondary);
+                font-size: 0.95rem;
+                line-height: 1.5;
+            }}
+            
+            /* Stats grid */
+            .stats-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-bottom: 40px;
+            }}
+            
+            .stat-card {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(var(--primary-rgb), 0.2);
+                border-radius: 16px;
+                padding: 24px;
+                text-align: center;
+                backdrop-filter: var(--backdrop-blur);
+            }}
+            
+            .stat-value {{
+                font-size: 2rem;
+                font-weight: 800;
+                color: var(--primary-color);
+                margin-bottom: 8px;
+            }}
+            
+            .stat-label {{
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }}
+            
+            /* Responsive design */
+            @media (max-width: 1024px) {{
+                .sidebar {{
+                    width: 240px;
+                }}
+                
+                .main-content {{
+                    margin-left: 240px;
+                    padding: 32px;
+                }}
+                
+                .user-info {{
+                    right: 32px;
+                }}
+            }}
+            
+            @media (max-width: 768px) {{
+                .sidebar {{
+                    transform: translateX(-100%);
+                    width: 100%;
+                    height: auto;
+                    position: fixed;
+                    bottom: 0;
+                    top: auto;
+                    flex-direction: row;
+                    padding: 16px;
+                    border-right: none;
+                    border-top: 1px solid var(--border-color);
+                    z-index: 2000;
+                }}
+                
+                .logo {{
+                    display: none;
+                }}
+                
+                .nav-links {{
+                    flex-direction: row;
+                    padding: 0;
+                    width: 100%;
+                    justify-content: space-around;
+                }}
+                
+                .nav-item {{
+                    flex: 1;
+                    justify-content: center;
+                    padding: 12px 8px;
+                    font-size: 0.8rem;
+                }}
+                
+                .main-content {{
+                    margin-left: 0;
+                    padding: 20px 16px 100px 16px;
+                }}
+                
+                .user-info {{
+                    top: 16px;
+                    right: 16px;
+                    padding: 8px 12px;
+                    gap: 12px;
+                }}
+                
+                .user-avatar {{
+                    width: 36px;
+                    height: 36px;
+                }}
+                
+                .dashboard-title {{
+                    font-size: 2rem;
+                }}
+                
+                .quick-actions {{
+                    grid-template-columns: 1fr;
+                }}
+                
+                .stats-grid {{
+                    grid-template-columns: repeat(2, 1fr);
+                }}
+            }}
+            
+            @media (max-width: 480px) {{
+                .main-content {{
+                    padding: 16px 12px 100px 12px;
+                }}
+                
+                .user-info {{
+                    top: 12px;
+                    right: 12px;
+                    padding: 6px 8px;
+                }}
+                
+                .user-details {{
+                    display: none;
+                }}
+                
+                .action-card {{
+                    padding: 24px;
+                }}
+                
+                .stats-grid {{
+                    grid-template-columns: 1fr;
+                }}
+            }}
         </style>
     </head>
     <body>
+        <div class="background-pattern"></div>
+        
         <div class="sidebar">
             <div class="logo">
-                <img src="https://i.imgur.com/S3FBo0I.png" alt="Themis">
-                Themis
+                <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
+                <div class="logo-text">Themis</div>
             </div>
-            <div class="nav-links">
-                <a href="/admin/dashboard" class="admin-btn active">Dashboard</a>
-                <a href="/admin/cases" class="admin-btn">Cases</a>
-                <a href="/" class="admin-btn">← Home</a>
-            </div>
+            <nav class="nav-links">
+                <a href="/admin/dashboard" class="nav-item active">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="/admin/cases" class="nav-item">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-1-1h1v-2h-1v2zm1-4h-1V6h1v2zM7 8h6v4H7V8z" clip-rule="evenodd"/>
+                    </svg>
+                    Cases
+                </a>
+                <a href="/" class="nav-item">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+                    </svg>
+                    Home
+                </a>
+            </nav>
         </div>
-        <div class="user-info-box">
-            <div class="user-avatar">{f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
+        
+        <div class="user-info">
+            <div class="user-avatar">
+                {f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}
+            </div>
             <div class="user-details">
                 <div class="user-name">{user.get('username', 'User')}</div>
                 <div class="user-rank">{staff_rank}</div>
             </div>
             <a href="/logout" class="logout-btn">Logout</a>
         </div>
-        <div class="main-content">
-            <h1 class="dashboard-title">Welcome back, <span class="username-highlight">{user.get('username', 'User')}</span></h1>
-            <p class="dashboard-subtitle">Access moderation tools, review cases, and manage your Themis administration system.</p>
-            <div class="quick-links">
-                <a href="/admin/cases" class="nav-card">
-                    <img class="icon-img" src="https://cdn.discordapp.com/attachments/1346136182379122798/1391910863832875018/discotools-xyz-icon_4.png?ex=686d9d82&is=686c4c02&hm=9c63e6b8dd489969258c4e84681ea446be3efe786f2fa434c02fd48c064d4948&" alt="View Cases">
-                    <h3>View Cases</h3>
-                    <p>Review, manage, and log moderation actions.</p>
+        
+        <main class="main-content">
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">
+                    Welcome back, <span class="username-highlight">{user.get('username', 'User')}</span>
+                </h1>
+                <p class="dashboard-subtitle">
+                    Access advanced moderation tools, review cases, and manage your Themis administration system with precision and efficiency.
+                </p>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">24</div>
+                    <div class="stat-label">Active Cases</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">142</div>
+                    <div class="stat-label">Total Actions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">98.2%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">5</div>
+                    <div class="stat-label">Pending Reviews</div>
+                </div>
+            </div>
+            
+            <div class="quick-actions">
+                <a href="/admin/cases" class="action-card">
+                    <div class="card-icon">
+                        <img src="https://cdn.discordapp.com/attachments/1346136182379122798/1391910863832875018/discotools-xyz-icon_4.png?ex=686d9d82&is=686c4c02&hm=9c63e6b8dd489969258c4e84681ea446be3efe786f2fa434c02fd48c064d4948&" alt="Cases">
+                    </div>
+                    <h3 class="card-title">Manage Cases</h3>
+                    <p class="card-description">Review, investigate, and resolve moderation cases across all connected platforms.</p>
+                </a>
+                
+                <a href="/admin/users" class="action-card">
+                    <div class="card-icon">
+                        <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                        </svg>
+                    </div>
+                    <h3 class="card-title">User Management</h3>
+                    <p class="card-description">SOON: Manage user accounts, permissions, and staff roles.</p>
+                </a>
+                
+                <a href="/admin/analytics" class="action-card">
+                    <div class="card-icon">
+                        <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+                        </svg>
+                    </div>
+                    <h3 class="card-title">Analytics</h3>
+                    <p class="card-description">SOON: View detailed analytics, trends, and insights about moderation activities and system performance.</p>
                 </a>
             </div>
-        </div>
+        </main>
     </body>
     </html>
     '''
@@ -531,14 +1053,16 @@ def admin_cases():
     user = session['user']
     staff_rank = user.get('staff_info', {}).get('role', 'Staff')
     rank_color = RANK_COLORS.get(staff_rank, '#a977f8')
+    
     # Fetch cases from the discord table ONLY (no join with users), filter out those without punishment_type
+    import ast
     connection = get_db_connection()
     cases = []
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
             query = '''
-                SELECT reference_id, user_id, punishment_type, reason, appealed, length
+                SELECT reference_id, user_id, punishment_type, reason, appealed, length, evidence
                 FROM discord
                 WHERE punishment_type IS NOT NULL AND punishment_type != ''
                 ORDER BY reference_id DESC
@@ -546,13 +1070,24 @@ def admin_cases():
             '''
             cursor.execute(query)
             for row in cursor.fetchall():
+                # Parse evidence as list
+                evidence_list = []
+                if row.get('evidence'):
+                    try:
+                        if row['evidence'].strip().startswith('['):
+                            evidence_list = ast.literal_eval(row['evidence'])
+                        else:
+                            evidence_list = [url.strip() for url in row['evidence'].split('\n') if url.strip()]
+                    except Exception:
+                        evidence_list = [url.strip() for url in row['evidence'].split('\n') if url.strip()]
                 cases.append({
                     'id': row['reference_id'],
                     'user_id': row['user_id'],
                     'type': row['punishment_type'],
                     'reason': row['reason'],
                     'status': 'Appealed' if row['appealed'] == 1 else 'Active',
-                    'length': row['length'] if row['length'] else 'N/A'
+                    'length': row['length'] if row['length'] else 'N/A',
+                    'evidence_list': evidence_list
                 })
             cursor.close()
         except Exception as e:
@@ -560,6 +1095,20 @@ def admin_cases():
             cases = []
         finally:
             connection.close()
+    def render_evidence_block(evidence_list):
+        if not evidence_list:
+            return '<span style="color:#888">No evidence</span>'
+        html = ''
+        for url in evidence_list:
+            ext = url.split('.')[-1].lower().split('?')[0]
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']:
+                html += f'<img src="{url}" alt="evidence" style="max-width:90px;max-height:70px;margin:2px;border-radius:6px;border:1px solid #333;vertical-align:middle;">'
+            elif ext in ['mp4', 'webm', 'ogg', 'mov', 'm4v']:
+                html += f'<video src="{url}" controls style="max-width:90px;max-height:70px;margin:2px;border-radius:6px;vertical-align:middle;background:#111;"></video>'
+            else:
+                html += f'<a href="{url}" target="_blank" style="color:#a977f8;">File</a> '
+        return html
+    
     # Color coding for punishment types
     PUNISHMENT_COLORS = {
         'ban': '#ef4444',
@@ -568,6 +1117,7 @@ def admin_cases():
         'warn': '#22d3ee',
         'default': '#a0a0a0'
     }
+    
     # Expose punishment color mapping to JS for modal
     punishment_colors_js = json.dumps(PUNISHMENT_COLORS)
 
@@ -585,318 +1135,1051 @@ def admin_cases():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Themis Admin Cases</title>
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
         <style>
-            body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #ffffff; background: #0a0a0a; overflow-x: hidden; }}
-            .sidebar {{ position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: rgba(20,20,30,0.92); border-right: 1.5px solid #a977f8; display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 16px #a977f81a; }}
-            .sidebar .logo {{ font-size: 1.5rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 0.75rem; letter-spacing: -0.02em; padding: 2rem 1.5rem 1.2rem 1.5rem; }}
-            .sidebar .logo img {{ width: 32px; height: 32px; border-radius: 8px; }}
-            .sidebar .nav-links {{ display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.5rem; }}
-            .sidebar .admin-btn {{ background: rgba(255,255,255,0.06); color: #fff; padding: 0.7rem 1.2rem; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; text-decoration: none; transition: all 0.2s; font-weight: 500; font-size: 1rem; margin: 0 1.2rem; display: flex; align-items: center; gap: 0.7rem; cursor: pointer; }}
-            .sidebar .admin-btn.active, .sidebar .admin-btn:hover {{ background: rgba(169,119,248,0.13); border-color: #a977f8; color: #fff; }}
-            .main-content {{ margin-left: 220px; max-width: 1200px; padding: 2.5rem 2rem 2rem 2rem; min-height: 100vh; transition: all 0.25s; }}
-            .user-info-box {{ position: fixed; top: 1.5rem; right: 2.5rem; z-index: 1100; display: flex; align-items: center; gap: 1rem; background: rgba(255,255,255,0.07); border: 1.5px solid #a977f8; border-radius: 8px; box-shadow: 0 0 12px #a977f84d; padding: 0.6rem 1.2rem 0.6rem 0.8rem; }}
-            .user-avatar {{ width: 36px; height: 36px; border-radius: 50%; background: #a977f8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; overflow: hidden; }}
-            .user-avatar img {{ width: 100%; height: 100%; object-fit: cover; }}
-            .user-details {{ display: flex; flex-direction: column; align-items: flex-start; }}
-            .user-name {{ color: #fff; font-weight: 600; line-height: 1.2; font-size: 1.08rem; }}
-            .user-rank {{ font-size: 12px; text-transform: capitalize; line-height: 1; font-weight: 600; color: {rank_color}; }}
-            .logout-btn {{ background: rgba(255,255,255,0.10); color: #fff; border: 1px solid #a977f8; border-radius: 6px; padding: 0.4rem 1rem; font-size: 0.95rem; font-weight: 500; margin-left: 0.7rem; cursor: pointer; transition: background 0.2s; }}
-            .logout-btn:hover {{ background: #a977f8; color: #fff; }}
-            .cases-header {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; margin-top: 0.5rem; gap: 1.2rem; flex-wrap: wrap; }}
-            .cases-title {{ font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
-            .create-log-btn {{ background: #a977f8; color: #fff; border: none; border-radius: 8px; padding: 0.7rem 1.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 8px #a977f84d; }}
-            .create-log-btn:hover {{ background: #9966e6; }}
-            .cases-table {{ background: rgba(169, 119, 248, 0.05); border: 1px solid rgba(169, 119, 248, 0.2); border-radius: 12px; overflow: hidden; margin-bottom: 2rem; box-shadow: 0 2px 8px #a977f81a; }}
-            .cases-table table {{ width: 100%; border-collapse: collapse; }}
-            .cases-table th, .cases-table td {{ padding: 1rem; text-align: left; border-bottom: 1px solid #23232b; word-break: break-word; }}
-            .cases-table th {{ background: rgba(169, 119, 248, 0.10); font-weight: 600; color: #fff; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }}
-            .cases-table td {{ color: #a0a0a0; font-size: 0.98rem; }}
-            .type-badge {{ display: inline-block; padding: 0.3em 0.8em; border-radius: 6px; font-weight: 600; font-size: 0.95em; color: #18181b; margin-right: 0.2em; white-space: nowrap; }}
-            .action-link {{ color: #a977f8; text-decoration: none; cursor: pointer; font-weight: 500; border-radius: 5px; padding: 0.1em 0.5em; transition: background 0.18s, color 0.18s; outline: none; }}
-            .action-link:hover, .action-link:focus {{ color: #fff; background: #a977f8; text-decoration: none; outline: none; }}
-            .logout-btn, .logout-btn:visited, .logout-btn:active {{ text-decoration: none !important; }}
-            /* Modal Styles */
-            .modal {{ display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 2000; outline: none; }}
-            .modal[aria-modal="true"] {{ display: flex; }}
-            .modal-content {{ background: rgba(35,35,43,0.98); border-radius: 16px; padding: 2.5rem 2rem 2rem 2rem; min-width: 340px; max-width: 95vw; box-shadow: 0 8px 32px #a977f826; position: relative; border: 1.5px solid #a977f8; outline: none; transition: all 0.2s; }}
-            .close-modal {{ position: absolute; top: 1.2rem; right: 1.5rem; font-size: 2.2rem; color: #a0a0a0; cursor: pointer; font-weight: 700; transition: color 0.2s; background: none; border: none; }}
-            .close-modal:hover, .close-modal:focus {{ color: #fff; outline: none; }}
-            .modal-title {{ font-size: 1.4rem; font-weight: 700; margin-bottom: 1.5rem; color: #fff; text-align: center; letter-spacing: -0.01em; }}
-            .form-group {{ margin-bottom: 1.3rem; }}
-            .form-group label {{ display: block; margin-bottom: 0.5rem; color: #fff; font-weight: 500; }}
-            .form-group input, .form-group select, .form-group textarea {{ width: 100%; padding: 0.7rem; border-radius: 8px; border: 1px solid #a977f8; background: #18181b; color: #fff; font-size: 1rem; font-family: inherit; transition: border 0.2s; }}
-            .form-group input:focus, .form-group select:focus, .form-group textarea:focus {{ border-color: #fff; outline: none; }}
-            .form-group textarea {{ min-height: 70px; resize: vertical; }}
-            .submit-btn {{ background: linear-gradient(90deg, #a977f8 0%, #7c3aed 100%); color: #fff; border: none; border-radius: 8px; padding: 0.8rem 2rem; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 8px #a977f84d; margin-top: 0.5rem; width: 100%; }}
-            .submit-btn:hover {{ background: linear-gradient(90deg, #7c3aed 0%, #a977f8 100%); }}
+            :root {{
+                --primary-color: #a977f8;
+                --primary-rgb: 169, 119, 248;
+                --background-dark: #0a0a0a;
+                --surface-dark: #141418;
+                --surface-light: rgba(255, 255, 255, 0.05);
+                --border-color: rgba(169, 119, 248, 0.3);
+                --text-primary: #ffffff;
+                --text-secondary: #b7b7c9;
+                --text-muted: #8b8b99;
+                --rank-color: {rank_color};
+                --shadow-primary: 0 4px 32px rgba(169, 119, 248, 0.15);
+                --shadow-elevated: 0 8px 48px rgba(169, 119, 248, 0.2);
+                --backdrop-blur: blur(16px);
+            }}
+            
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            
+            body {{
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: var(--background-dark);
+                color: var(--text-primary);
+                line-height: 1.6;
+                overflow-x: hidden;
+                min-height: 100vh;
+            }}
+            
+            /* Animated background */
+            .background-pattern {{
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: -1;
+                background: 
+                    radial-gradient(circle at 20% 30%, rgba(var(--primary-rgb), 0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 70%, rgba(var(--primary-rgb), 0.06) 0%, transparent 50%),
+                    radial-gradient(circle at 40% 80%, rgba(var(--primary-rgb), 0.04) 0%, transparent 50%);
+            }}
+            
+            /* Sidebar */
+            .sidebar {{
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 280px;
+                height: 100vh;
+                background: rgba(20, 20, 24, 0.95);
+                backdrop-filter: var(--backdrop-blur);
+                border-right: 1px solid var(--border-color);
+                display: flex;
+                flex-direction: column;
+                z-index: 1000;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }}
+            
+            .sidebar::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(180deg, 
+                    rgba(var(--primary-rgb), 0.02) 0%, 
+                    transparent 100%);
+                pointer-events: none;
+            }}
+            
+            .logo {{
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 32px 24px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                position: relative;
+            }}
+            
+            .logo img {{
+                width: 42px;
+                height: 42px;
+                border-radius: 12px;
+                filter: drop-shadow(0 4px 16px rgba(var(--primary-rgb), 0.3));
+            }}
+            
+            .logo-text {{
+                font-size: 1.75rem;
+                font-weight: 800;
+                background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-color) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                letter-spacing: -0.02em;
+            }}
+            
+            .nav-links {{
+                flex: 1;
+                padding: 24px 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }}
+            
+            .nav-item {{
+                position: relative;
+                text-decoration: none;
+                color: var(--text-secondary);
+                padding: 16px 20px;
+                border-radius: 12px;
+                font-weight: 500;
+                font-size: 0.95rem;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                border: 1px solid transparent;
+            }}
+            
+            .nav-item::before {{
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 3px;
+                height: 0;
+                background: var(--primary-color);
+                border-radius: 0 2px 2px 0;
+                transition: height 0.2s ease;
+            }}
+            
+            .nav-item:hover {{
+                background: rgba(var(--primary-rgb), 0.08);
+                color: var(--text-primary);
+                transform: translateX(4px);
+                border-color: rgba(var(--primary-rgb), 0.2);
+            }}
+            
+            .nav-item.active {{
+                background: rgba(var(--primary-rgb), 0.12);
+                color: var(--primary-color);
+                border-color: rgba(var(--primary-rgb), 0.3);
+            }}
+            
+            .nav-item.active::before {{
+                height: 24px;
+            }}
+            
+            .nav-icon {{
+                width: 20px;
+                height: 20px;
+                opacity: 0.7;
+                transition: opacity 0.2s ease;
+            }}
+            
+            .nav-item:hover .nav-icon,
+            .nav-item.active .nav-icon {{
+                opacity: 1;
+            }}
+            
+            /* Main content */
+            .main-content {{
+                margin-left: 280px;
+                padding: 40px;
+                min-height: 100vh;
+                position: relative;
+            }}
+            
+            /* User info */
+            .user-info {{
+                position: fixed;
+                top: 24px;
+                right: 40px;
+                z-index: 1100;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                background: rgba(255, 255, 255, 0.08);
+                backdrop-filter: var(--backdrop-blur);
+                border: 1px solid rgba(var(--primary-rgb), 0.3);
+                border-radius: 16px;
+                padding: 12px 16px;
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            .user-avatar {{
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                background: var(--primary-color);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 1.1rem;
+                overflow: hidden;
+                border: 2px solid rgba(var(--primary-rgb), 0.3);
+            }}
+            
+            .user-avatar img {{
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }}
+            
+            .user-details {{
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }}
+            
+            .user-name {{
+                font-weight: 600;
+                font-size: 0.95rem;
+                color: var(--text-primary);
+            }}
+            
+            .user-rank {{
+                font-size: 0.8rem;
+                color: var(--rank-color);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }}
+            
+            .logout-btn {{
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(var(--primary-rgb), 0.3);
+                color: var(--text-primary);
+                padding: 8px 16px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                text-decoration: none;
+                transition: all 0.2s ease;
+                cursor: pointer;
+            }}
+            
+            .logout-btn:hover {{
+                background: var(--primary-color);
+                color: white;
+                transform: translateY(-1px);
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            /* Cases content */
+            .cases-header {{
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 40px;
+                padding-top: 20px;
+                gap: 24px;
+                flex-wrap: wrap;
+            }}
+            
+            .cases-title {{
+                font-size: clamp(2.5rem, 5vw, 3.5rem);
+                font-weight: 800;
+                line-height: 1.1;
+                background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                letter-spacing: -0.02em;
+            }}
+            
+            .create-log-btn {{
+                background: linear-gradient(135deg, var(--primary-color) 0%, #d946ef 100%);
+                color: white;
+                border: none;
+                border-radius: 12px;
+                padding: 14px 24px;
+                font-size: 0.95rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                box-shadow: var(--shadow-primary);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }}
+            
+            .create-log-btn:hover {{
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-elevated);
+            }}
+            
+            .create-log-btn:active {{
+                transform: translateY(0);
+            }}
+            
+            /* Cases table */
+            .cases-container {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(var(--primary-rgb), 0.2);
+                border-radius: 20px;
+                overflow: hidden;
+                backdrop-filter: var(--backdrop-blur);
+                box-shadow: var(--shadow-primary);
+                position: relative;
+            }}
+            
+            .cases-container::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, 
+                    rgba(var(--primary-rgb), 0.02) 0%, 
+                    transparent 100%);
+                pointer-events: none;
+            }}
+            
+            .cases-table {{
+                width: 100%;
+                border-collapse: collapse;
+                position: relative;
+                z-index: 1;
+            }}
+            
+            .cases-table th {{
+                background: rgba(var(--primary-rgb), 0.08);
+                color: var(--text-primary);
+                padding: 20px 24px;
+                text-align: left;
+                font-weight: 600;
+                font-size: 0.9rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                border-bottom: 1px solid rgba(var(--primary-rgb), 0.15);
+            }}
+            
+            .cases-table td {{
+                padding: 20px 24px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                color: var(--text-secondary);
+                font-size: 0.95rem;
+                vertical-align: middle;
+            }}
+            
+            .cases-table tr:hover {{
+                background: rgba(var(--primary-rgb), 0.04);
+            }}
+            
+            .cases-table tr:last-child td {{
+                border-bottom: none;
+            }}
+            
+            .type-badge {{
+                display: inline-flex;
+                align-items: center;
+                padding: 6px 14px;
+                border-radius: 20px;
+                font-weight: 600;
+                font-size: 0.8rem;
+                color: #000;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }}
+            
+            .status-badge {{
+                display: inline-flex;
+                align-items: center;
+                padding: 6px 14px;
+                border-radius: 20px;
+                font-weight: 600;
+                font-size: 0.8rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }}
+            
+            .status-active {{
+                background: rgba(34, 197, 94, 0.2);
+                color: #22c55e;
+                border: 1px solid rgba(34, 197, 94, 0.3);
+            }}
+            
+            .status-appealed {{
+                background: rgba(249, 115, 22, 0.2);
+                color: #f97316;
+                border: 1px solid rgba(249, 115, 22, 0.3);
+            }}
+            
+            .action-btn {{
+                background: rgba(var(--primary-rgb), 0.1);
+                color: var(--primary-color);
+                border: 1px solid rgba(var(--primary-rgb), 0.3);
+                padding: 8px 16px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }}
+            
+            .action-btn:hover {{
+                background: var(--primary-color);
+                color: white;
+                transform: translateY(-1px);
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            .case-id {{
+                font-family: 'Monaco', 'Menlo', monospace;
+                font-weight: 600;
+                color: var(--text-primary);
+            }}
+            
+            .user-id {{
+                font-family: 'Monaco', 'Menlo', monospace;
+                color: var(--text-muted);
+            }}
+            
+            .case-reason {{
+                max-width: 200px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }}
+            
+            /* Modal styles */
+            .modal {{
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(0, 0, 0, 0.8);
+                backdrop-filter: blur(8px);
+                align-items: center;
+                justify-content: center;
+                z-index: 2000;
+                padding: 20px;
+            }}
+            
+            .modal[aria-modal="true"] {{
+                display: flex;
+            }}
+            
+            .modal-content {{
+                background: rgba(20, 20, 24, 0.98);
+                border: 1px solid rgba(var(--primary-rgb), 0.3);
+                border-radius: 20px;
+                padding: 32px;
+                max-width: 500px;
+                width: 100%;
+                box-shadow: var(--shadow-elevated);
+                position: relative;
+                backdrop-filter: var(--backdrop-blur);
+            }}
+            
+            .modal-content::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, 
+                    rgba(var(--primary-rgb), 0.05) 0%, 
+                    transparent 100%);
+                border-radius: 20px;
+                pointer-events: none;
+            }}
+            
+            .close-modal {{
+                position: absolute;
+                top: 20px;
+                right: 24px;
+                background: none;
+                border: none;
+                font-size: 24px;
+                color: var(--text-secondary);
+                cursor: pointer;
+                transition: color 0.2s ease;
+                z-index: 1;
+            }}
+            
+            .close-modal:hover {{
+                color: var(--text-primary);
+            }}
+            
+            .modal-title {{
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin-bottom: 24px;
+                color: var(--text-primary);
+                text-align: center;
+                position: relative;
+                z-index: 1;
+            }}
+            
+            .form-group {{
+                margin-bottom: 20px;
+                position: relative;
+                z-index: 1;
+            }}
+            
+            .form-group label {{
+                display: block;
+                margin-bottom: 8px;
+                color: var(--text-primary);
+                font-weight: 500;
+                font-size: 0.9rem;
+            }}
+            
+            .form-group input,
+            .form-group select,
+            .form-group textarea {{
+                width: 100%;
+                padding: 12px 16px;
+                border: 1px solid rgba(var(--primary-rgb), 0.3);
+                border-radius: 12px;
+                background: rgba(255, 255, 255, 0.05);
+                color: var(--text-primary);
+                font-size: 0.95rem;
+                font-family: inherit;
+                transition: all 0.2s ease;
+                backdrop-filter: var(--backdrop-blur);
+            }}
+            
+            .form-group input:focus,
+            .form-group select:focus,
+            .form-group textarea:focus {{
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+            }}
+            
+            .form-group textarea {{
+                min-height: 80px;
+                resize: vertical;
+            }}
+            
+            .submit-btn {{
+                width: 100%;
+                background: linear-gradient(135deg, var(--primary-color) 0%, #d946ef 100%);
+                color: white;
+                border: none;
+                border-radius: 12px;
+                padding: 14px 24px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                box-shadow: var(--shadow-primary);
+                position: relative;
+                z-index: 1;
+            }}
+            
+            .submit-btn:hover {{
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-elevated);
+            }}
+            
+            .submit-btn:active {{
+                transform: translateY(0);
+            }}
+            
+            /* Responsive design */
+            @media (max-width: 1024px) {{
+                .sidebar {{
+                    width: 240px;
+                }}
+                
+                .main-content {{
+                    margin-left: 240px;
+                    padding: 32px;
+                }}
+                
+                .user-info {{
+                    right: 32px;
+                }}
+            }}
+            
+            @media (max-width: 768px) {{
+                .sidebar {{
+                    transform: translateX(-100%);
+                    width: 100%;
+                    height: auto;
+                    position: fixed;
+                    bottom: 0;
+                    top: auto;
+                    flex-direction: row;
+                    padding: 16px;
+                    border-right: none;
+                    border-top: 1px solid var(--border-color);
+                    z-index: 2000;
+                }}
+                
+                .logo {{
+                    display: none;
+                }}
+                
+                .nav-links {{
+                    flex-direction: row;
+                    padding: 0;
+                    width: 100%;
+                    justify-content: space-around;
+                }}
+                
+                .nav-item {{
+                    flex: 1;
+                    justify-content: center;
+                    padding: 12px 8px;
+                    font-size: 0.8rem;
+                }}
+                
+                .main-content {{
+                    margin-left: 0;
+                    padding: 20px 16px 100px 16px;
+                }}
+                
+                .user-info {{
+                    top: 16px;
+                    right: 16px;
+                    padding: 8px 12px;
+                    gap: 12px;
+                }}
+                
+                .user-avatar {{
+                    width: 36px;
+                    height: 36px;
+                }}
+                
+                .cases-title {{
+                    font-size: 2rem;
+                }}
+                
+                .cases-header {{
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 16px;
+                }}
+                
+                .cases-table {{
+                    font-size: 0.85rem;
+                }}
+                
+                .cases-table th,
+                .cases-table td {{
+                    padding: 12px 16px;
+                }}
+                
+                .case-reason {{
+                    max-width: 150px;
+                }}
+            }}
+            
+            @media (max-width: 480px) {{
+                .main-content {{
+                    padding: 16px 12px 100px 12px;
+                }}
+                
+                .user-info {{
+                    top: 12px;
+                    right: 12px;
+                    padding: 6px 8px;
+                }}
+                
+                .user-details {{
+                    display: none;
+                }}
+                
+                .cases-table th,
+                .cases-table td {{
+                    padding: 8px 12px;
+                }}
+                
+                .case-reason {{
+                    max-width: 100px;
+                }}
+                
+                .modal-content {{
+                    padding: 24px;
+                    margin: 20px;
+                }}
+            }}
         </style>
     </head>
     <body>
+        <div class="background-pattern"></div>
+        
         <div class="sidebar">
             <div class="logo">
-                <img src="https://i.imgur.com/S3FBo0I.png" alt="Themis">
-                Themis
+                <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
+                <div class="logo-text">Themis</div>
             </div>
-            <div class="nav-links">
-                <a href="/admin/dashboard" class="admin-btn">Dashboard</a>
-                <a href="/admin/cases" class="admin-btn active">Cases</a>
-                <a href="/" class="admin-btn">← Home</a>
-            </div>
+            <nav class="nav-links">
+                <a href="/admin/dashboard" class="nav-item">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="/admin/cases" class="nav-item active">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-1-1h1v-2h-1v2zm1-4h-1V6h1v2zM7 8h6v4H7V8z" clip-rule="evenodd"/>
+                    </svg>
+                    Cases
+                </a>
+                <a href="/" class="nav-item">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+                    </svg>
+                    Home
+                </a>
+            </nav>
         </div>
-        <div class="user-info-box">
-            <div class="user-avatar">{f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
+        
+        <div class="user-info">
+            <div class="user-avatar">
+                {f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}
+            </div>
             <div class="user-details">
                 <div class="user-name">{user.get('username', 'User')}</div>
                 <div class="user-rank">{staff_rank}</div>
             </div>
             <a href="/logout" class="logout-btn">Logout</a>
         </div>
-        <div class="main-content">
+        
+        <main class="main-content">
             <div class="cases-header">
-                <h2 class="cases-title">Cases</h2>
-                <button class="create-log-btn" onclick="openModlogModal()"><i class="fa fa-plus"></i> Create Moderation Log</button>
+                <h1 class="cases-title">Cases</h1>
+                <button class="create-log-btn" onclick="openModlogModal()">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                    </svg>
+                    Create Moderation Log
+                </button>
             </div>
-            <div class="cases-table">
-                <table>
+            
+            <div class="cases-container">
+                <table class="cases-table">
                     <thead>
-                        <tr><th>ID</th><th>User ID</th><th>Type</th><th>Reason</th><th>Status</th><th>Length</th><th>Details</th></tr>
+                        <tr>
+    <th>Case ID</th>
+    <th>User ID</th>
+    <th>Type</th>
+    <th>Reason</th>
+    <th>Status</th>
+    <th>Length</th>
+    <th>Evidence</th>
+    <th>Actions</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        {''.join(f'<tr><td>{c["id"]}</td><td>{c["user_id"]}</td><td><span class="type-badge" style="background:{get_type_color(c["type"])}">{c["type"] or "-"}</span></td><td>{c["reason"]}</td><td>{c["status"]}</td><td>{c["length"]}</td><td><span class="action-link" tabindex="0" onclick="viewCaseDetail(\'{c["id"]}\')">View</span></td></tr>' for c in cases)}
+                        {''.join(f'''
+                        <tr>
+                            <td><span class="case-id">#{c["id"]}</span></td>
+                            <td><span class="user-id">{c["user_id"]}</span></td>
+                            <td><span class="type-badge" style="background-color: {get_type_color(c['type'])}">{c["type"].title()}</span></td>
+                            <td><span class="case-reason" title="{c['reason'] or 'No reason provided'}">{c["reason"] or 'No reason provided'}</span></td>
+                            <td><span class="status-badge {'status-appealed' if c['status'] == 'Appealed' else 'status-active'}">{c["status"]}</span></td>
+                            <td>{c["length"]}</td>
+                            <td>{render_evidence_block(c.get('evidence_list', []))}</td>
+                            <td>
+                                <button class="action-btn" onclick="viewCase('{c['id']}', '{c['user_id']}', '{c['type']}', '{c['reason'] or 'No reason provided'}', '{c['status']}', '{c['length']}')">
+                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                        ''' for c in cases) if cases else '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">No cases found</td></tr>'}
                     </tbody>
                 </table>
             </div>
-            <!-- Moderation Log Modal -->
-            <div id="modlog-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modlog-modal-title" tabindex="-1">
-                <div class="modal-content">
-                    <button class="close-modal" onclick="closeModlogModal()" aria-label="Close modal">&times;</button>
-                    <div class="modal-title" id="modlog-modal-title">Create Moderation Log</div>
-                    <form id="modlog-form">
-                        <div class="form-group">
-                            <label for="modlog-case-id">Case ID (optional, for updating existing case)</label>
-                            <input type="text" id="modlog-case-id" name="case_id" placeholder="Enter Case ID or leave blank for new">
-                        </div>
-                        <div class="form-group">
-                            <label for="modlog-type">Type</label>
-                            <select id="modlog-type" name="type" required>
-                                <option value="ban">Ban</option>
-                                <option value="kick">Kick</option>
-                                <option value="mute">Mute</option>
-                                <option value="warn">Warn</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="modlog-reason">Reason</label>
-                            <textarea id="modlog-reason" name="reason" required placeholder="Enter reason for moderation action..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="modlog-details">Details (optional)</label>
-                            <textarea id="modlog-details" name="details" placeholder="Additional details, evidence, etc."></textarea>
-                        </div>
-                        <button type="submit" class="submit-btn">Submit Moderation Log</button>
-                    </form>
+        </main>
+        
+        <!-- Create Modlog Modal -->
+        <div id="modlogModal" class="modal" role="dialog" aria-modal="false" aria-labelledby="modlogModalTitle">
+            <div class="modal-content">
+                <button class="close-modal" onclick="closeModlogModal()" aria-label="Close modal">&times;</button>
+                <h2 id="modlogModalTitle" class="modal-title">Create Moderation Log</h2>
+                <form id="modlogForm">
+                    <div class="form-group">
+                        <label for="userId">User ID</label>
+                        <input type="text" id="userId" name="userId" required placeholder="Enter Discord User ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="punishmentType">Punishment Type</label>
+                        <select id="punishmentType" name="punishmentType" required>
+                            <option value="">Select punishment type</option>
+                            <option value="warn">Warning</option>
+                            <option value="mute">Mute</option>
+                            <option value="kick">Kick</option>
+                            <option value="ban">Ban</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="reason">Reason</label>
+                        <textarea id="reason" name="reason" required placeholder="Enter reason for punishment"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="length">Length (optional)</label>
+                        <input type="text" id="length" name="length" placeholder="e.g., 1d, 1h, permanent">
+                    </div>
+                    <button type="submit" class="submit-btn">Create Log Entry</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- View Case Modal -->
+        <div id="viewCaseModal" class="modal" role="dialog" aria-modal="false" aria-labelledby="viewCaseModalTitle">
+            <div class="modal-content">
+                <button class="close-modal" onclick="closeViewCaseModal()" aria-label="Close modal">&times;</button>
+                <h2 id="viewCaseModalTitle" class="modal-title">Case Details</h2>
+                <div id="caseDetails">
+                    <!-- Case details will be populated here -->
                 </div>
             </div>
-            <script>
-                // Accessibility: trap focus in modal
-                function trapFocus(modal) {{
-                    var focusableEls = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-                    var first = focusableEls[0];
-                    var last = focusableEls[focusableEls.length - 1];
-                    modal.addEventListener('keydown', function(e) {{
-                        if (e.key === 'Tab') {{
-                            if (e.shiftKey) {{ if (document.activeElement === first) {{ e.preventDefault(); last.focus(); }} }}
-                            else {{ if (document.activeElement === last) {{ e.preventDefault(); first.focus(); }} }}
-                        }}
-                        if (e.key === 'Escape') {{ closeModlogModal(); }}
-                    }});
-                }}
-                // Expose punishment colors to JS
-                const PUNISHMENT_COLORS = {punishment_colors_js};
-                function get_type_color(ptype) {{
-                    if (!ptype) {{ return PUNISHMENT_COLORS['default']; }}
-                    var key = ptype.toLowerCase();
-                    return PUNISHMENT_COLORS[key] || PUNISHMENT_COLORS['default'];
-                }}
-                // The following JS is inside a Python f-string. Linter: ignore 'document' not defined.
-                function openModlogModal() {{
-                    const modal = document.getElementById('modlog-modal');
-                    modal.setAttribute('aria-modal', 'true');
-                    modal.style.display = 'flex';
-                    document.getElementById('modlog-form').reset();
-                    setTimeout(() => {{
-                        const firstInput = modal.querySelector('input, select, textarea, button');
-                        if (firstInput) firstInput.focus();
-                    }}, 100);
-                    trapFocus(modal);
-                }}
-                function closeModlogModal() {{
-                    const modal = document.getElementById('modlog-modal');
-                    modal.removeAttribute('aria-modal');
-                    modal.style.display = 'none';
-                }}
-                document.getElementById('modlog-form').onsubmit = async function(event) {{
-                    event.preventDefault();
-                    const caseId = document.getElementById('modlog-case-id').value;
-                    const type = document.getElementById('modlog-type').value;
-                    const reason = document.getElementById('modlog-reason').value;
-                    const details = document.getElementById('modlog-details').value;
-                    try {{
-                        const resp = await fetch('/api/modlog/create', {{
-                            method: 'POST',
-                            headers: {{ 'Content-Type': 'application/json' }},
-                            body: JSON.stringify({{ case_id: caseId, type, reason, details }})
-                        }});
-                        const data = await resp.json();
-                        closeModlogModal();
-                        if (resp.ok) {{
-                            alert('Moderation log created!');
-                        }} else {{
-                            alert('Error: ' + (data.error || 'Failed to create log.'));
-                        }}
-                    }} catch (err) {{
-                        closeModlogModal();
-                        alert('Network error.');
-                    }}
-                }};
-                window.onclick = function(event) {{
-                    var modal = document.getElementById('modlog-modal');
-                    if (event.target == modal) {{
-                        closeModlogModal();
-                    }}
-                }};
-                // View case detail (fetches from /api/case/discord/<case_id> and shows a modal with all info)
-                function viewCaseDetail(caseId) {{
-                    var url = '/api/case/discord/' + caseId;
-                    fetch(url)
-                        .then(function(res) {{ return res.json(); }})
-                        .then(function(data) {{
-                            if (data.error) {{
-                                alert('Error: ' + data.error);
-                                return;
-                            }}
-                            var html = "<div style='padding:1.5rem 1.2rem 0.5rem 1.2rem;max-width:480px;'>";
-                            html += "<h2 style='font-size:1.3rem;font-weight:700;margin-bottom:1rem;'>Case #" + (data.reference_id || '') + "</h2>";
-                            html += "<div style='margin-bottom:0.7rem;'><b>Punishment Type:</b> <span style='background:" + get_type_color(data.punishment_type) + ";color:#18181b;padding:0.2em 0.7em;border-radius:6px;font-weight:600;'>" + (data.punishment_type || '-') + "</span></div>";
-                            html += "<div style='margin-bottom:0.7rem;'><b>Status:</b> " + (data.appealed == 1 ? 'Appealed' : 'Active') + "</div>";
-                            html += "<div style='margin-bottom:0.7rem;'><b>Reason:</b> " + (data.reason || '-') + "</div>";
-                            html += "<div style='margin-bottom:0.7rem;'><b>Length:</b> " + (data.length || '-') + "</div>";
-                            html += "<div style='margin-bottom:0.7rem;'><b>Moderator Note:</b> " + (data.moderator_note || '-') + "</div>";
-                            html += "<div style='margin-bottom:0.7rem;'><b>Discord User ID:</b> " + (data.user_id || '-') + "</div>";
-                            html += "<div style='margin-bottom:0.7rem;'><b>Discord Username:</b> " + (data.discord_username || '-') + "</div>";
-                            html += "<div style='margin-bottom:0.7rem;'><b>Roblox User ID:</b> " + (data.roblox_user_id || '-') + "</div>";
-                            html += "<div style='margin-bottom:0.7rem;'><b>Roblox Username:</b> " + (data.roblox_username || '-') + "</div>";
-                            if (data.evidence && Array.isArray(data.evidence) && data.evidence.length > 0) {{
-                                html += "<div style='margin-bottom:0.7rem;'><b>Evidence:</b><ul style='margin:0.3em 0 0 1.2em;'>";
-                                for (var i = 0; i < data.evidence.length; i++) {{
-                                    var url = data.evidence[i];
-                                    html += "<li><a href='" + url + "' target='_blank' style='color:#a977f8;'>" + url + "</a></li>";
-                                }}
-                                html += "</ul></div>";
-                            }} else if (data.evidence) {{
-                                html += "<div style='margin-bottom:0.7rem;'><b>Evidence:</b> " + data.evidence + "</div>";
-                            }}
-                            html += "</div>";
-                            showCaseDetailModal(html);
-                        }})
-                        .catch(function() {{ alert('Failed to fetch case details.'); }});
-                }}
-
-                // Modal for case details
-                function showCaseDetailModal(contentHtml) {{
-                    let modal = document.getElementById('case-detail-modal');
-                    let modalContent = document.getElementById('case-detail-modal-content');
-                    if (!modal) {{
-                        modal = document.createElement('div');
-                        modal.id = 'case-detail-modal';
-                        modal.className = 'modal';
-                        modal.innerHTML = `<div class=\"modal-content\" id=\"case-detail-modal-content\"><span class=\"close-modal\" onclick=\"closeCaseDetailModal()\">&times;</span></div>`;
-                        document.body.appendChild(modal);
-                        modalContent = document.getElementById('case-detail-modal-content');
-                    }}
-                    modalContent.innerHTML = `<span class=\"close-modal\" onclick=\"closeCaseDetailModal()\">&times;</span>` + contentHtml;
-                    modal.style.display = 'flex';
-                }}
-                function closeCaseDetailModal() {{
-                    let modal = document.getElementById('case-detail-modal');
-                    if (modal) modal.style.display = 'none';
-                }}
-            </script>
         </div>
+        
+        <script>
+            const punishmentColors = {punishment_colors_js};
+            
+            function openModlogModal() {{
+                const modal = document.getElementById('modlogModal');
+                modal.style.display = 'flex';
+                modal.setAttribute('aria-modal', 'true');
+                document.body.style.overflow = 'hidden';
+            }}
+
+            function closeModlogModal() {{
+                const modal = document.getElementById('modlogModal');
+                modal.style.display = 'none';
+                modal.setAttribute('aria-modal', 'false');
+                document.body.style.overflow = 'auto';
+                document.getElementById('modlogForm').reset();
+            }}
+
+            function viewCase(caseId, userId, type, reason, status, length) {{
+                const modal = document.getElementById('viewCaseModal');
+                const detailsContainer = document.getElementById('caseDetails');
+                detailsContainer.innerHTML = '<div style="text-align:center;padding:30px;">Loading...</div>';
+                modal.style.display = 'flex';
+                modal.setAttribute('aria-modal', 'true');
+                document.body.style.overflow = 'hidden';
+
+                // Fetch latest case info from backend
+                fetch(`/api/case/discord/${caseId}`)
+                    .then(res => res.json())
+                    .then(data => {{
+                        if (data.error) {{
+                            detailsContainer.innerHTML = `<div style="color:red;">${{data.error}}</div>`;
+                            return;
+                        }}
+                        const typeColor = punishmentColors[(data.punishment_type || '').toLowerCase()] || punishmentColors['default'];
+                        // Evidence rendering: show images and videos inline, others as links
+                        let evidenceHtml = '';
+                        if (data.evidence && Array.isArray(data.evidence) && data.evidence.length) {{
+                            evidenceHtml = `<div class="form-group"><label>Evidence</label><div style="display:flex;flex-direction:column;gap:12px;">` +
+                                data.evidence.map(function(url) {{
+                                    const ext = url.split('.').pop().toLowerCase().split('?')[0];
+                                    if (["jpg","jpeg","png","gif","webp","bmp"].includes(ext)) {{
+                                        return `<a href="${{url}}" target="_blank"><img src="${{url}}" alt="evidence" style="max-width:100%;max-height:220px;border-radius:8px;box-shadow:0 2px 8px #0002;"></a>`;
+                                    }} else if (["mp4","webm","ogg","mov","m4v"].includes(ext)) {{
+                                        return `<video controls style="max-width:100%;max-height:220px;border-radius:8px;box-shadow:0 2px 8px #0002;"><source src="${{url}}"></video>`;
+                                    }} else {{
+                                        return `<a href="${{url}}" target="_blank">${{url}}</a>`;
+                                    }}
+                                }}).join('') + `</div></div>`;
+                        }}
+                        detailsContainer.innerHTML = `
+                            <div style="display: flex; flex-direction: column; gap: 20px;">
+                                <div class="form-group">
+                                    <label>Case ID</label>
+                                    <div style="font-family: 'Monaco', 'Menlo', monospace; font-weight: 600; color: var(--text-primary);">#${{data.reference_id}}</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>User ID</label>
+                                    <div style="font-family: 'Monaco', 'Menlo', monospace; color: var(--text-muted);">${{data.user_id}}</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Punishment Type</label>
+                                    <div><span class="type-badge" style="background-color: ${{typeColor}}">${{(data.punishment_type || '').charAt(0).toUpperCase() + (data.punishment_type || '').slice(1)}}</span></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Reason</label>
+                                    <div style="color: var(--text-secondary);">${{data.reason}}</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Status</label>
+                                    <div><span class="status-badge ${{data.appealed === 1 ? 'status-appealed' : 'status-active'}}">${{data.appealed === 1 ? 'Appealed' : 'Active'}}</span></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Length</label>
+                                    <div style="color: var(--text-secondary);">${{data.length || 'N/A'}}</div>
+                                </div>
+                                ${{data.discord_username ? `<div class="form-group"><label>Discord Username</label><div>${{data.discord_username}}</div></div>` : ''}}
+                                ${{data.roblox_username ? `<div class="form-group"><label>Roblox Username</label><div>${{data.roblox_username}}</div></div>` : ''}}
+                                ${{evidenceHtml}}
+                            </div>
+                        `;
+                    }})
+                    .catch(err => {{
+                        detailsContainer.innerHTML = `<div style="color:red;">Error loading case details.</div>`;
+                    }});
+            }}
+
+            function closeViewCaseModal() {{
+                const modal = document.getElementById('viewCaseModal');
+                modal.style.display = 'none';
+                modal.setAttribute('aria-modal', 'false');
+                document.body.style.overflow = 'auto';
+            }}
+            
+            // Handle form submission
+            document.getElementById('modlogForm').addEventListener('submit', function(e) {{
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const data = Object.fromEntries(formData);
+                
+                // Send to server
+                fetch('/admin/create-modlog', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json',
+                    }},
+                    body: JSON.stringify(data)
+                }})
+                .then(response => response.json())
+                .then(result => {{
+                    if (result.success) {{
+                        closeModlogModal();
+                        // Refresh the page to show new case
+                        window.location.reload();
+                    }} else {{
+                        alert('Error creating modlog: ' + result.message);
+                    }}
+                }})
+                .catch(error => {{
+                    console.error('Error:', error);
+                    alert('Error creating modlog. Please try again.');
+                }});
+            }});
+            
+            // Close modals when clicking outside
+            document.getElementById('modlogModal').addEventListener('click', function(e) {{
+                if (e.target === this) {{
+                    closeModlogModal();
+                }}
+            }});
+            
+            document.getElementById('viewCaseModal').addEventListener('click', function(e) {{
+                if (e.target === this) {{
+                    closeViewCaseModal();
+                }}
+            }});
+            
+            // Close modals with Escape key
+            document.addEventListener('keydown', function(e) {{
+                if (e.key === 'Escape') {{
+                    closeModlogModal();
+                    closeViewCaseModal();
+                }}
+            }});
+        </script>
     </body>
     </html>
     '''
+    
     return render_template_string(html)
 
 # Move /api/modlog/create route OUTSIDE the HTML string and function
-@app.route('/api/modlog/create', methods=['POST'])
+@app.route('/admin/create-modlog', methods=['POST'])
 @login_required
 @staff_required
 def create_modlog():
     """
     Create a moderation log entry in the discord table (as a new case).
-    Accepts: case_id (reference_id), type, reason, details (moderator_note)
+    Accepts: userId, punishmentType, reason, length (from frontend form)
     """
     user = session.get('user', {})
     data = request.get_json()
-    staff_id = user.get('id')
-    staff_name = user.get('username', 'Unknown')
-    case_id = data.get('case_id')
-    log_type = data.get('type')
+    user_id = data.get('userId')
+    punishment_type = data.get('punishmentType')
     reason = data.get('reason')
-    details = data.get('details')
-    if not all([case_id, log_type, reason]):
-        return jsonify({'error': 'Missing required fields'}), 400
+    length = data.get('length')
+    if not all([user_id, punishment_type, reason]):
+        return jsonify({'success': False, 'message': 'Missing required fields'}), 400
     try:
         connection = get_db_connection()
         if connection is None:
-            return jsonify({'error': 'DB connection error'}), 500
+            return jsonify({'success': False, 'message': 'DB connection error'}), 500
         cursor = connection.cursor()
-        # Check if the case exists
-        cursor.execute("SELECT 1 FROM discord WHERE reference_id = %s", (case_id,))
-        if not cursor.fetchone():
-            cursor.close()
-            connection.close()
-            return jsonify({'error': 'Case not found'}), 404
-        # Update the case in the discord table with the new log info
-        update_query = """
-            UPDATE discord
-            SET punishment_type = %s, reason = %s, moderator_note = %s
-            WHERE reference_id = %s
+        # Insert new case into discord table
+        insert_query = """
+            INSERT INTO discord (user_id, punishment_type, reason, length, appealed)
+            VALUES (%s, %s, %s, %s, 0)
         """
-        cursor.execute(update_query, (log_type, reason, details, case_id))
+        cursor.execute(insert_query, (user_id, punishment_type, reason, length))
         connection.commit()
         cursor.close()
         connection.close()
-        return jsonify({'message': 'Moderation log updated for case'})
+        return jsonify({'success': True, 'message': 'Moderation log created'})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'message': str(e)}), 500
     
 @app.route('/api/case/<project>/<case_id>')
 @login_required
 @staff_required
 def get_case_detail(project, case_id):
-    print(f"Called for {case_id}")
     try:
         # Validate project parameter to prevent SQL injection
         if project not in ['discord', 'arenamadness']:
             return jsonify({'error': 'Invalid project'}), 400
-            
+
         connection = get_db_connection()
         if connection is None:
             return jsonify({'error': 'DB connection error'}), 500
-            
+
         cursor = connection.cursor(dictionary=True)
         # Get case from main table
         cursor.execute(f"SELECT * FROM {project} WHERE reference_id = %s OR user_id = %s", (case_id, case_id))
         case = cursor.fetchone()
+        if not case:
+            cursor.close()
+            connection.close()
+            return jsonify({'error': 'Case not found'}), 404
         # Try to get user info from users table if possible
         discord_username = None
         roblox_user_id = None
         roblox_username = None
-        if case and 'user_id' in case:
-            # Discord username
+        if 'user_id' in case and case['user_id']:
             cursor.execute("SELECT discord_username, roblox_user_id, roblox_username FROM users WHERE discord_user_id = %s", (case['user_id'],))
             user_row = cursor.fetchone()
             if user_row:
@@ -905,18 +2188,24 @@ def get_case_detail(project, case_id):
                 roblox_username = user_row.get('roblox_username')
         cursor.close()
         connection.close()
-        if not case:
-            return jsonify({'error': 'Case not found'}), 404
         # Convert evidence field if it exists
         if case.get('evidence'):
             if isinstance(case['evidence'], str):
-                case['evidence'] = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
+                import ast
+                try:
+                    # Try to parse as list, fallback to splitting by newline
+                    evidence_val = case['evidence']
+                    if evidence_val.strip().startswith('['):
+                        case['evidence'] = ast.literal_eval(evidence_val)
+                    else:
+                        case['evidence'] = [url.strip() for url in evidence_val.split('\n') if url.strip()]
+                except Exception:
+                    case['evidence'] = [url.strip() for url in case['evidence'].split('\n') if url.strip()]
         # Add user info to response
         case['discord_username'] = discord_username
         case['roblox_user_id'] = roblox_user_id
         case['roblox_username'] = roblox_username
         return jsonify(case)
-        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
