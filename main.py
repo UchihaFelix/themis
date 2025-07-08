@@ -467,7 +467,7 @@ def admin_dashboard():
                 text-shadow: 0 2px 24px #a977f84d; 
                 padding: 0.1em 0; /* Added padding to ensure characters don't get clipped */
             }}
-            .dashboard-title .username-highlight {{ color: {{rank_color}}; background: none; -webkit-background-clip: unset; -webkit-text-fill-color: unset; background-clip: unset; font-weight: 800; text-shadow: 0 2px 12px #000a; }}
+            .dashboard-title .username-highlight {{ color: {rank_color}; background: none; -webkit-background-clip: unset; -webkit-text-fill-color: unset; background-clip: unset; font-weight: 800; text-shadow: 0 2px 12px #000a; }}
             .dashboard-subtitle {{ color: #b7b7c9; font-size: 1.18rem; margin-bottom: 2.8rem; max-width: 650px; line-height: 1.7; font-weight: 500; letter-spacing: 0.01em; text-shadow: 0 2px 8px #000a; }}
             .quick-links {{ display: flex; gap: 2.5rem; margin-top: 2.5rem; }}
             .nav-card {{ background: rgba(169, 119, 248, 0.13); border: 1.5px solid #a977f8; border-radius: 16px; padding: 2.3rem 2.2rem 2rem 2.2rem; text-decoration: none; color: inherit; transition: all 0.32s cubic-bezier(.4,0,.2,1); cursor: pointer; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 32px #a977f81a, 0 1.5px 0 #a977f8; position: relative; overflow: hidden; }}
