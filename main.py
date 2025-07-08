@@ -1119,11 +1119,11 @@ def admin_dashboard():
                         float amplitude = 0.5;
                         float frequency = 1.0;
                         
-                        for(int i = 0; i < 4; i++) {
+                        for(int i = 0; i < 4; i++) {{
                             value += amplitude * smoothNoise(p * frequency);
                             amplitude *= 0.5;
                             frequency *= 2.0;
-                        }
+                        }}
                         
                         return value;
                     }}
@@ -1248,7 +1248,7 @@ def admin_dashboard():
                 window.addEventListener('touchend', () => {{
                     this.isMouseDown = false;
                 }});
-            }
+            }}
             
             resizeCanvas() {{
                 this.canvas.width = window.innerWidth;
