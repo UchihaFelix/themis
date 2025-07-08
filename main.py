@@ -450,12 +450,24 @@ def admin_dashboard():
             .user-avatar {{ width: 40px; height: 40px; border-radius: 50%; background: #a977f8; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; overflow: hidden; box-shadow: 0 2px 8px #a977f84d; }}
             .user-avatar img {{ width: 100%; height: 100%; object-fit: cover; }}
             .user-details {{ display: flex; flex-direction: column; align-items: flex-start; }}
-            .user-name {{ font-weight: 700; line-height: 1.2; font-size: 1.13rem; color: {rank_color}; letter-spacing: 0.01em; text-shadow: 0 2px 8px #000a; }}
+            .user-name {{ font-weight: 700; line-height: 1.2; font-size: 1.13rem; color: {{rank_color}}; letter-spacing: 0.01em; text-shadow: 0 2px 8px #000a; }}
             .user-rank {{ font-size: 12px; text-transform: capitalize; line-height: 1; font-weight: 600; color: #a0a0a0; letter-spacing: 0.01em; }}
             .logout-btn {{ background: rgba(255,255,255,0.13); color: #fff; border: 1.5px solid #a977f8; border-radius: 7px; padding: 0.45rem 1.1rem; font-size: 1.01rem; font-weight: 600; margin-left: 0.8rem; cursor: pointer; transition: background 0.2s, box-shadow 0.2s; box-shadow: 0 2px 8px #a977f84d; }}
             .logout-btn:hover {{ background: #a977f8; color: #fff; box-shadow: 0 4px 24px #a977f84d; }}
-            .dashboard-title {{ font-size: clamp(3.2rem, 8vw, 5.7rem); font-weight: 800; margin-bottom: 1.2rem; letter-spacing: -0.045em; line-height: 0.93; background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-shadow: 0 2px 24px #a977f84d; }}
-            .dashboard-title .username-highlight {{ color: {rank_color}; background: none; -webkit-background-clip: unset; -webkit-text-fill-color: unset; background-clip: unset; font-weight: 800; text-shadow: 0 2px 12px #000a; }}
+            .dashboard-title {{ 
+                font-size: clamp(3.2rem, 8vw, 5.7rem); 
+                font-weight: 800; 
+                margin-bottom: 1.2rem; 
+                letter-spacing: -0.045em; 
+                line-height: 1.1; /* Fixed: Changed from 0.93 to 1.1 to prevent clipping */
+                background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%); 
+                -webkit-background-clip: text; 
+                -webkit-text-fill-color: transparent; 
+                background-clip: text; 
+                text-shadow: 0 2px 24px #a977f84d; 
+                padding: 0.1em 0; /* Added padding to ensure characters don't get clipped */
+            }}
+            .dashboard-title .username-highlight {{ color: {{rank_color}}; background: none; -webkit-background-clip: unset; -webkit-text-fill-color: unset; background-clip: unset; font-weight: 800; text-shadow: 0 2px 12px #000a; }}
             .dashboard-subtitle {{ color: #b7b7c9; font-size: 1.18rem; margin-bottom: 2.8rem; max-width: 650px; line-height: 1.7; font-weight: 500; letter-spacing: 0.01em; text-shadow: 0 2px 8px #000a; }}
             .quick-links {{ display: flex; gap: 2.5rem; margin-top: 2.5rem; }}
             .nav-card {{ background: rgba(169, 119, 248, 0.13); border: 1.5px solid #a977f8; border-radius: 16px; padding: 2.3rem 2.2rem 2rem 2.2rem; text-decoration: none; color: inherit; transition: all 0.32s cubic-bezier(.4,0,.2,1); cursor: pointer; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 32px #a977f81a, 0 1.5px 0 #a977f8; position: relative; overflow: hidden; }}
@@ -478,15 +490,15 @@ def admin_dashboard():
             </div>
         </div>
         <div class="user-info-box">
-            <div class="user-avatar">{f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}</div>
+            <div class="user-avatar">U</div>
             <div class="user-details">
-                <div class="user-name">{user.get('username', 'User')}</div>
-                <div class="user-rank">{staff_rank}</div>
+                <div class="user-name">User</div>
+                <div class="user-rank">admin</div>
             </div>
             <a href="/logout" class="logout-btn">Logout</a>
         </div>
         <div class="main-content">
-            <h1 class="dashboard-title">Welcome back, <span class="username-highlight">{user.get('username', 'User')}</span></h1>
+            <h1 class="dashboard-title">Welcome back, <span class="username-highlight">User</span></h1>
             <p class="dashboard-subtitle">Access moderation tools, review cases, and manage your Themis administration system.</p>
             <div class="quick-links">
                 <a href="/admin/cases" class="nav-card">
