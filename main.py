@@ -441,6 +441,7 @@ def admin_meeting():
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: #333;
                 line-height: 1.6;
+                overflow-x: hidden;
             }
     
             .container {
@@ -452,11 +453,23 @@ def admin_meeting():
             .slide {
                 background: white;
                 margin: 20px 0;
-                padding: 40px;
-                border-radius: 15px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                padding: 50px;
+                border-radius: 20px;
+                box-shadow: 0 15px 35px rgba(0,0,0,0.1);
                 display: none;
-                animation: slideIn 0.5s ease-out;
+                animation: slideIn 0.6s ease-out;
+                position: relative;
+                overflow: hidden;
+            }
+    
+            .slide::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 5px;
+                background: linear-gradient(90deg, #667eea, #764ba2);
             }
     
             .slide.active {
@@ -466,7 +479,7 @@ def admin_meeting():
             @keyframes slideIn {
                 from {
                     opacity: 0;
-                    transform: translateY(20px);
+                    transform: translateY(30px);
                 }
                 to {
                     opacity: 1;
@@ -475,78 +488,105 @@ def admin_meeting():
             }
     
             h1 {
-                color: #4a5568;
-                font-size: 2.5em;
-                margin-bottom: 20px;
+                color: #2d3748;
+                font-size: 2.8em;
+                margin-bottom: 25px;
                 text-align: center;
                 border-bottom: 3px solid #667eea;
-                padding-bottom: 10px;
+                padding-bottom: 15px;
+                position: relative;
+            }
+    
+            h1::after {
+                content: '';
+                position: absolute;
+                bottom: -3px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 100px;
+                height: 3px;
+                background: linear-gradient(90deg, #667eea, #764ba2);
             }
     
             h2 {
                 color: #2d3748;
-                font-size: 2em;
-                margin-bottom: 20px;
+                font-size: 2.2em;
+                margin-bottom: 25px;
                 text-align: center;
+                position: relative;
             }
     
             h3 {
                 color: #4a5568;
-                font-size: 1.5em;
-                margin-bottom: 15px;
-                border-left: 4px solid #667eea;
-                padding-left: 15px;
+                font-size: 1.6em;
+                margin-bottom: 20px;
+                border-left: 5px solid #667eea;
+                padding-left: 20px;
+                position: relative;
+            }
+    
+            h3::before {
+                content: '';
+                position: absolute;
+                left: -5px;
+                top: 0;
+                bottom: 0;
+                width: 5px;
+                background: linear-gradient(180deg, #667eea, #764ba2);
             }
     
             .logo {
                 text-align: center;
-                margin-bottom: 30px;
+                margin-bottom: 40px;
             }
     
             .logo-text {
-                font-size: 3em;
+                font-size: 3.5em;
                 font-weight: bold;
                 background: linear-gradient(135deg, #667eea, #764ba2);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
             }
     
             .orgchart {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 30px;
-                margin: 30px 0;
+                gap: 35px;
+                margin: 40px 0;
             }
     
             .level {
                 display: flex;
                 justify-content: center;
-                gap: 40px;
+                gap: 50px;
                 flex-wrap: wrap;
             }
     
             .position {
-                background: linear-gradient(135deg, #f7fafc, #edf2f7);
-                border: 2px solid #667eea;
-                border-radius: 10px;
-                padding: 15px 25px;
+                background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+                border: 3px solid #667eea;
+                border-radius: 15px;
+                padding: 20px 30px;
                 text-align: center;
-                min-width: 180px;
+                min-width: 200px;
                 position: relative;
                 transition: all 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             }
     
             .position:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+                transform: translateY(-8px);
+                box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
             }
     
             .position.executive {
                 background: linear-gradient(135deg, #667eea, #764ba2);
                 color: white;
                 border-color: #4c51bf;
+                font-size: 1.1em;
             }
     
             .position.director {
@@ -569,38 +609,59 @@ def admin_meeting():
     
             .team-grid {
                 display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 30px;
-                margin: 30px 0;
+                grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+                gap: 40px;
+                margin: 40px 0;
             }
     
             .team-card {
-                background: linear-gradient(135deg, #f7fafc, #edf2f7);
-                border: 2px solid #667eea;
-                border-radius: 15px;
-                padding: 25px;
-                transition: transform 0.3s ease;
+                background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+                border: 3px solid #667eea;
+                border-radius: 20px;
+                padding: 30px;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+    
+            .team-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: linear-gradient(90deg, #667eea, #764ba2);
             }
     
             .team-card:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 10px 25px rgba(102, 126, 234, 0.2);
+                transform: translateY(-8px);
+                box-shadow: 0 15px 35px rgba(102, 126, 234, 0.2);
             }
     
             .team-title {
                 color: #667eea;
-                font-size: 1.4em;
+                font-size: 1.5em;
                 font-weight: bold;
-                margin-bottom: 15px;
+                margin-bottom: 20px;
                 text-align: center;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #e2e8f0;
             }
     
             .member {
                 background: white;
-                border-radius: 8px;
-                padding: 10px 15px;
-                margin: 10px 0;
-                border-left: 4px solid #667eea;
+                border-radius: 12px;
+                padding: 15px 20px;
+                margin: 15px 0;
+                border-left: 5px solid #667eea;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            }
+    
+            .member:hover {
+                transform: translateX(5px);
+                box-shadow: 0 5px 20px rgba(0,0,0,0.1);
             }
     
             .member.senior {
@@ -615,10 +676,19 @@ def admin_meeting():
     
             .key-points {
                 background: linear-gradient(135deg, #fed7d7, #fbb6ce);
-                border-radius: 10px;
-                padding: 20px;
-                margin: 20px 0;
-                border-left: 5px solid #e53e3e;
+                border-radius: 15px;
+                padding: 25px;
+                margin: 25px 0;
+                border-left: 6px solid #e53e3e;
+                position: relative;
+            }
+    
+            .key-points::before {
+                content: '⚠️';
+                position: absolute;
+                top: 15px;
+                right: 20px;
+                font-size: 1.5em;
             }
     
             .key-points h3 {
@@ -627,23 +697,32 @@ def admin_meeting():
                 padding-left: 0;
             }
     
+            .key-points h3::before {
+                display: none;
+            }
+    
             ul {
-                padding-left: 20px;
-                margin: 15px 0;
+                padding-left: 25px;
+                margin: 20px 0;
             }
     
             li {
-                margin: 8px 0;
+                margin: 12px 0;
                 padding-left: 10px;
+                position: relative;
+            }
+    
+            li::marker {
+                color: #667eea;
             }
     
             .navigation {
                 position: fixed;
-                bottom: 20px;
+                bottom: 30px;
                 left: 50%;
                 transform: translateX(-50%);
                 display: flex;
-                gap: 10px;
+                gap: 15px;
                 z-index: 1000;
             }
     
@@ -651,47 +730,108 @@ def admin_meeting():
                 background: linear-gradient(135deg, #667eea, #764ba2);
                 color: white;
                 border: none;
-                padding: 12px 20px;
-                border-radius: 25px;
+                padding: 15px 25px;
+                border-radius: 30px;
                 cursor: pointer;
-                font-size: 14px;
+                font-size: 16px;
+                font-weight: 600;
                 transition: all 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             }
     
             .nav-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+                transform: translateY(-3px);
+                box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
             }
     
             .nav-btn:disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
+                transform: none;
             }
     
             .slide-counter {
                 position: fixed;
-                top: 20px;
-                right: 20px;
-                background: rgba(255, 255, 255, 0.9);
-                padding: 10px 15px;
-                border-radius: 20px;
+                top: 30px;
+                right: 30px;
+                background: rgba(255, 255, 255, 0.95);
+                padding: 15px 20px;
+                border-radius: 25px;
                 font-weight: bold;
                 z-index: 1000;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                border: 2px solid #667eea;
             }
     
             .highlight {
                 background: linear-gradient(135deg, #fef5e7, #fed7aa);
-                padding: 15px;
-                border-radius: 8px;
-                margin: 15px 0;
-                border-left: 4px solid #f6ad55;
+                padding: 20px;
+                border-radius: 12px;
+                margin: 20px 0;
+                border-left: 5px solid #f6ad55;
+                position: relative;
+            }
+    
+            .highlight::before {
+                content: '💡';
+                position: absolute;
+                top: 15px;
+                right: 20px;
+                font-size: 1.3em;
             }
     
             .connection-line {
-                width: 2px;
-                height: 20px;
-                background: #667eea;
+                width: 3px;
+                height: 25px;
+                background: linear-gradient(180deg, #667eea, #764ba2);
                 margin: 0 auto;
+                border-radius: 2px;
+            }
+    
+            .welcome-stats {
+                background: linear-gradient(135deg, #e6fffa, #b2f5ea);
+                border-radius: 15px;
+                padding: 25px;
+                margin: 30px 0;
+                border-left: 5px solid #38b2ac;
+                text-align: center;
+            }
+    
+            .welcome-stats h3 {
+                color: #234e52;
+                border-left: none;
+                padding-left: 0;
+                margin-bottom: 15px;
+            }
+    
+            .welcome-stats h3::before {
+                display: none;
+            }
+    
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 20px;
+                margin-top: 15px;
+            }
+    
+            .stat-item {
+                background: white;
+                padding: 15px;
+                border-radius: 10px;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            }
+    
+            .stat-number {
+                font-size: 1.8em;
+                font-weight: bold;
+                color: #667eea;
+            }
+    
+            .stat-label {
+                font-size: 0.9em;
+                color: #4a5568;
+                margin-top: 5px;
             }
     
             @media (max-width: 768px) {
@@ -705,7 +845,35 @@ def admin_meeting():
                 }
                 
                 .slide {
-                    padding: 20px;
+                    padding: 30px 20px;
+                }
+    
+                .logo-text {
+                    font-size: 2.5em;
+                }
+    
+                h1 {
+                    font-size: 2.2em;
+                }
+    
+                h2 {
+                    font-size: 1.8em;
+                }
+    
+                .navigation {
+                    bottom: 20px;
+                }
+    
+                .slide-counter {
+                    top: 20px;
+                    right: 20px;
+                    padding: 10px 15px;
+                }
+            }
+    
+            @media (max-width: 480px) {
+                .stats-grid {
+                    grid-template-columns: repeat(2, 1fr);
                 }
             }
         </style>
@@ -723,16 +891,36 @@ def admin_meeting():
                 </div>
                 <h1>Senior Coordinator Onboarding</h1>
                 <div style="text-align: center; margin: 40px 0;">
-                    <h2 style="color: #667eea; margin-bottom: 20px;">Welcome to Leadership</h2>
-                    <p style="font-size: 1.2em; color: #4a5568; max-width: 600px; margin: 0 auto;">
-                        This presentation will guide you through your responsibilities as Senior Coordinators 
-                        and introduce you to your team structure within fx-Studios.
+                    <h2 style="color: #667eea; margin-bottom: 20px;">Welcome to Leadership Excellence</h2>
+                    <p style="font-size: 1.3em; color: #4a5568; max-width: 700px; margin: 0 auto; line-height: 1.8;">
+                        This comprehensive presentation will guide you through your elevated responsibilities as Senior Coordinators 
+                        and introduce you to the dynamic team structure within fx-Studios.
                     </p>
                 </div>
-                <div class="highlight">
-                    <h3>Document Version: V1.0</h3>
-                    <p><strong>Last Updated:</strong> 06/07/2025</p>
-                    <p><strong>Maintained By:</strong> Project Director Steve & Executive Director fxllenfx</p>
+                <div class="welcome-stats">
+                    <h3>🎯 Your Leadership Journey Begins</h3>
+                    <p style="margin-bottom: 20px; color: #234e52;">You're joining an elite group of leaders driving fx-Studios forward</p>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number">2</div>
+                            <div class="stat-label">Senior Positions</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">5</div>
+                            <div class="stat-label">Team Members</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">3</div>
+                            <div class="stat-label">Time Zones</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">24/7</div>
+                            <div class="stat-label">Coverage</div>
+                        </div>
+                    </div>
+                    <p style="margin-top: 15px; font-style: italic; color: #2d5a5a;">
+                        <strong>Created by Leadership Team</strong> • Updated July 2025 • Maintained by Steve & fxllenfx
+                    </p>
                 </div>
             </div>
     
@@ -757,7 +945,7 @@ def admin_meeting():
                         <div class="position">Studio Administration</div>
                         <div class="position">Moderation Division</div>
                         <div class="position">Development Team</div>
-                        <div class="position" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
+                        <div class="position" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: 3px solid #4c51bf;">
                             <strong>Community Coordination</strong><br>
                             <em>Your Division</em>
                         </div>
@@ -818,7 +1006,7 @@ def admin_meeting():
                         <li>All escalations from Coordinators go through Senior Coordinators first</li>
                     </ul>
                 </div>
-                <div class="orgchart" style="margin-top: 30px;">
+                <div class="orgchart" style="margin-top: 40px;">
                     <div class="level">
                         <div class="position director">Community Director<br>Feliks</div>
                     </div>
@@ -923,10 +1111,10 @@ def admin_meeting():
                     </ul>
                 </div>
     
-                <div style="text-align: center; margin-top: 40px;">
-                    <h2 style="color: #667eea;">Welcome to Leadership at fx-Studios!</h2>
-                    <p style="font-size: 1.2em; color: #4a5568;">
-                        Your role as Senior Coordinator is crucial to our success. Lead with excellence.
+                <div style="text-align: center; margin-top: 50px;">
+                    <h2 style="color: #667eea; margin-bottom: 15px;">Welcome to Leadership at fx-Studios!</h2>
+                    <p style="font-size: 1.3em; color: #4a5568; line-height: 1.8;">
+                        Your role as Senior Coordinator is crucial to our success. Lead with excellence, inspire your team, and drive our community forward.
                     </p>
                 </div>
             </div>
