@@ -1449,13 +1449,13 @@
                     this.atlasImage.onload = () => {
                         this.gl.bindTexture(this.gl.TEXTURE_2D, this.atlasTexture);
                         this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.atlasImage);
-                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
-                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
                         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
                         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
                         this.atlasReady = true;
                     };
-                    this.atlasImage.src = 'https://media.discordapp.net/attachments/1375821722657492993/1391883562432729309/atlas.png?ex=686d8415&is=686c3295&hm=bbe5c0b4eb86efcc8131b5889c4029857a50a1797882ce53cef8b7d50deb5ef4&=';
+                    this.atlasImage.src = 'https://i.imgur.com/8J7MAPs.png';
                     this.atlasReady = false;
                 }
                 if (!this.atlasReady) return;
