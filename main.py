@@ -61,6 +61,545 @@ RANK_COLORS = {
     'Coordinator': "#2ecc71"                 # neon green
 }
 
+# Database table creation SQL
+COORDINATION_TABLES_SQL = """
+-- Groups table for storing team groups
+CREATE TABLE IF NOT EXISTS coordination_groups (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    group_name VARCHAR(255) NOT NULL,
+    division VARCHAR(100) NOT NULL,
+    created_by INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+-- Group members table for storing group hierarchy
+CREATE TABLE IF NOT EXISTS group_members (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    group_id INT NOT NULL,
+    user_id INT NOT NULL,
+    role VARCHAR(50) NOT NULL, -- 'Senior Coordinator' or 'Coordinator'
+    role_label VARCHAR(255) DEFAULT NULL, -- Custom label assigned by Senior Coordinator
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (group_id) REFERENCES coordination_groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE KEY unique_group_member (group_id, user_id)
+);
+
+-- Assignments table
+CREATE TABLE IF NOT EXISTS assignments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    division VARCHAR(100) NOT NULL,
+    group_id INT DEFAULT NULL,
+    assigned_to INT DEFAULT NULL, -- Senior Coordinator
+    created_by INT NOT NULL, -- Director who created it
+    priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
+    status ENUM('open', 'in_progress', 'finished', 'verified', 'delayed') DEFAULT 'open',
+    due_date DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    finished_at DATETIME DEFAULT NULL,
+    verified_at DATETIME DEFAULT NULL,
+    verified_by INT DEFAULT NULL,
+    FOREIGN KEY (group_id) REFERENCES coordination_groups(id),
+    FOREIGN KEY (assigned_to) REFERENCES users(id),
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    FOREIGN KEY (verified_by) REFERENCES users(id)
+);
+
+-- Assignment actions/comments
+CREATE TABLE IF NOT EXISTS assignment_actions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    assignment_id INT NOT NULL,
+    user_id INT NOT NULL,
+    action_type ENUM('comment', 'status_change', 'contact_director', 'assignment') NOT NULL,
+    action_data TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Messages between directors and coordinators
+CREATE TABLE IF NOT EXISTS coordination_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    assignment_id INT DEFAULT NULL,
+    sender_id INT NOT NULL,
+    recipient_id INT NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (assignment_id) REFERENCES assignments(id),
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (recipient_id) REFERENCES users(id)
+);
+"""
+
+# Backend functions for the coordination system
+import mysql.connector
+from mysql.connector import Error
+from datetime import datetime, timedelta
+import json
+
+def init_coordination_tables():
+    """Initialize all coordination system tables"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            # Split the SQL into individual statements
+            for statement in COORDINATION_TABLES_SQL.strip().split(';'):
+                if statement.strip():
+                    cursor.execute(statement + ';')
+            connection.commit()
+            print("Coordination tables created successfully")
+            return True
+        except Error as e:
+            print(f"Error creating tables: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False
+
+# Group Management Functions
+def create_group(group_name, division, created_by, members):
+    """
+    Create a new group with members
+    members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
+    """
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            
+            # Create the group
+            cursor.execute("""
+                INSERT INTO coordination_groups (group_name, division, created_by)
+                VALUES (%s, %s, %s)
+            """, (group_name, division, created_by))
+            
+            group_id = cursor.lastrowid
+            
+            # Add members to the group
+            for member in members:
+                cursor.execute("""
+                    INSERT INTO group_members (group_id, user_id, role)
+                    VALUES (%s, %s, %s)
+                """, (group_id, member['user_id'], member['role']))
+            
+            connection.commit()
+            return group_id
+        except Error as e:
+            connection.rollback()
+            print(f"Error creating group: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None
+
+def get_director_groups(director_id, division):
+    """Get all groups created by a director"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT g.*, 
+                    (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count
+                FROM coordination_groups g
+                WHERE g.created_by = %s AND g.division = %s AND g.is_active = TRUE
+                ORDER BY g.created_at DESC
+            """, (director_id, division))
+            
+            groups = cursor.fetchall()
+            
+            # Get members for each group
+            for group in groups:
+                cursor.execute("""
+                    SELECT gm.*, u.username, u.avatar_url
+                    FROM group_members gm
+                    JOIN users u ON gm.user_id = u.id
+                    WHERE gm.group_id = %s
+                    ORDER BY gm.role DESC, u.username
+                """, (group['id'],))
+                group['members'] = cursor.fetchall()
+            
+            return groups
+        except Error as e:
+            print(f"Error fetching groups: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+def get_team_members(division):
+    """Get all team members in a division for group creation"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT u.id, u.username, u.avatar_url, s.role
+                FROM users u
+                JOIN staff s ON u.id = s.user_id
+                WHERE s.division = %s 
+                AND s.role IN ('Senior Coordinator', 'Coordinator')
+                AND s.is_active = TRUE
+                ORDER BY 
+                    CASE 
+                        WHEN s.role = 'Senior Coordinator' THEN 1
+                        WHEN s.role = 'Coordinator' THEN 2
+                    END,
+                    u.username
+            """, (division,))
+            return cursor.fetchall()
+        except Error as e:
+            print(f"Error fetching team members: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+def update_coordinator_label(group_id, coordinator_id, label, updated_by):
+    """Update a coordinator's role label (by Senior Coordinator)"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            
+            # Verify the updater is a Senior Coordinator in the same group
+            cursor.execute("""
+                SELECT role FROM group_members 
+                WHERE group_id = %s AND user_id = %s AND role = 'Senior Coordinator'
+            """, (group_id, updated_by))
+            
+            if cursor.fetchone():
+                cursor.execute("""
+                    UPDATE group_members 
+                    SET role_label = %s 
+                    WHERE group_id = %s AND user_id = %s
+                """, (label, group_id, coordinator_id))
+                connection.commit()
+                return True
+            return False
+        except Error as e:
+            print(f"Error updating label: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False
+
+# Assignment Management Functions
+def create_assignment(title, description, division, group_id, assigned_to, created_by, priority='medium', due_days=7):
+    """Create a new assignment"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            due_date = datetime.now() + timedelta(days=due_days)
+            
+            cursor.execute("""
+                INSERT INTO assignments 
+                (title, description, division, group_id, assigned_to, created_by, priority, due_date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (title, description, division, group_id, assigned_to, created_by, priority, due_date))
+            
+            assignment_id = cursor.lastrowid
+            
+            # Log the assignment action
+            cursor.execute("""
+                INSERT INTO assignment_actions (assignment_id, user_id, action_type, action_data)
+                VALUES (%s, %s, 'assignment', %s)
+            """, (assignment_id, created_by, json.dumps({'assigned_to': assigned_to})))
+            
+            connection.commit()
+            return assignment_id
+        except Error as e:
+            connection.rollback()
+            print(f"Error creating assignment: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None
+
+def get_senior_coordinator_assignments(user_id):
+    """Get assignments for a Senior Coordinator"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT a.*, u.username as created_by_name, g.group_name
+                FROM assignments a
+                JOIN users u ON a.created_by = u.id
+                LEFT JOIN coordination_groups g ON a.group_id = g.id
+                WHERE a.assigned_to = %s AND a.status IN ('open', 'in_progress')
+                ORDER BY 
+                    CASE a.priority 
+                        WHEN 'high' THEN 1 
+                        WHEN 'medium' THEN 2 
+                        WHEN 'low' THEN 3 
+                    END,
+                    a.created_at DESC
+            """, (user_id,))
+            return cursor.fetchall()
+        except Error as e:
+            print(f"Error fetching assignments: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+def get_director_assignments(director_id, division):
+    """Get assignments for director verification"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT a.*, u.username as assigned_to_name, g.group_name
+                FROM assignments a
+                JOIN users u ON a.assigned_to = u.id
+                LEFT JOIN coordination_groups g ON a.group_id = g.id
+                WHERE a.division = %s AND a.status = 'finished'
+                ORDER BY a.finished_at DESC
+            """, (division,))
+            return cursor.fetchall()
+        except Error as e:
+            print(f"Error fetching assignments: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+def update_assignment_status(assignment_id, new_status, user_id):
+    """Update assignment status"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            
+            # Update status
+            update_query = "UPDATE assignments SET status = %s"
+            params = [new_status]
+            
+            if new_status == 'finished':
+                update_query += ", finished_at = NOW()"
+            elif new_status == 'verified':
+                update_query += ", verified_at = NOW(), verified_by = %s"
+                params.append(user_id)
+            
+            update_query += " WHERE id = %s"
+            params.append(assignment_id)
+            
+            cursor.execute(update_query, params)
+            
+            # Log the action
+            cursor.execute("""
+                INSERT INTO assignment_actions (assignment_id, user_id, action_type, action_data)
+                VALUES (%s, %s, 'status_change', %s)
+            """, (assignment_id, user_id, json.dumps({'new_status': new_status})))
+            
+            connection.commit()
+            return True
+        except Error as e:
+            connection.rollback()
+            print(f"Error updating assignment: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False
+
+def get_executive_overview():
+    """Get executive dashboard overview data"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            
+            # Get assignment statistics
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) as verified,
+                    SUM(CASE WHEN status = 'finished' THEN 1 ELSE 0 END) as pending_verification,
+                    SUM(CASE WHEN status = 'delayed' THEN 1 ELSE 0 END) as delayed,
+                    SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open,
+                    SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress
+                FROM assignments
+                WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            """)
+            stats = cursor.fetchone()
+            
+            # Get division breakdown
+            cursor.execute("""
+                SELECT 
+                    division,
+                    COUNT(DISTINCT a.id) as active_assignments,
+                    COUNT(DISTINCT g.id) as teams,
+                    COUNT(DISTINCT gm.user_id) as members,
+                    AVG(CASE WHEN a.status = 'verified' THEN 100 ELSE 0 END) as completion_rate
+                FROM coordination_groups g
+                LEFT JOIN assignments a ON g.division = a.division
+                LEFT JOIN group_members gm ON g.id = gm.group_id
+                WHERE g.is_active = TRUE
+                GROUP BY division
+            """)
+            divisions = cursor.fetchall()
+            
+            # Get recent assignments with details
+            cursor.execute("""
+                SELECT 
+                    a.*,
+                    u1.username as assigned_to_name,
+                    u2.username as created_by_name,
+                    g.group_name
+                FROM assignments a
+                JOIN users u1 ON a.assigned_to = u1.id
+                JOIN users u2 ON a.created_by = u2.id
+                LEFT JOIN coordination_groups g ON a.group_id = g.id
+                ORDER BY a.updated_at DESC
+                LIMIT 50
+            """)
+            assignments = cursor.fetchall()
+            
+            return {
+                'stats': stats,
+                'divisions': divisions,
+                'assignments': assignments
+            }
+        except Error as e:
+            print(f"Error fetching overview: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None
+
+# Messaging Functions
+def send_coordinator_message(sender_id, recipient_id, message, assignment_id=None):
+    """Send a message between director and coordinator"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            cursor.execute("""
+                INSERT INTO coordination_messages 
+                (sender_id, recipient_id, message, assignment_id)
+                VALUES (%s, %s, %s, %s)
+            """, (sender_id, recipient_id, message, assignment_id))
+            connection.commit()
+            return cursor.lastrowid
+        except Error as e:
+            print(f"Error sending message: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None
+
+def get_unread_messages(user_id):
+    """Get unread messages for a user"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT m.*, u.username as sender_name, a.title as assignment_title
+                FROM coordination_messages m
+                JOIN users u ON m.sender_id = u.id
+                LEFT JOIN assignments a ON m.assignment_id = a.id
+                WHERE m.recipient_id = %s AND m.is_read = FALSE
+                ORDER BY m.created_at DESC
+            """, (user_id,))
+            return cursor.fetchall()
+        except Error as e:
+            print(f"Error fetching messages: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+# Helper function to check overdue assignments
+def check_and_update_delayed_assignments():
+    """Check for overdue assignments and mark them as delayed"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            cursor.execute("""
+                UPDATE assignments 
+                SET status = 'delayed'
+                WHERE status IN ('open', 'in_progress') 
+                AND due_date < NOW()
+            """)
+            connection.commit()
+            return cursor.rowcount
+        except Error as e:
+            print(f"Error updating delayed assignments: {e}")
+            return 0
+        finally:
+            cursor.close()
+            connection.close()
+    return 0
+
+# Function to get coordinator's team (for Senior Coordinator panel)
+def get_coordinator_team(senior_coordinator_id):
+    """Get the team members under a Senior Coordinator"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            
+            # First get the group(s) where this user is a Senior Coordinator
+            cursor.execute("""
+                SELECT DISTINCT g.id, g.group_name
+                FROM coordination_groups g
+                JOIN group_members gm ON g.id = gm.group_id
+                WHERE gm.user_id = %s AND gm.role = 'Senior Coordinator'
+                AND g.is_active = TRUE
+            """, (senior_coordinator_id,))
+            
+            groups = cursor.fetchall()
+            
+            # Get coordinators in these groups
+            coordinators = []
+            for group in groups:
+                cursor.execute("""
+                    SELECT gm.*, u.username, u.avatar_url
+                    FROM group_members gm
+                    JOIN users u ON gm.user_id = u.id
+                    WHERE gm.group_id = %s AND gm.role = 'Coordinator'
+                    ORDER BY u.username
+                """, (group['id'],))
+                
+                group_coordinators = cursor.fetchall()
+                for coord in group_coordinators:
+                    coord['group_name'] = group['group_name']
+                    coord['group_id'] = group['id']
+                coordinators.extend(group_coordinators)
+            
+            return coordinators
+        except Error as e:
+            print(f"Error fetching team: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
 def require_rank(min_rank):
     """Decorator to require a minimum staff rank (inclusive)."""
     def decorator(f):
@@ -413,11 +952,6 @@ def logout():
 
 from flask import redirect # type: ignore
 
-@app.route('/admin')
-@login_required
-@staff_required
-def admin_panel():
-    return redirect('/admin/dashboard')
 
 @app.route('/admin/dashboard')
 @login_required
@@ -467,18 +1001,8 @@ def admin_dashboard():
                 overflow-x: hidden;
                 min-height: 100vh;
             }}
-
-            #fluid-canvas {{
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                z-index: -2;
-                opacity: 0.6;
-                pointer-events: none;
-            }}
             
+            /* Animated background */
             .background-pattern {{
                 position: fixed;
                 top: 0;
@@ -488,11 +1012,12 @@ def admin_dashboard():
                 pointer-events: none;
                 z-index: -1;
                 background: 
-                    radial-gradient(circle at 20% 30%, rgba(var(--primary-rgb), 0.04) 0%, transparent 50%),
-                    radial-gradient(circle at 80% 70%, rgba(var(--primary-rgb), 0.03) 0%, transparent 50%),
-                    radial-gradient(circle at 40% 80%, rgba(var(--primary-rgb), 0.02) 0%, transparent 50%);
+                    radial-gradient(circle at 20% 30%, rgba(var(--primary-rgb), 0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 70%, rgba(var(--primary-rgb), 0.06) 0%, transparent 50%),
+                    radial-gradient(circle at 40% 80%, rgba(var(--primary-rgb), 0.04) 0%, transparent 50%);
             }}
             
+            /* Sidebar */
             .sidebar {{
                 position: fixed;
                 top: 0;
@@ -612,6 +1137,7 @@ def admin_dashboard():
                 opacity: 1;
             }}
             
+            /* Main content */
             .main-content {{
                 margin-left: 280px;
                 padding: 40px;
@@ -619,6 +1145,7 @@ def admin_dashboard():
                 position: relative;
             }}
             
+            /* User info */
             .user-info {{
                 position: fixed;
                 top: 24px;
@@ -694,6 +1221,7 @@ def admin_dashboard():
                 box-shadow: var(--shadow-primary);
             }}
             
+            /* Dashboard content */
             .dashboard-header {{
                 margin-bottom: 48px;
                 padding-top: 20px;
@@ -726,6 +1254,7 @@ def admin_dashboard():
                 font-weight: 400;
             }}
             
+            /* Quick actions grid */
             .quick-actions {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -801,6 +1330,7 @@ def admin_dashboard():
                 line-height: 1.5;
             }}
             
+            /* Stats grid */
             .stats-grid {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -831,6 +1361,7 @@ def admin_dashboard():
                 letter-spacing: 0.05em;
             }}
             
+            /* Responsive design */
             @media (max-width: 1024px) {{
                 .sidebar {{
                     width: 240px;
@@ -885,17 +1416,10 @@ def admin_dashboard():
                 }}
                 
                 .user-info {{
-                    position: static;
-                    margin: 0 0 16px 0;
-                    top: auto;
-                    right: auto;
-                    left: auto;
-                    width: 100%;
-                    justify-content: flex-end;
-                    border-radius: 12px;
+                    top: 16px;
+                    right: 16px;
                     padding: 8px 12px;
                     gap: 12px;
-                    box-sizing: border-box;
                 }}
                 
                 .user-avatar {{
@@ -922,13 +1446,9 @@ def admin_dashboard():
                 }}
                 
                 .user-info {{
-                    position: static;
-                    margin: 0 0 12px 0;
-                    width: 100%;
+                    top: 12px;
+                    right: 12px;
                     padding: 6px 8px;
-                    flex-direction: column;
-                    align-items: flex-end;
-                    gap: 6px;
                 }}
                 
                 .user-details {{
@@ -946,7 +1466,7 @@ def admin_dashboard():
         </style>
     </head>
     <body>
-        <canvas id="fluid-canvas"></canvas>
+        <div class="background-pattern"></div>
         
         <div class="sidebar">
             <div class="logo">
@@ -1045,262 +1565,6 @@ def admin_dashboard():
                 </a>
             </div>
         </main>
-        <script>
-            class FluidSimulation {{
-                constructor() {{
-                    this.canvas = document.getElementById('fluid-canvas');
-                    this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
-                    
-                    if (!this.gl) {{
-                        console.warn('WebGL not supported');
-                        // Fallback: create a simple CSS animation instead
-                        this.createCSSFallback();
-                        return;
-                    }}
-                    
-                    console.log('WebGL initialized successfully');
-                    
-                    this.mouse = {{ x: 0, y: 0, prevX: 0, prevY: 0 }};
-                    this.isMouseDown = false;
-                    this.time = 0;
-                    
-                    this.init();
-                    this.setupEventListeners();
-                    this.animate();
-                }}
-                
-                createCSSFallback() {{
-                    this.canvas.style.background = `
-                        radial-gradient(circle at 20% 30%, rgba(169, 119, 248, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 70%, rgba(169, 119, 248, 0.08) 0%, transparent 50%),
-                        radial-gradient(circle at 40% 80%, rgba(169, 119, 248, 0.06) 0%, transparent 50%)
-                    `;
-                    this.canvas.style.animation = 'pulse 4s ease-in-out infinite alternate';
-                    
-                    // Add CSS animation
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        @keyframes pulse {{
-                            0% {{ opacity: 0.3; }}
-                            100% {{ opacity: 0.6; }}
-                        }}
-                    `;
-                    document.head.appendChild(style);
-                }}
-                
-                init() {{
-                    this.resizeCanvas();
-                    
-                    // Vertex shader
-                    const vertexShader = this.createShader(this.gl.VERTEX_SHADER, `
-                        attribute vec2 a_position;
-                        void main() {{
-                            gl_Position = vec4(a_position, 0.0, 1.0);
-                        }}
-                    `);
-                    
-                    // Fragment shader with subtle fluid effect
-                    const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, `
-                        precision mediump float;
-                        uniform vec2 u_resolution;
-                        uniform float u_time;
-                        uniform vec2 u_mouse;
-                        uniform float u_mouseIntensity;
-                        
-                        float noise(vec2 p) {{
-                            return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-                        }}
-                        
-                        float smoothNoise(vec2 p) {{
-                            vec2 i = floor(p);
-                            vec2 f = fract(p);
-                            f = f * f * (3.0 - 2.0 * f);
-                            
-                            float a = noise(i);
-                            float b = noise(i + vec2(1.0, 0.0));
-                            float c = noise(i + vec2(0.0, 1.0));
-                            float d = noise(i + vec2(1.0, 1.0));
-                            
-                            return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-                        }}
-                        
-                        float fbm(vec2 p) {{
-                            float value = 0.0;
-                            float amplitude = 0.5;
-                            float frequency = 1.0;
-                            
-                            for(int i = 0; i < 4; i++) {{
-                                value += amplitude * smoothNoise(p * frequency);
-                                amplitude *= 0.5;
-                                frequency *= 2.0;
-                            }}
-                            
-                            return value;
-                        }}
-                        
-                        void main() {{
-                            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-                            
-                            // Slow-moving fluid distortion
-                            vec2 p = uv * 2.0 + u_time * 0.2;
-                            float flow = fbm(p + vec2(sin(u_time * 0.5), cos(u_time * 0.3)));
-                            
-                            // Mouse interaction
-                            vec2 mouseUV = u_mouse / u_resolution.xy;
-                            float mouseDist = length(uv - mouseUV);
-                            float mouseEffect = smoothstep(0.4, 0.0, mouseDist) * u_mouseIntensity;
-                            
-                            // Base animated pattern
-                            float wave = sin(uv.x * 10.0 + u_time) * sin(uv.y * 10.0 + u_time * 0.8) * 0.1;
-                            
-                            // Combine effects
-                            float intensity = (flow * 0.3 + mouseEffect * 0.7 + wave) * 0.5;
-                            
-                            // Purple tint matching the theme
-                            vec3 color = vec3(0.66, 0.47, 0.97) * (intensity + 0.1);
-                            
-                            gl_FragColor = vec4(color, (intensity + 0.05) * 0.8);
-                        }}
-                    `);
-                    
-                    // Create program
-                    this.program = this.createProgram(vertexShader, fragmentShader);
-                    
-                    // Get uniform locations
-                    this.uniforms = {{
-                        resolution: this.gl.getUniformLocation(this.program, 'u_resolution'),
-                        time: this.gl.getUniformLocation(this.program, 'u_time'),
-                        mouse: this.gl.getUniformLocation(this.program, 'u_mouse'),
-                        mouseIntensity: this.gl.getUniformLocation(this.program, 'u_mouseIntensity')
-                    }};
-                    
-                    // Create buffer
-                    const positions = new Float32Array([
-                        -1, -1,
-                        1, -1,
-                        -1,  1,
-                        1,  1
-                    ]);
-                    
-                    this.positionBuffer = this.gl.createBuffer();
-                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
-                    this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
-                    
-                    // Setup attributes
-                    const positionAttribute = this.gl.getAttribLocation(this.program, 'a_position');
-                    this.gl.enableVertexAttribArray(positionAttribute);
-                    this.gl.vertexAttribPointer(positionAttribute, 2, this.gl.FLOAT, false, 0, 0);
-                    
-                    // WebGL settings
-                    this.gl.enable(this.gl.BLEND);
-                    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-                }}
-                
-                createShader(type, source) {{
-                    const shader = this.gl.createShader(type);
-                    this.gl.shaderSource(shader, source);
-                    this.gl.compileShader(shader);
-                    
-                    if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {{
-                        console.error('Shader compilation error:', this.gl.getShaderInfoLog(shader));
-                        this.gl.deleteShader(shader);
-                        return null;
-                    }}
-                    
-                    return shader;
-                }}
-                
-                createProgram(vertexShader, fragmentShader) {{
-                    const program = this.gl.createProgram();
-                    this.gl.attachShader(program, vertexShader);
-                    this.gl.attachShader(program, fragmentShader);
-                    this.gl.linkProgram(program);
-                    
-                    if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {{
-                        console.error('Program linking error:', this.gl.getProgramInfoLog(program));
-                        this.gl.deleteProgram(program);
-                        return null;
-                    }}
-                    
-                    return program;
-                }}
-                
-                setupEventListeners() {{
-                    window.addEventListener('resize', () => this.resizeCanvas());
-                    
-                    // Mouse events
-                    window.addEventListener('mousemove', (e) => {{
-                        this.mouse.prevX = this.mouse.x;
-                        this.mouse.prevY = this.mouse.y;
-                        this.mouse.x = e.clientX;
-                        this.mouse.y = this.canvas.height - e.clientY;
-                    }});
-                    
-                    window.addEventListener('mousedown', () => {{
-                        this.isMouseDown = true;
-                    }});
-                    
-                    window.addEventListener('mouseup', () => {{
-                        this.isMouseDown = false;
-                    }});
-                    
-                    // Touch events for mobile
-                    window.addEventListener('touchmove', (e) => {{
-                        e.preventDefault();
-                        const touch = e.touches[0];
-                        this.mouse.prevX = this.mouse.x;
-                        this.mouse.prevY = this.mouse.y;
-                        this.mouse.x = touch.clientX;
-                        this.mouse.y = this.canvas.height - touch.clientY;
-                    }});
-                    
-                    window.addEventListener('touchstart', () => {{
-                        this.isMouseDown = true;
-                    }});
-                    
-                    window.addEventListener('touchend', () => {{
-                        this.isMouseDown = false;
-                    }});
-                }}
-                
-                resizeCanvas() {{
-                    this.canvas.width = window.innerWidth;
-                    this.canvas.height = window.innerHeight;
-                    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-                }}
-                
-                render() {{
-                    this.gl.useProgram(this.program);
-                    
-                    // Update uniforms
-                    this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
-                    this.gl.uniform1f(this.uniforms.time, this.time);
-                    this.gl.uniform2f(this.uniforms.mouse, this.mouse.x, this.mouse.y);
-                    
-                    // Mouse intensity based on movement and click
-                    const mouseVelocity = Math.sqrt(
-                        (this.mouse.x - this.mouse.prevX) ** 2 + 
-                        (this.mouse.y - this.mouse.prevY) ** 2
-                    );
-                    const intensity = Math.min(mouseVelocity * 0.01 + (this.isMouseDown ? 0.5 : 0), 1.0);
-                    this.gl.uniform1f(this.uniforms.mouseIntensity, intensity);
-                    
-                    // Draw
-                    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-                }}
-                
-                animate() {{
-                    this.time += 0.016;
-                    this.render();
-                    requestAnimationFrame(() => this.animate());
-                }}
-            }}
-            
-            // Initialize when page loads
-            window.addEventListener('load', () => {{
-                new FluidSimulation();
-            }});
-        </script>
     </body>
     </html>
     '''
@@ -2389,6 +2653,1998 @@ def admin_cases():
     
     return render_template_string(html)
 
+# Updated routes with backend integration
+
+@app.route('/admin/coordination/director', methods=['GET', 'POST'])
+@login_required
+@staff_required
+def director_panel():
+    user = session['user']
+    staff_role = user.get('staff_info', {}).get('role', 'Staff')
+    division = user.get('staff_info', {}).get('division', 'Community Coordination')
+    
+    if staff_role not in ['Community Director', 'Executive Director', 'Administration Director']:
+        return "Access Denied", 403
+    
+    # Handle group creation
+    if request.method == 'POST':
+        data = request.get_json()
+        group_name = data.get('group_name')
+        members = data.get('members', [])
+        
+        if group_name and members:
+            group_id = create_group(group_name, division, user['id'], members)
+            if group_id:
+                return jsonify({'success': True, 'group_id': group_id})
+            return jsonify({'success': False, 'error': 'Failed to create group'}), 400
+        return jsonify({'success': False, 'error': 'Invalid data'}), 400
+    
+    # Get data for display
+    team_members = get_team_members(division)
+    groups = get_director_groups(user['id'], division)
+    pending_assignments = get_director_assignments(user['id'], division)
+    
+    html = rf'''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Director Supervisor Panel - Themis</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <style>
+            /* Include previous styles */
+            :root {{
+                --primary-color: #a977f8;
+                --primary-rgb: 169, 119, 248;
+                --background-dark: #0a0a0a;
+                --surface-dark: #141418;
+                --surface-light: rgba(255, 255, 255, 0.05);
+                --border-color: rgba(169, 119, 248, 0.3);
+                --text-primary: #ffffff;
+                --text-secondary: #b7b7c9;
+                --text-muted: #8b8b99;
+                --success-color: #4ade80;
+                --warning-color: #fbbf24;
+                --error-color: #f87171;
+                --shadow-primary: 0 4px 32px rgba(169, 119, 248, 0.15);
+                --shadow-elevated: 0 8px 48px rgba(169, 119, 248, 0.2);
+                --backdrop-blur: blur(16px);
+            }}
+            
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            
+            body {{
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: var(--background-dark);
+                color: var(--text-secondary);
+            }}
+            
+            .assignment-status {{
+                padding: 6px 16px;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                font-weight: 600;
+            }}
+            
+            .status-finished {{
+                background: rgba(74, 222, 128, 0.2);
+                color: var(--success-color);
+                border: 1px solid rgba(74, 222, 128, 0.3);
+            }}
+            
+            .status-pending {{
+                background: rgba(251, 191, 36, 0.2);
+                color: var(--warning-color);
+                border: 1px solid rgba(251, 191, 36, 0.3);
+            }}
+            
+            .verify-btn {{
+                background: var(--success-color);
+                color: black;
+                font-size: 0.85rem;
+                padding: 8px 16px;
+                margin-left: 12px;
+            }}
+            
+            .back-btn {{
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                color: var(--text-secondary);
+                text-decoration: none;
+                margin-bottom: 32px;
+                transition: all 0.2s ease;
+            }}
+            
+            .back-btn:hover {{
+                color: var(--primary-color);
+                transform: translateX(-4px);
+            }}
+            
+            .loading {{
+                display: none;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                padding: 20px;
+                border-radius: 8px;
+                z-index: 1000;
+            }}
+            
+            .loading.active {{
+                display: block;
+            }}
+            
+            @media (max-width: 768px) {{
+                .panels-grid {{
+                    grid-template-columns: 1fr;
+                }}
+                
+                .container {{
+                    padding: 20px 16px;
+                }}
+                
+                .page-title {{
+                    font-size: 2rem;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="loading" id="loadingIndicator">
+            <div style="color: white;">Processing...</div>
+        </div>
+        
+        <div class="container">
+            <a href="/admin/dashboard" class="back-btn">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/>
+                </svg>
+                Back to Dashboard
+            </a>
+            
+            <div class="header">
+                <h1 class="page-title">Director Supervisor Panel</h1>
+                <p class="page-subtitle">Manage your coordination teams and review assignments</p>
+            </div>
+            
+            <div class="panels-grid">
+                <div class="panel">
+                    <h2 class="panel-title">Team Members</h2>
+                    <div class="team-members-list">
+                        {generate_team_members_html(team_members)}
+                    </div>
+                    
+                    <div class="create-group-section">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 16px;">Create New Group</h3>
+                        <div class="form-group">
+                            <label class="form-label">Group Name</label>
+                            <input type="text" class="form-input" id="groupName" placeholder="Enter group name...">
+                        </div>
+                        <button class="btn" id="createGroupBtn" onclick="createGroup()" disabled>
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                            </svg>
+                            Create Group
+                        </button>
+                        <div id="groupError" style="color: var(--error-color); font-size: 0.85rem; margin-top: 8px; display: none;"></div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h2 class="panel-title">Active Groups</h2>
+                    <div class="groups-display" id="groupsDisplay">
+                        {generate_groups_html(groups)}
+                    </div>
+                </div>
+                
+                <div class="panel assignments-panel">
+                    <h2 class="panel-title">Assignment Overview</h2>
+                    <div class="assignments-list">
+                        {generate_assignments_html(pending_assignments)}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            let selectedMembers = {{
+                senior: [],
+                coordinator: []
+            }};
+            
+            function toggleMember(element) {{
+                const checkbox = element.querySelector('.member-checkbox');
+                checkbox.checked = !checkbox.checked;
+                element.classList.toggle('selected', checkbox.checked);
+                
+                const role = checkbox.dataset.role;
+                const userId = checkbox.dataset.userId;
+                const name = checkbox.dataset.name;
+                
+                if (checkbox.checked) {{
+                    selectedMembers[role].push({{id: userId, name: name}});
+                }} else {{
+                    const index = selectedMembers[role].findIndex(m => m.id === userId);
+                    if (index > -1) {{
+                        selectedMembers[role].splice(index, 1);
+                    }}
+                }}
+                
+                validateGroupCreation();
+            }}
+            
+            function validateGroupCreation() {{
+                const groupName = document.getElementById('groupName').value.trim();
+                const createBtn = document.getElementById('createGroupBtn');
+                const errorDiv = document.getElementById('groupError');
+                
+                const hasSenior = selectedMembers.senior.length >= 1;
+                const hasCoordinator = selectedMembers.coordinator.length >= 1;
+                const hasName = groupName.length > 0;
+                
+                if (!hasSenior || !hasCoordinator) {{
+                    errorDiv.textContent = 'You must select at least 1 Senior Coordinator and 1 Coordinator';
+                    errorDiv.style.display = 'block';
+                    createBtn.disabled = true;
+                }} else if (!hasName) {{
+                    errorDiv.textContent = 'Please enter a group name';
+                    errorDiv.style.display = 'block';
+                    createBtn.disabled = true;
+                }} else {{
+                    errorDiv.style.display = 'none';
+                    createBtn.disabled = false;
+                }}
+            }}
+            
+            document.getElementById('groupName').addEventListener('input', validateGroupCreation);
+            
+            async function createGroup() {{
+                const groupName = document.getElementById('groupName').value.trim();
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                
+                // Prepare members array
+                const members = [];
+                selectedMembers.senior.forEach(m => {{
+                    members.push({{user_id: parseInt(m.id), role: 'Senior Coordinator'}});
+                }});
+                selectedMembers.coordinator.forEach(m => {{
+                    members.push({{user_id: parseInt(m.id), role: 'Coordinator'}});
+                }});
+                
+                loadingIndicator.classList.add('active');
+                
+                try {{
+                    const response = await fetch('/admin/coordination/director', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json',
+                        }},
+                        body: JSON.stringify({{
+                            group_name: groupName,
+                            members: members
+                        }})
+                    }});
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {{
+                        alert('Group created successfully!');
+                        window.location.reload();
+                    }} else {{
+                        alert('Error creating group: ' + (data.error || 'Unknown error'));
+                    }}
+                }} catch (error) {{
+                    alert('Error creating group: ' + error.message);
+                }} finally {{
+                    loadingIndicator.classList.remove('active');
+                }}
+            }}
+            
+            async function verifyAssignment(assignmentId) {{
+                if (!confirm('Are you sure you want to verify this assignment?')) {{
+                    return;
+                }}
+                
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                loadingIndicator.classList.add('active');
+                
+                try {{
+                    const response = await fetch('/admin/coordination/verify-assignment', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json',
+                        }},
+                        body: JSON.stringify({{
+                            assignment_id: assignmentId
+                        }})
+                    }});
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {{
+                        alert('Assignment verified and sent to Executive Director');
+                        window.location.reload();
+                    }} else {{
+                        alert('Error verifying assignment');
+                    }}
+                }} catch (error) {{
+                    alert('Error: ' + error.message);
+                }} finally {{
+                    loadingIndicator.classList.remove('active');
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    '''
+    
+    return render_template_string(html)
+
+# Helper functions to generate HTML
+def generate_team_members_html(members):
+    html = ''
+    for member in members:
+        role_class = 'senior' if member['role'] == 'Senior Coordinator' else 'coordinator'
+        html += f'''
+        <div class="member-item" onclick="toggleMember(this)">
+            <input type="checkbox" class="member-checkbox" data-role="{role_class}" data-user-id="{member['id']}" data-name="{member['username']}">
+            <div class="member-info">
+                <div class="member-name">{member['username']}</div>
+                <div class="member-role {role_class}">{member['role']}</div>
+            </div>
+        </div>
+        '''
+    return html
+
+def generate_groups_html(groups):
+    if not groups:
+        return '<p style="text-align: center; color: var(--text-muted);">No groups created yet</p>'
+    
+    html = ''
+    for group in groups:
+        seniors = [m for m in group['members'] if m['role'] == 'Senior Coordinator']
+        coordinators = [m for m in group['members'] if m['role'] == 'Coordinator']
+        
+        html += f'''
+        <div class="group-card">
+            <div class="group-name">{group['group_name']}</div>
+            <div class="group-structure">
+                <div class="hierarchy-level">
+                    <div class="hierarchy-title">Senior Coordinators</div>
+                    <div class="hierarchy-members">
+                        {''.join([f'<div class="member-badge">{m["username"]}</div>' for m in seniors])}
+                    </div>
+                </div>
+                <div class="hierarchy-level">
+                    <div class="hierarchy-title">Coordinators</div>
+                    <div class="hierarchy-members">
+                        {''.join([f'<div class="member-badge">{m["username"]}{" - " + m["role_label"] if m.get("role_label") else ""}</div>' for m in coordinators])}
+                    </div>
+                </div>
+            </div>
+        </div>
+        '''
+    return html
+
+def generate_assignments_html(assignments):
+    if not assignments:
+        return '<p style="text-align: center; color: var(--text-muted);">No assignments pending verification</p>'
+    
+    html = ''
+    for assignment in assignments:
+        html += f'''
+        <div class="assignment-item">
+            <div class="assignment-info">
+                <div class="assignment-title">{assignment['title']}</div>
+                <div class="assignment-group">{assignment['group_name'] or 'No Group'} - Assigned to: {assignment['assigned_to_name']}</div>
+            </div>
+            <div style="display: flex; align-items: center;">
+                <div class="assignment-status status-finished">Finished</div>
+                <button class="btn verify-btn" onclick="verifyAssignment({assignment['id']})">Verify</button>
+            </div>
+        </div>
+        '''
+    return html
+
+# Route to verify assignments
+@app.route('/admin/coordination/verify-assignment', methods=['POST'])
+@login_required
+@staff_required
+def verify_assignment():
+    user = session['user']
+    data = request.get_json()
+    assignment_id = data.get('assignment_id')
+    
+    if assignment_id:
+        success = update_assignment_status(assignment_id, 'verified', user['id'])
+        if success:
+            return jsonify({'success': True})
+    
+    return jsonify({'success': False}), 400
+
+# Senior Coordinator Panel with Backend
+@app.route('/admin/coordination/senior', methods=['GET', 'POST'])
+@login_required
+@staff_required
+def senior_coordinator_panel():
+    user = session['user']
+    staff_role = user.get('staff_info', {}).get('role', 'Staff')
+    
+    if staff_role not in ['Senior Coordinator', 'Community Director', 'Executive Director', 'Administration Director']:
+        return "Access Denied", 403
+    
+    # Handle label updates
+    if request.method == 'POST' and request.path.endswith('/update-label'):
+        data = request.get_json()
+        group_id = data.get('group_id')
+        coordinator_id = data.get('coordinator_id')
+        label = data.get('label')
+        
+        if update_coordinator_label(group_id, coordinator_id, label, user['id']):
+            return jsonify({'success': True})
+        return jsonify({'success': False}), 400
+    
+    # Get data
+    coordinators = get_coordinator_team(user['id'])
+    assignments = get_senior_coordinator_assignments(user['id'])
+    
+    html = rf'''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Senior Coordinator Panel - Themis</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <style>
+            /* Include the same base styles as director panel */
+            :root {{
+                --primary-color: #a977f8;
+                --primary-rgb: 169, 119, 248;
+                --background-dark: #0a0a0a;
+                --surface-dark: #141418;
+                --surface-light: rgba(255, 255, 255, 0.05);
+                --border-color: rgba(169, 119, 248, 0.3);
+                --text-primary: #ffffff;
+                --text-secondary: #b7b7c9;
+                --text-muted: #8b8b99;
+                --success-color: #4ade80;
+                --warning-color: #fbbf24;
+                --error-color: #f87171;
+                --shadow-primary: 0 4px 32px rgba(169, 119, 248, 0.15);
+                --shadow-elevated: 0 8px 48px rgba(169, 119, 248, 0.2);
+                --backdrop-blur: blur(16px);
+            }}
+            
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            
+            body {{
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: var(--background-dark);
+                color: var(--text-primary);
+                line-height: 1.6;
+                min-height: 100vh;
+            }}
+            
+            .container {{
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 40px 20px;
+            }}
+            
+            .header {{
+                margin-bottom: 48px;
+            }}
+            
+            .page-title {{
+                font-size: 3rem;
+                font-weight: 800;
+                background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-color) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                margin-bottom: 16px;
+            }}
+            
+            .page-subtitle {{
+                font-size: 1.1rem;
+                color: var(--text-secondary);
+            }}
+            
+            .panels-grid {{
+                display: grid;
+                grid-template-columns: 1fr 2fr;
+                gap: 32px;
+                margin-bottom: 40px;
+            }}
+            
+            .panel {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border-color);
+                border-radius: 20px;
+                padding: 32px;
+                backdrop-filter: var(--backdrop-blur);
+            }}
+            
+            .panel-title {{
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin-bottom: 24px;
+                color: var(--text-primary);
+            }}
+            
+            .team-structure {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 16px;
+                padding: 24px;
+                margin-bottom: 32px;
+            }}
+            
+            .coordinator-list {{
+                display: grid;
+                gap: 16px;
+            }}
+            
+            .coordinator-card {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 20px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }}
+            
+            .coordinator-card:hover {{
+                border-color: var(--primary-color);
+                transform: translateY(-2px);
+            }}
+            
+            .coordinator-name {{
+                font-weight: 600;
+                font-size: 1.1rem;
+                margin-bottom: 8px;
+            }}
+            
+            .coordinator-label {{
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                margin-bottom: 12px;
+            }}
+            
+            .label-input {{
+                width: 100%;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+                padding: 8px 12px;
+                color: var(--text-primary);
+                font-size: 0.85rem;
+                margin-top: 8px;
+            }}
+            
+            .assignments-section {{
+                margin-top: 32px;
+            }}
+            
+            .request-list {{
+                display: grid;
+                gap: 16px;
+            }}
+            
+            .request-item {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 20px;
+                cursor: pointer;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }}
+            
+            .request-item:hover {{
+                border-color: var(--primary-color);
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            .request-item.active {{
+                border-color: var(--primary-color);
+                background: rgba(var(--primary-rgb), 0.1);
+            }}
+            
+            .request-title {{
+                font-weight: 600;
+                font-size: 1.1rem;
+                margin-bottom: 8px;
+            }}
+            
+            .request-date {{
+                font-size: 0.85rem;
+                color: var(--text-muted);
+            }}
+            
+            .request-priority {{
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 4px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                margin-top: 8px;
+            }}
+            
+            .priority-high {{
+                background: rgba(248, 113, 113, 0.2);
+                color: var(--error-color);
+            }}
+            
+            .priority-medium {{
+                background: rgba(251, 191, 36, 0.2);
+                color: var(--warning-color);
+            }}
+            
+            .priority-low {{
+                background: rgba(74, 222, 128, 0.2);
+                color: var(--success-color);
+            }}
+            
+            .assignment-detail {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 16px;
+                padding: 32px;
+                display: none;
+            }}
+            
+            .assignment-detail.active {{
+                display: block;
+                animation: fadeIn 0.3s ease;
+            }}
+            
+            @keyframes fadeIn {{
+                from {{
+                    opacity: 0;
+                    transform: translateY(10px);
+                }}
+                to {{
+                    opacity: 1;
+                    transform: translateY(0);
+                }}
+            }}
+            
+            .assignment-header {{
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                padding-bottom: 24px;
+                margin-bottom: 24px;
+            }}
+            
+            .assignment-title-large {{
+                font-size: 1.75rem;
+                font-weight: 700;
+                margin-bottom: 12px;
+            }}
+            
+            .assignment-meta {{
+                display: flex;
+                gap: 24px;
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+            }}
+            
+            .assignment-content {{
+                margin-bottom: 32px;
+                line-height: 1.8;
+                color: var(--text-secondary);
+                white-space: pre-wrap;
+            }}
+            
+            .assignment-actions {{
+                display: flex;
+                gap: 16px;
+                padding-top: 24px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+            }}
+            
+            .btn {{
+                background: var(--primary-color);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 24px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }}
+            
+            .btn:hover {{
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            .btn-secondary {{
+                background: rgba(255, 255, 255, 0.08);
+                color: var(--text-primary);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }}
+            
+            .btn-secondary:hover {{
+                background: rgba(255, 255, 255, 0.12);
+            }}
+            
+            .back-btn {{
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                color: var(--text-secondary);
+                text-decoration: none;
+                margin-bottom: 32px;
+                transition: all 0.2s ease;
+            }}
+            
+            .back-btn:hover {{
+                color: var(--primary-color);
+                transform: translateX(-4px);
+            }}
+            
+            .loading {{
+                display: none;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                padding: 20px;
+                border-radius: 8px;
+                z-index: 1000;
+            }}
+            
+            .loading.active {{
+                display: block;
+            }}
+            
+            @media (max-width: 768px) {{
+                .panels-grid {{
+                    grid-template-columns: 1fr;
+                }}
+                
+                .container {{
+                    padding: 20px 16px;
+                }}
+                
+                .page-title {{
+                    font-size: 2rem;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="loading" id="loadingIndicator">
+            <div style="color: white;">Processing...</div>
+        </div>
+        
+        <div class="container">
+            <a href="/admin/dashboard" class="back-btn">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/>
+                </svg>
+                Back to Dashboard
+            </a>
+            
+            <div class="header">
+                <h1 class="page-title">Senior Coordinator Panel</h1>
+                <p class="page-subtitle">Manage your team and handle incoming assignments</p>
+            </div>
+            
+            <div class="panels-grid">
+                <div class="panel">
+                    <h2 class="panel-title">Your Team</h2>
+                    
+                    {generate_coordinators_html(coordinators)}
+                    
+                    <div class="assignments-section">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 16px;">Incoming Requests</h3>
+                        
+                        <div class="request-list" id="requestList">
+                            {generate_requests_html(assignments)}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h2 class="panel-title">Assignment Details</h2>
+                    
+                    <div id="noSelection" style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+                        <svg width="64" height="64" fill="currentColor" viewBox="0 0 20 20" style="opacity: 0.3; margin-bottom: 16px;">
+                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
+                        </svg>
+                        <p>Select an assignment from the list to view details</p>
+                    </div>
+                    
+                    {generate_assignment_details_html(assignments)}
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            function toggleLabelEdit(card) {{
+                const label = card.querySelector('.coordinator-label');
+                const input = card.querySelector('.label-input');
+                
+                if (input.style.display === 'none') {{
+                    input.value = label.dataset.originalLabel || '';
+                    label.style.display = 'none';
+                    input.style.display = 'block';
+                    input.focus();
+                }}
+            }}
+            
+            async function saveLabel(input) {{
+                const card = input.closest('.coordinator-card');
+                const label = card.querySelector('.coordinator-label');
+                const groupId = card.dataset.groupId;
+                const coordinatorId = card.dataset.coordinatorId;
+                const newLabel = input.value.trim();
+                
+                if (newLabel && newLabel !== label.dataset.originalLabel) {{
+                    const loadingIndicator = document.getElementById('loadingIndicator');
+                    loadingIndicator.classList.add('active');
+                    
+                    try {{
+                        const response = await fetch('/admin/coordination/update-label', {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json',
+                            }},
+                            body: JSON.stringify({{
+                                group_id: parseInt(groupId),
+                                coordinator_id: parseInt(coordinatorId),
+                                label: newLabel
+                            }})
+                        }});
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {{
+                            label.textContent = newLabel || 'Click to assign role';
+                            label.dataset.originalLabel = newLabel;
+                        }} else {{
+                            alert('Error updating label');
+                        }}
+                    }} catch (error) {{
+                        alert('Error: ' + error.message);
+                    }} finally {{
+                        loadingIndicator.classList.remove('active');
+                    }}
+                }}
+                
+                label.style.display = 'block';
+                input.style.display = 'none';
+            }}
+            
+            function selectRequest(element, assignmentId) {{
+                // Update active states
+                document.querySelectorAll('.request-item').forEach(item => {{
+                    item.classList.remove('active');
+                }});
+                element.classList.add('active');
+                
+                // Hide all assignments and no selection message
+                document.getElementById('noSelection').style.display = 'none';
+                document.querySelectorAll('.assignment-detail').forEach(detail => {{
+                    detail.classList.remove('active');
+                }});
+                
+                // Show selected assignment
+                setTimeout(() => {{
+                    document.getElementById(`assignment${{assignmentId}}`).classList.add('active');
+                }}, 100);
+                
+                // Fade out request list
+                const requestList = document.getElementById('requestList');
+                requestList.style.opacity = '0.3';
+                requestList.style.pointerEvents = 'none';
+            }}
+            
+            async function finishAssignment(assignmentId) {{
+                if (confirm('Mark this assignment as finished?')) {{
+                    const loadingIndicator = document.getElementById('loadingIndicator');
+                    loadingIndicator.classList.add('active');
+                    
+                    try {{
+                        const response = await fetch('/admin/coordination/finish-assignment', {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json',
+                            }},
+                            body: JSON.stringify({{
+                                assignment_id: assignmentId
+                            }})
+                        }});
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {{
+                            alert('Assignment marked as finished and sent to Director for verification.');
+                            window.location.reload();
+                        }} else {{
+                            alert('Error finishing assignment');
+                        }}
+                    }} catch (error) {{
+                        alert('Error: ' + error.message);
+                    }} finally {{
+                        loadingIndicator.classList.remove('active');
+                    }}
+                }}
+            }}
+            
+            async function contactDirector(assignmentId) {{
+                const message = prompt('Enter your message to the Director:');
+                if (message) {{
+                    const loadingIndicator = document.getElementById('loadingIndicator');
+                    loadingIndicator.classList.add('active');
+                    
+                    try {{
+                        const response = await fetch('/admin/coordination/contact-director', {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json',
+                            }},
+                            body: JSON.stringify({{
+                                assignment_id: assignmentId,
+                                message: message
+                            }})
+                        }});
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {{
+                            alert('Message sent to Director');
+                        }} else {{
+                            alert('Error sending message');
+                        }}
+                    }} catch (error) {{
+                        alert('Error: ' + error.message);
+                    }} finally {{
+                        loadingIndicator.classList.remove('active');
+                    }}
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    '''
+    
+    return render_template_string(html)
+
+# Helper functions for Senior Coordinator panel
+def generate_coordinators_html(coordinators):
+    if not coordinators:
+        return '<p style="text-align: center; color: var(--text-muted);">No team members assigned yet</p>'
+    
+    # Group coordinators by group
+    groups = {}
+    for coord in coordinators:
+        group_name = coord.get('group_name', 'Unknown Group')
+        if group_name not in groups:
+            groups[group_name] = []
+        groups[group_name].append(coord)
+    
+    html = ''
+    for group_name, members in groups.items():
+        html += f'''
+        <div class="team-structure">
+            <h3 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--primary-color);">{group_name}</h3>
+            
+            <div class="coordinator-list">
+        '''
+        
+        for member in members:
+            label = member.get('role_label', 'Click to assign role')
+            html += f'''
+            <div class="coordinator-card" onclick="toggleLabelEdit(this)" data-group-id="{member['group_id']}" data-coordinator-id="{member['user_id']}">
+                <div class="coordinator-name">{member['username']}</div>
+                <div class="coordinator-label" data-original-label="{member.get('role_label', '')}">{label}</div>
+                <input type="text" class="label-input" style="display: none;" placeholder="Enter role label..." onblur="saveLabel(this)">
+            </div>
+            '''
+        
+        html += '''
+            </div>
+        </div>
+        '''
+    
+    return html
+
+def generate_requests_html(assignments):
+    if not assignments:
+        return '<p style="text-align: center; color: var(--text-muted);">No incoming requests at the moment</p>'
+    
+    html = ''
+    for assignment in assignments:
+        priority_class = f"priority-{assignment['priority']}"
+        created_at = assignment['created_at']
+        # Format time ago
+        time_ago = format_time_ago(created_at)
+        
+        html += f'''
+        <div class="request-item" onclick="selectRequest(this, {assignment['id']})">
+            <div class="request-title">{assignment['title']}</div>
+            <div class="request-date">Requested: {time_ago}</div>
+            <div class="request-priority {priority_class}">{assignment['priority'].title()} Priority</div>
+        </div>
+        '''
+    
+    return html
+
+def generate_assignment_details_html(assignments):
+    html = ''
+    for assignment in assignments:
+        due_date = assignment['due_date']
+        time_until_due = format_time_until(due_date)
+        
+        html += f'''
+        <div class="assignment-detail" id="assignment{assignment['id']}">
+            <div class="assignment-header">
+                <h3 class="assignment-title-large">{assignment['title']}</h3>
+                <div class="assignment-meta">
+                    <span>From: {assignment['created_by_name']}</span>
+                    <span>Priority: {assignment['priority'].title()}</span>
+                    <span>Due: {time_until_due}</span>
+                </div>
+            </div>
+            
+            <div class="assignment-content">{assignment['description'] or 'No description provided.'}</div>
+            
+            <div class="assignment-actions">
+                <button class="btn" onclick="finishAssignment({assignment['id']})">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    Finish Assignment
+                </button>
+                <button class="btn btn-secondary" onclick="contactDirector({assignment['id']})">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                    </svg>
+                    Contact Director
+                </button>
+            </div>
+        </div>
+        '''
+    
+    return html
+
+# Time formatting helpers
+def format_time_ago(timestamp):
+    if isinstance(timestamp, str):
+        timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+    
+    now = datetime.now()
+    diff = now - timestamp
+    
+    if diff.days > 7:
+        return timestamp.strftime('%B %d, %Y')
+    elif diff.days > 0:
+        return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+    elif diff.seconds > 3600:
+        hours = diff.seconds // 3600
+        return f"{hours} hour{'s' if hours > 1 else ''} ago"
+    elif diff.seconds > 60:
+        minutes = diff.seconds // 60
+        return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+    else:
+        return "Just now"
+
+def format_time_until(timestamp):
+    if isinstance(timestamp, str):
+        timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+    
+    now = datetime.now()
+    diff = timestamp - now
+    
+    if diff.days < 0:
+        return f"{abs(diff.days)} day{'s' if abs(diff.days) > 1 else ''} overdue"
+    elif diff.days > 0:
+        return f"{diff.days} day{'s' if diff.days > 1 else ''}"
+    elif diff.seconds > 3600:
+        hours = diff.seconds // 3600
+        return f"{hours} hour{'s' if hours > 1 else ''}"
+    else:
+        return "Today"
+
+# Additional routes for Senior Coordinator actions
+@app.route('/admin/coordination/finish-assignment', methods=['POST'])
+@login_required
+@staff_required
+def finish_assignment():
+    user = session['user']
+    data = request.get_json()
+    assignment_id = data.get('assignment_id')
+    
+    if assignment_id:
+        success = update_assignment_status(assignment_id, 'finished', user['id'])
+        if success:
+            return jsonify({'success': True})
+    
+    return jsonify({'success': False}), 400
+
+@app.route('/admin/coordination/contact-director', methods=['POST'])
+@login_required
+@staff_required
+def contact_director():
+    user = session['user']
+    data = request.get_json()
+    assignment_id = data.get('assignment_id')
+    message = data.get('message')
+    
+    if assignment_id and message:
+        # Get the assignment to find the director
+        connection = get_db_connection()
+        if connection:
+            try:
+                cursor = connection.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT created_by FROM assignments WHERE id = %s
+                """, (assignment_id,))
+                assignment = cursor.fetchone()
+                
+                if assignment:
+                    message_id = send_coordinator_message(
+                        user['id'], 
+                        assignment['created_by'], 
+                        message, 
+                        assignment_id
+                    )
+                    if message_id:
+                        return jsonify({'success': True})
+            finally:
+                cursor.close()
+                connection.close()
+    
+    return jsonify({'success': False}), 400
+
+@app.route('/admin/coordination/update-label', methods=['POST'])
+@login_required
+@staff_required
+def update_label():
+    user = session['user']
+    data = request.get_json()
+    group_id = data.get('group_id')
+    coordinator_id = data.get('coordinator_id')
+    label = data.get('label')
+    
+    if group_id and coordinator_id and label:
+        success = update_coordinator_label(group_id, coordinator_id, label, user['id'])
+        if success:
+            return jsonify({'success': True})
+    
+    return jsonify({'success': False}), 400
+
+# Executive Director Overview Route
+@app.route('/admin/coordination/executive')
+@login_required
+@staff_required
+def executive_director_panel():
+    user = session['user']
+    staff_role = user.get('staff_info', {}).get('role', 'Staff')
+    
+    if staff_role not in ['Executive Director', 'Administration Director']:
+        return "Access Denied", 403
+    
+    # Get overview data
+    overview_data = get_executive_overview()
+    if not overview_data:
+        overview_data = {
+            'stats': {'total': 0, 'verified': 0, 'pending_verification': 0, 'delayed': 0},
+            'divisions': [],
+            'assignments': []
+        }
+    
+    stats = overview_data['stats']
+    divisions = overview_data['divisions']
+    assignments = overview_data['assignments']
+    
+    html = rf'''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Executive Director Overview - Themis</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <style>
+            /* Include all the styles from the previous executive panel */
+            :root {{
+                --primary-color: #a977f8;
+                --primary-rgb: 169, 119, 248;
+                --background-dark: #0a0a0a;
+                --surface-dark: #141418;
+                --surface-light: rgba(255, 255, 255, 0.05);
+                --border-color: rgba(169, 119, 248, 0.3);
+                --text-primary: #ffffff;
+                --text-secondary: #b7b7c9;
+                --text-muted: #8b8b99;
+                --success-color: #4ade80;
+                --warning-color: #fbbf24;
+                --error-color: #f87171;
+                --info-color: #60a5fa;
+                --shadow-primary: 0 4px 32px rgba(169, 119, 248, 0.15);
+                --shadow-elevated: 0 8px 48px rgba(169, 119, 248, 0.2);
+                --backdrop-blur: blur(16px);
+            }}
+            
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            
+            body {{
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: var(--background-dark);
+                color: var(--text-primary);
+                line-height: 1.6;
+                min-height: 100vh;
+            }}
+            
+            .container {{
+                max-width: 1600px;
+                margin: 0 auto;
+                padding: 40px 20px;
+            }}
+            
+            .header {{
+                margin-bottom: 48px;
+            }}
+            
+            .page-title {{
+                font-size: 3.5rem;
+                font-weight: 800;
+                background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-color) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                margin-bottom: 16px;
+            }}
+            
+            .page-subtitle {{
+                font-size: 1.2rem;
+                color: var(--text-secondary);
+            }}
+            
+            .overview-stats {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 24px;
+                margin-bottom: 48px;
+            }}
+            
+            .stat-card {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border-color);
+                border-radius: 16px;
+                padding: 24px;
+                backdrop-filter: var(--backdrop-blur);
+                position: relative;
+                overflow: hidden;
+            }}
+            
+            .stat-card::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: linear-gradient(90deg, var(--primary-color) 0%, #d946ef 100%);
+            }}
+            
+            .stat-value {{
+                font-size: 2.5rem;
+                font-weight: 800;
+                margin-bottom: 8px;
+            }}
+            
+            .stat-label {{
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }}
+            
+            .divisions-overview {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                gap: 32px;
+                margin-bottom: 48px;
+            }}
+            
+            .division-card {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border-color);
+                border-radius: 20px;
+                padding: 32px;
+                backdrop-filter: var(--backdrop-blur);
+            }}
+            
+            .division-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 24px;
+            }}
+            
+            .division-name {{
+                font-size: 1.5rem;
+                font-weight: 700;
+            }}
+            
+            .division-status {{
+                padding: 6px 16px;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                font-weight: 600;
+            }}
+            
+            .status-active {{
+                background: rgba(74, 222, 128, 0.2);
+                color: var(--success-color);
+                border: 1px solid rgba(74, 222, 128, 0.3);
+            }}
+            
+            .division-metrics {{
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+            }}
+            
+            .metric {{
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 8px;
+                padding: 16px;
+            }}
+            
+            .metric-value {{
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--primary-color);
+            }}
+            
+            .metric-label {{
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                text-transform: uppercase;
+            }}
+            
+            .assignments-overview {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border-color);
+                border-radius: 20px;
+                padding: 32px;
+                backdrop-filter: var(--backdrop-blur);
+            }}
+            
+            .section-title {{
+                font-size: 1.75rem;
+                font-weight: 700;
+                margin-bottom: 24px;
+            }}
+            
+            .assignments-list {{
+                display: grid;
+                gap: 16px;
+            }}
+            
+            .assignment-row {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 20px;
+                display: grid;
+                grid-template-columns: 2fr 1fr 1fr 1fr 150px;
+                align-items: center;
+                gap: 16px;
+                transition: all 0.2s ease;
+            }}
+            
+            .assignment-row:hover {{
+                border-color: var(--primary-color);
+                transform: translateX(4px);
+            }}
+            
+            .assignment-title {{
+                font-weight: 600;
+            }}
+            
+            .assignment-division {{
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+            }}
+            
+            .assignment-assignee {{
+                font-size: 0.9rem;
+                color: var(--text-secondary);
+            }}
+            
+            .assignment-date {{
+                font-size: 0.85rem;
+                color: var(--text-muted);
+            }}
+            
+            .status-badge {{
+                padding: 6px 16px;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                text-align: center;
+            }}
+            
+            .status-open {{
+                background: rgba(96, 165, 250, 0.2);
+                color: var(--info-color);
+                border: 1px solid rgba(96, 165, 250, 0.3);
+            }}
+            
+            .status-finished {{
+                background: rgba(251, 191, 36, 0.2);
+                color: var(--warning-color);
+                border: 1px solid rgba(251, 191, 36, 0.3);
+            }}
+            
+            .status-verified {{
+                background: rgba(74, 222, 128, 0.2);
+                color: var(--success-color);
+                border: 1px solid rgba(74, 222, 128, 0.3);
+            }}
+            
+            .status-delayed {{
+                background: rgba(248, 113, 113, 0.2);
+                color: var(--error-color);
+                border: 1px solid rgba(248, 113, 113, 0.3);
+            }}
+            
+            .filters {{
+                display: flex;
+                gap: 16px;
+                margin-bottom: 24px;
+                flex-wrap: wrap;
+            }}
+            
+            .filter-btn {{
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                color: var(--text-primary);
+                padding: 8px 16px;
+                border-radius: 8px;
+                font-size: 0.9rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }}
+            
+            .filter-btn:hover {{
+                background: rgba(255, 255, 255, 0.12);
+                border-color: var(--primary-color);
+            }}
+            
+            .filter-btn.active {{
+                background: var(--primary-color);
+                color: white;
+                border-color: var(--primary-color);
+            }}
+            
+            .back-btn {{
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                color: var(--text-secondary);
+                text-decoration: none;
+                margin-bottom: 32px;
+                transition: all 0.2s ease;
+            }}
+            
+            .back-btn:hover {{
+                color: var(--primary-color);
+                transform: translateX(-4px);
+            }}
+            
+            @media (max-width: 1200px) {{
+                .assignment-row {{
+                    grid-template-columns: 1fr;
+                    gap: 12px;
+                }}
+                
+                .assignment-row > div {{
+                    display: flex;
+                    justify-content: space-between;
+                }}
+                
+                .assignment-row > div::before {{
+                    content: attr(data-label);
+                    font-weight: 600;
+                    color: var(--text-secondary);
+                }}
+            }}
+            
+            @media (max-width: 768px) {{
+                .container {{
+                    padding: 20px 16px;
+                }}
+                
+                .page-title {{
+                    font-size: 2.5rem;
+                }}
+                
+                .overview-stats {{
+                    grid-template-columns: 1fr 1fr;
+                }}
+                
+                .divisions-overview {{
+                    grid-template-columns: 1fr;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <a href="/admin/dashboard" class="back-btn">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/>
+                </svg>
+                Back to Dashboard
+            </a>
+            
+            <div class="header">
+                <h1 class="page-title">Executive Overview</h1>
+                <p class="page-subtitle">Monitor all divisions, assignments, and organizational performance</p>
+            </div>
+            
+            <div class="overview-stats">
+                <div class="stat-card">
+                    <div class="stat-value">{stats['total']}</div>
+                    <div class="stat-label">Total Assignments</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-value">{stats['verified']}</div>
+                    <div class="stat-label">Verified Assignments</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-value">{stats['pending_verification']}</div>
+                    <div class="stat-label">Pending Verification</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-value">{stats['delayed']}</div>
+                    <div class="stat-label">Delayed Assignments</div>
+                </div>
+            </div>
+            
+            <div class="divisions-overview">
+                {generate_divisions_html(divisions)}
+            </div>
+            
+            <div class="assignments-overview">
+                <h2 class="section-title">All Assignments</h2>
+                
+                <div class="filters">
+                    <button class="filter-btn active" onclick="filterAssignments('all')">All</button>
+                    <button class="filter-btn" onclick="filterAssignments('verified')">Verified</button>
+                    <button class="filter-btn" onclick="filterAssignments('finished')">Awaiting Verification</button>
+                    <button class="filter-btn" onclick="filterAssignments('open')">Open</button>
+                    <button class="filter-btn" onclick="filterAssignments('delayed')">Delayed</button>
+                </div>
+                
+                <div class="assignments-list" id="assignmentsList">
+                    {generate_executive_assignments_html(assignments)}
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            function filterAssignments(status) {{
+                // Update active filter button
+                document.querySelectorAll('.filter-btn').forEach(btn => {{
+                    btn.classList.remove('active');
+                }});
+                event.target.classList.add('active');
+                
+                // Filter assignments
+                const assignments = document.querySelectorAll('.assignment-row');
+                assignments.forEach(assignment => {{
+                    if (status === 'all') {{
+                        assignment.style.display = 'grid';
+                    }} else {{
+                        assignment.style.display = assignment.dataset.status === status ? 'grid' : 'none';
+                    }}
+                }});
+            }}
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {{
+                window.location.reload();
+            }}, 30000);
+        </script>
+    </body>
+    </html>
+    '''
+    
+    return render_template_string(html)
+
+def generate_divisions_html(divisions):
+    if not divisions:
+        return '''
+        <div class="division-card">
+            <div class="division-header">
+                <h3 class="division-name">No Active Divisions</h3>
+            </div>
+            <p style="color: var(--text-muted);">No division data available</p>
+        </div>
+        '''
+    
+    html = ''
+    for division in divisions:
+        completion_rate = int(division.get('completion_rate', 0))
+        html += f'''
+        <div class="division-card">
+            <div class="division-header">
+                <h3 class="division-name">{division['division']}</h3>
+                <div class="division-status status-active">Active</div>
+            </div>
+            <div class="division-metrics">
+                <div class="metric">
+                    <div class="metric-value">{division['active_assignments']}</div>
+                    <div class="metric-label">Active Assignments</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{division['teams']}</div>
+                    <div class="metric-label">Teams</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{division['members']}</div>
+                    <div class="metric-label">Members</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{completion_rate}%</div>
+                    <div class="metric-label">Completion Rate</div>
+                </div>
+            </div>
+        </div>
+        '''
+    
+    return html
+
+def generate_executive_assignments_html(assignments):
+    if not assignments:
+        return '<p style="text-align: center; color: var(--text-muted);">No assignments to display</p>'
+    
+    html = ''
+    for assignment in assignments:
+        status_class = f"status-{assignment['status']}"
+        date_info = format_assignment_date(assignment)
+        
+        html += f'''
+        <div class="assignment-row" data-status="{assignment['status']}">
+            <div data-label="Assignment">
+                <div class="assignment-title">{assignment['title']}</div>
+                <div class="assignment-division">{assignment['division']}</div>
+            </div>
+            <div data-label="Assigned To" class="assignment-assignee">{assignment['assigned_to_name']}</div>
+            <div data-label="Team" class="assignment-assignee">{assignment['group_name'] or 'No Team'}</div>
+            <div data-label="Date" class="assignment-date">{date_info}</div>
+            <div data-label="Status" class="status-badge {status_class}">{format_status(assignment['status'])}</div>
+        </div>
+        '''
+    
+    return html
+
+def format_assignment_date(assignment):
+    if assignment['status'] == 'verified' and assignment.get('verified_at'):
+        return f"Verified {format_time_ago(assignment['verified_at'])}"
+    elif assignment['status'] == 'finished' and assignment.get('finished_at'):
+        return f"Completed {format_time_ago(assignment['finished_at'])}"
+    elif assignment['status'] == 'delayed' and assignment.get('due_date'):
+        return f"{format_time_until(assignment['due_date'])}"
+    elif assignment.get('due_date'):
+        return f"Due {format_time_until(assignment['due_date'])}"
+    else:
+        return format_time_ago(assignment['created_at'])
+
+def format_status(status):
+    status_map = {
+        'open': 'Open',
+        'in_progress': 'In Progress',
+        'finished': 'Awaiting Verification',
+        'verified': 'Verified',
+        'delayed': 'Delayed'
+    }
+    return status_map.get(status, status.title())
+
+# Initialize tables on startup
+init_coordination_tables()
+
+# Check for delayed assignments periodically (you might want to run this as a scheduled job)
+html3424 = '''check_and_update_delayed_assignments()
+                text-primary);
+                line-height: 1.6;
+                overflow-x: hidden;
+                min-height: 100vh;
+            }}
+            
+            .container {{
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 40px 20px;
+            }}
+            
+            .header {{
+                margin-bottom: 48px;
+            }}
+            
+            .page-title {{
+                font-size: 3rem;
+                font-weight: 800;
+                background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-color) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                margin-bottom: 16px;
+            }}
+            
+            .page-subtitle {{
+                font-size: 1.1rem;
+                color: var(--text-secondary);
+            }}
+            
+            .panels-grid {{
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 32px;
+                margin-bottom: 40px;
+            }}
+            
+            .panel {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border-color);
+                border-radius: 20px;
+                padding: 32px;
+                backdrop-filter: var(--backdrop-blur);
+            }}
+            
+            .panel-title {{
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin-bottom: 24px;
+                color: var(--text-primary);
+            }}
+            
+            .team-members-list {{
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                max-height: 400px;
+                overflow-y: auto;
+            }}
+            
+            .member-item {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 16px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                transition: all 0.2s ease;
+                cursor: pointer;
+            }}
+            
+            .member-item:hover {{
+                border-color: var(--primary-color);
+                transform: translateX(4px);
+            }}
+            
+            .member-item.selected {{
+                background: rgba(var(--primary-rgb), 0.2);
+                border-color: var(--primary-color);
+            }}
+            
+            .member-checkbox {{
+                width: 20px;
+                height: 20px;
+                accent-color: var(--primary-color);
+            }}
+            
+            .member-info {{
+                flex: 1;
+            }}
+            
+            .member-name {{
+                font-weight: 600;
+                color: var(--text-primary);
+            }}
+            
+            .member-role {{
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+            }}
+            
+            .member-role.senior {{
+                color: #fbbf24;
+            }}
+            
+            .member-role.coordinator {{
+                color: #60a5fa;
+            }}
+            
+            .create-group-section {{
+                margin-top: 32px;
+                padding-top: 32px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+            }}
+            
+            .form-group {{
+                margin-bottom: 24px;
+            }}
+            
+            .form-label {{
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 500;
+                color: var(--text-secondary);
+            }}
+            
+            .form-input {{
+                width: 100%;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                padding: 12px 16px;
+                color: var(--text-primary);
+                font-size: 1rem;
+                transition: all 0.2s ease;
+            }}
+            
+            .form-input:focus {{
+                outline: none;
+                border-color: var(--primary-color);
+                background: rgba(255, 255, 255, 0.08);
+            }}
+            
+            .btn {{
+                background: var(--primary-color);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 24px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }}
+            
+            .btn:hover {{
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            .btn:disabled {{
+                opacity: 0.5;
+                cursor: not-allowed;
+            }}
+            
+            .groups-display {{
+                display: grid;
+                gap: 24px;
+            }}
+            
+            .group-card {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border-color);
+                border-radius: 16px;
+                padding: 24px;
+                position: relative;
+            }}
+            
+            .group-name {{
+                font-size: 1.25rem;
+                font-weight: 700;
+                margin-bottom: 16px;
+                color: var(--primary-color);
+            }}
+            
+            .group-structure {{
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }}
+            
+            .hierarchy-level {{
+                position: relative;
+                padding-left: 32px;
+            }}
+            
+            .hierarchy-level::before {{
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 2px;
+                background: var(--primary-color);
+                opacity: 0.3;
+            }}
+            
+            .hierarchy-title {{
+                font-weight: 600;
+                color: var(--text-secondary);
+                margin-bottom: 8px;
+                font-size: 0.9rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }}
+            
+            .hierarchy-members {{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }}
+            
+            .member-badge {{
+                background: rgba(var(--primary-rgb), 0.1);
+                border: 1px solid rgba(var(--primary-rgb), 0.3);
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                font-weight: 500;
+            }}
+            
+            .assignments-panel {{
+                grid-column: 1 / -1;
+            }}
+            
+            .assignment-item {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 20px;
+                margin-bottom: 16px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }}
+            
+            .assignment-info {{
+                flex: 1;
+            }}
+            
+            .assignment-title {{
+                font-weight: 600;
+                margin-bottom: 4px;
+            }}
+            
+            .assignment-group {{
+                font-size: 0.85rem;
+                color: var(--
+'''
 @app.route('/admin/create-modlog', methods=['POST'])
 @login_required
 @staff_required
@@ -2551,563 +4807,7 @@ def get_case_detail(project, case_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/admin/meeting')
-@login_required
-@staff_required
-def meeting():
-    html = '''
-    <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Senior Coordinator Onboarding - fx-Studios</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .slide {
-            background: white;
-            margin: 20px 0;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            display: none;
-            animation: slideIn 0.5s ease-out;
-        }
-
-        .slide.active {
-            display: block;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        h1 {
-            color: #4a5568;
-            font-size: 2.5em;
-            margin-bottom: 20px;
-            text-align: center;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
-        }
-
-        h2 {
-            color: #2d3748;
-            font-size: 2em;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        h3 {
-            color: #4a5568;
-            font-size: 1.5em;
-            margin-bottom: 15px;
-            border-left: 4px solid #667eea;
-            padding-left: 15px;
-        }
-
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .logo-text {
-            font-size: 3em;
-            font-weight: bold;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .orgchart {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 30px;
-            margin: 30px 0;
-        }
-
-        .level {
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            flex-wrap: wrap;
-        }
-
-        .position {
-            background: linear-gradient(135deg, #f7fafc, #edf2f7);
-            border: 2px solid #667eea;
-            border-radius: 10px;
-            padding: 15px 25px;
-            text-align: center;
-            min-width: 180px;
-            position: relative;
-            transition: all 0.3s ease;
-        }
-
-        .position:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
-        }
-
-        .position.executive {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border-color: #4c51bf;
-        }
-
-        .position.director {
-            background: linear-gradient(135deg, #4299e1, #3182ce);
-            color: white;
-            border-color: #2b6cb0;
-        }
-
-        .position.senior {
-            background: linear-gradient(135deg, #48bb78, #38a169);
-            color: white;
-            border-color: #2f855a;
-        }
-
-        .position.coordinator {
-            background: linear-gradient(135deg, #ed8936, #dd6b20);
-            color: white;
-            border-color: #c05621;
-        }
-
-        .team-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin: 30px 0;
-        }
-
-        .team-card {
-            background: linear-gradient(135deg, #f7fafc, #edf2f7);
-            border: 2px solid #667eea;
-            border-radius: 15px;
-            padding: 25px;
-            transition: transform 0.3s ease;
-        }
-
-        .team-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.2);
-        }
-
-        .team-title {
-            color: #667eea;
-            font-size: 1.4em;
-            font-weight: bold;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        .member {
-            background: white;
-            border-radius: 8px;
-            padding: 10px 15px;
-            margin: 10px 0;
-            border-left: 4px solid #667eea;
-        }
-
-        .member.senior {
-            border-left-color: #48bb78;
-            background: linear-gradient(90deg, #f0fff4, #ffffff);
-        }
-
-        .member.coordinator {
-            border-left-color: #ed8936;
-            background: linear-gradient(90deg, #fffaf0, #ffffff);
-        }
-
-        .key-points {
-            background: linear-gradient(135deg, #fed7d7, #fbb6ce);
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 5px solid #e53e3e;
-        }
-
-        .key-points h3 {
-            color: #742a2a;
-            border-left: none;
-            padding-left: 0;
-        }
-
-        ul {
-            padding-left: 20px;
-            margin: 15px 0;
-        }
-
-        li {
-            margin: 8px 0;
-            padding-left: 10px;
-        }
-
-        .navigation {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 1000;
-        }
-
-        .nav-btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s ease;
-        }
-
-        .nav-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .nav-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .slide-counter {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            z-index: 1000;
-        }
-
-        .highlight {
-            background: linear-gradient(135deg, #fef5e7, #fed7aa);
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border-left: 4px solid #f6ad55;
-        }
-
-        .connection-line {
-            width: 2px;
-            height: 20px;
-            background: #667eea;
-            margin: 0 auto;
-        }
-
-        @media (max-width: 768px) {
-            .team-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .level {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .slide {
-                padding: 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="slide-counter">
-            <span id="current-slide">1</span> / <span id="total-slides">7</span>
-        </div>
-
-        <!-- Slide 1: Welcome -->
-        <div class="slide active">
-            <div class="logo">
-                <div class="logo-text">fx-Studios</div>
-            </div>
-            <h1>Senior Coordinator Onboarding</h1>
-            <div style="text-align: center; margin: 40px 0;">
-                <h2 style="color: #667eea; margin-bottom: 20px;">Welcome to Leadership</h2>
-                <p style="font-size: 1.2em; color: #4a5568; max-width: 600px; margin: 0 auto;">
-                    This presentation will guide you through your responsibilities as Senior Coordinators 
-                    and introduce you to your team structure within fx-Studios.
-                </p>
-            </div>
-            <div class="highlight">
-                <h3>Document Version: V1.0</h3>
-                <p><strong>Last Updated:</strong> 06/07/2025</p>
-                <p><strong>Maintained By:</strong> Project Director Steve & Executive Director fxllenfx</p>
-            </div>
-        </div>
-
-        <!-- Slide 2: Organizational Structure -->
-        <div class="slide">
-            <h2>fx-Studios Organizational Structure</h2>
-            <div class="orgchart">
-                <div class="level">
-                    <div class="position executive">
-                        <strong>Executive Director</strong><br>
-                        fxllenfx
-                    </div>
-                </div>
-                <div class="connection-line"></div>
-                <div class="level">
-                    <div class="position director">Administration Director</div>
-                    <div class="position director">Project Director<br>Steve</div>
-                    <div class="position director">Community Director<br>Feliks</div>
-                </div>
-                <div class="connection-line"></div>
-                <div class="level">
-                    <div class="position">Studio Administration</div>
-                    <div class="position">Moderation Division</div>
-                    <div class="position">Development Team</div>
-                    <div class="position" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
-                        <strong>Community Coordination</strong><br>
-                        <em>Your Division</em>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Slide 3: Community Coordination Teams -->
-        <div class="slide">
-            <h2>Community Coordination Team Structure</h2>
-            <div class="team-grid">
-                <div class="team-card">
-                    <div class="team-title">🛒 Procurement Team</div>
-                    <div class="member senior">
-                        <strong>Senior Coordinator</strong><br>
-                        CodaCulture (UTC+1)
-                    </div>
-                    <div class="member coordinator">
-                        <strong>Coordinator</strong><br>
-                        Abdullah (UTC+2)
-                    </div>
-                    <div class="member coordinator">
-                        <strong>Coordinator</strong><br>
-                        Nick (UTC+0)
-                    </div>
-                    <div class="member coordinator">
-                        <strong>Trainee Moderator</strong><br>
-                        Person (UTC+2)
-                    </div>
-                </div>
-                <div class="team-card">
-                    <div class="team-title">🎯 Campaigns & Ideas Team</div>
-                    <div class="member senior">
-                        <strong>Senior Coordinator</strong><br>
-                        Bl1tzer1n (UTC+2)
-                    </div>
-                    <div class="member coordinator">
-                        <strong>Coordinator</strong><br>
-                        2hn (EST)
-                    </div>
-                    <div class="member coordinator">
-                        <strong>Coordinator</strong><br>
-                        K3bhi (UTC-4)
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Slide 4: Senior Coordinator Hierarchy -->
-        <div class="slide">
-            <h2>Leadership Hierarchy & Training Responsibilities</h2>
-            <div class="key-points">
-                <h3>🎖️ Critical Leadership Structure</h3>
-                <ul>
-                    <li><strong>Senior Coordinators</strong> are responsible for training and developing Coordinators</li>
-                    <li><strong>Coordinators report directly to Senior Coordinators</strong> within their teams</li>
-                    <li>Senior Coordinators must mentor, guide, and evaluate Coordinator performance</li>
-                    <li>All escalations from Coordinators go through Senior Coordinators first</li>
-                </ul>
-            </div>
-            <div class="orgchart" style="margin-top: 30px;">
-                <div class="level">
-                    <div class="position director">Community Director<br>Feliks</div>
-                </div>
-                <div class="connection-line"></div>
-                <div class="level">
-                    <div class="position senior">Senior Coordinator<br>CodaCulture</div>
-                    <div class="position senior">Senior Coordinator<br>Bl1tzer1n</div>
-                </div>
-                <div class="connection-line"></div>
-                <div class="level">
-                    <div class="position coordinator">Coordinator<br>Abdullah</div>
-                    <div class="position coordinator">Coordinator<br>Nick</div>
-                    <div class="position coordinator">Tr. M Person</div>
-                    <div class="position coordinator">Coordinator<br>2hn</div>
-                    <div class="position coordinator">Coordinator<br>K3bhi</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Slide 5: Key Responsibilities -->
-        <div class="slide">
-            <h2>Senior Coordinator Responsibilities</h2>
-            <h3>📋 Core Duties (Section 4.2)</h3>
-            <ul>
-                <li><strong>Community Engagement:</strong> Serve as public representatives of fx-Studios</li>
-                <li><strong>Platform Management:</strong> Engage community across all official platforms</li>
-                <li><strong>Brand Representation:</strong> Maintain studio's image and voice</li>
-                <li><strong>Feedback Collection:</strong> Gather and relay community feedback to leadership</li>
-                <li><strong>Recruitment Leadership:</strong> Lead hiring campaigns with Board collaboration</li>
-                <li><strong>Staff Monitoring:</strong> Monitor staff levels and recruitment needs</li>
-            </ul>
-            
-            <div class="highlight">
-                <h3>👥 Team Leadership Responsibilities</h3>
-                <ul>
-                    <li>Train and mentor Coordinators in your team</li>
-                    <li>Assign tasks and monitor progress</li>
-                    <li>Conduct regular performance evaluations</li>
-                    <li>Handle escalations from your team members</li>
-                    <li>Ensure professional development of subordinates</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Slide 6: Communication & Protocols -->
-        <div class="slide">
-            <h2>Communication Protocols & Standards</h2>
-            <h3>📞 Reporting Structure</h3>
-            <ul>
-                <li><strong>Direct Reports:</strong> Report regularly to Community Director (Feliks)</li>
-                <li><strong>Cross-Division:</strong> Coordinate with Studio Administration for new hire onboarding</li>
-                <li><strong>Board Updates:</strong> Provide hiring updates to Board of Directors</li>
-            </ul>
-
-            <h3>💬 Professional Standards (Section 2.5)</h3>
-            <div class="key-points">
-                <h3>⚠️ Mandatory Behaviors</h3>
-                <ul>
-                    <li>Maintain highest level of professionalism in all communications</li>
-                    <li>Refrain from provocative, escalatory, or sarcastic responses</li>
-                    <li>Maintain posture of de-escalation, neutrality, and professionalism</li>
-                    <li>Preserve anonymity in official communications unless cleared by Senior Moderator+</li>
-                    <li>Never click unsolicited external links - request embedded previews</li>
-                </ul>
-            </div>
-
-            <h3>📊 Documentation Requirements</h3>
-            <ul>
-                <li>All significant activities must be recorded in <strong>Themis</strong></li>
-                <li>Log all interventions and team interactions</li>
-                <li>Maintain confidentiality of all staff communications</li>
-            </ul>
-        </div>
-
-        <!-- Slide 7: Next Steps -->
-        <div class="slide">
-            <h2>Next Steps & Final Reminders</h2>
-            <h3>🚀 Immediate Actions</h3>
-            <ul>
-                <li><strong>Meet Your Team:</strong> Schedule initial meetings with your Coordinators</li>
-                <li><strong>Review Themis:</strong> Familiarize yourself with the logging system</li>
-                <li><strong>Establish Routines:</strong> Set up regular check-ins with your team</li>
-                <li><strong>Coordinate with Leadership:</strong> Align with Community Director on priorities</li>
-            </ul>
-
-            <div class="key-points">
-                <h3>🎯 Success Metrics</h3>
-                <ul>
-                    <li>Team productivity and professional development</li>
-                    <li>Quality of community engagement and feedback</li>
-                    <li>Successful recruitment and onboarding</li>
-                    <li>Adherence to fx-Studios standards and protocols</li>
-                </ul>
-            </div>
-
-            <div class="highlight">
-                <h3>📋 Key Contacts</h3>
-                <ul>
-                    <li><strong>Community Director:</strong> Feliks (feliks0187)</li>
-                    <li><strong>Executive Director:</strong> fxllenfx</li>
-                    <li><strong>Project Director:</strong> Steve (Stevenson)</li>
-                </ul>
-            </div>
-
-            <div style="text-align: center; margin-top: 40px;">
-                <h2 style="color: #667eea;">Welcome to Leadership at fx-Studios!</h2>
-                <p style="font-size: 1.2em; color: #4a5568;">
-                    Your role as Senior Coordinator is crucial to our success. Lead with excellence.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div class="navigation">
-        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">Previous</button>
-        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next</button>
-    </div>
-
-    <script>
-        let currentSlide = 1;
-        const totalSlides = 7;
-
-        function showSlide(n) {
-            const slides = document.querySelectorAll('.slide');
-            if (n > totalSlides) currentSlide = 1;
-            if (n < 1) currentSlide = totalSlides;
-            
-            slides.forEach(slide => slide.classList.remove('active'));
-            slides[currentSlide - 1].classList.add('active');
-            
-            document.getElementById('current-slide').textContent = currentSlide;
-            document.getElementById('total-slides').textContent = totalSlides;
-            
-            // Update navigation buttons
-            document.getElementById('prevBtn').disabled = currentSlide === 1;
-            document.getElementById('nextBtn').disabled = currentSlide === totalSlides;
-        }
-
-        function changeSlide(n) {
-            currentSlide += n;
-            showSlide(currentSlide);
-        }
-
-        // Keyboard navigation
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowLeft') changeSlide(-1);
-            if (e.key === 'ArrowRight') changeSlide(1);
-        });
-
-        // Initialize
-        showSlide(currentSlide);
-    </script>
-</body>
-</html>
-'''
-    return render_template_string(html)
 
 if __name__ == '__main__':
     app.run(debug=False)
