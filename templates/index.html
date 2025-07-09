@@ -1,7 +1,7 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Themis - Advanced Administration System</title>
+    <title>deez nutz</title>
     <style>
         * {
             margin: 0;
@@ -568,7 +568,7 @@
     </style>
 </head>
 <body>
-    <canvas id="webglCanvas" width="885" height="997" style="pointer-events:auto;z-index:1;position:fixed;top:0;left:0;"></canvas>
+    <canvas id="webglCanvas" width="1654" height="997" style="pointer-events:auto;z-index:1;position:fixed;top:0;left:0;" tabindex="0"></canvas>
     <div class="interaction-overlay"></div>
     <div class="bg-selector">
         <h4>Background</h4>
@@ -580,26 +580,7 @@
     </div>
     <!-- Header -->
     <header>
-        <nav>
-            <div class="logo">
-                <img src="https://i.imgur.com/S3FBo0I.png" alt="Themis">
-                Themis
-            </div>
-
-            <div class="nav-links">
-                <!-- Show login button if not logged in -->
-                <div class="login-btn" id="loginBtn" onclick="openLoginModal()">Login</div>
-                
-                <!-- Show user info if logged in -->
-                <div class="user-profile hidden" id="userProfile">
-                    <img src="" alt="Avatar" class="user-avatar" id="userAvatar">
-                    <span id="username"></span>
-                </div>
-                
-                <!-- Show logout button if logged in -->
-                <div class="login-btn logout-btn hidden" id="logoutBtn" onclick="logout()">Logout</div>
-            </div>
-        </nav>
+        
 
         <!-- Login Modal -->
         <div class="login-modal" id="loginModal">
@@ -619,30 +600,7 @@
 
     <!-- Hero Section -->
     <section class="hero">
-        <div class="hero-container">
-            <div class="hero-content">
-                <h1 id="heroTitle">Themis Administration</h1>
-                <p id="heroDescription">Advanced Discord &amp; Roblox administration system built exclusively by fx-Studios. Cross-platform moderation with seamless integration for elite gaming communities.</p>
-                
-                <!-- Private notice for non-authenticated users -->
-                <div class="private-notice" id="privateNotice">
-                    <p><strong>Private System:</strong> This administration platform is exclusively for authorized fx-Studios personnel. Access requires proper authentication credentials.</p>
-                </div>
-
-                <!-- Welcome notice for authenticated users -->
-                <div class="welcome-notice hidden" id="welcomeNotice">
-                    <p><strong>Welcome back, <span id="welcomeUsername">User</span>!</strong> You have access to all administration features and community management tools.</p>
-                </div>
-
-                
-                <div class="hero-buttons">
-                    <div class="hero-login" id="heroLoginBtn" onclick="openLoginModal()">Access System</div>
-                    <div class="hero-login" onclick="joinDiscord()">Join Discord</div>
-                    <div class="admin-panel-btn hidden" id="adminPanelBtn" onclick="window.location.href='/admin'">Admin Dashboard</div>
-                </div>
-            
-            </div>
-        </div>
+        
     </section>
 
     <!-- Info Section -->
@@ -691,7 +649,7 @@
         class BackgroundManager {
             constructor() {
                 this.canvas = document.getElementById('webglCanvas');
-                this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+                this.gl = this.canvas.getContext('webgl', { antialias: false }) || this.canvas.getContext('experimental-webgl', { antialias: false });
                 this.currentVisualization = null;
                 this.visualizations = {};
                 this.currentType = 'particles';
@@ -1448,14 +1406,15 @@
                     this.atlasImage.crossOrigin = 'anonymous';
                     this.atlasImage.onload = () => {
                         this.gl.bindTexture(this.gl.TEXTURE_2D, this.atlasTexture);
+                        this.gl.pixelStorei(this.gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
                         this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.atlasImage);
-                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
-                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+                        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
                         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
                         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
                         this.atlasReady = true;
                     };
-                    this.atlasImage.src = 'https://i.imgur.com/8J7MAPs.png';
+                    this.atlasImage.src = 'https://media.discordapp.net/attachments/1375821722657492993/1391883562432729309/atlas.png?ex=686d8415&is=686c3295&hm=bbe5c0b4eb86efcc8131b5889c4029857a50a1797882ce53cef8b7d50deb5ef4&=';
                     this.atlasReady = false;
                 }
                 if (!this.atlasReady) return;
@@ -1796,4 +1755,5 @@
         });
 
     </script>
+
 </body></html>
