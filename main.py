@@ -438,7 +438,7 @@ def admin_meeting():
     
             body {
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+                background: #0f0f0f;
                 color: #f8fafc;
                 line-height: 1.6;
                 overflow: hidden;
@@ -454,8 +454,8 @@ def admin_meeting():
             }
     
             .slide {
-                background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-                color: #1e293b;
+                background: #1a1a1a;
+                color: #f8fafc;
                 height: 100vh;
                 width: 100vw;
                 padding: 60px 80px;
@@ -485,7 +485,7 @@ def admin_meeting():
             }
     
             h1 {
-                color: #0f172a;
+                color: #f8fafc;
                 font-size: 3.5em;
                 margin-bottom: 30px;
                 text-align: center;
@@ -507,7 +507,7 @@ def admin_meeting():
             }
     
             h2 {
-                color: #0f172a;
+                color: #f8fafc;
                 font-size: 2.5em;
                 margin-bottom: 30px;
                 text-align: center;
@@ -515,7 +515,7 @@ def admin_meeting():
             }
     
             h3 {
-                color: #374151;
+                color: #d1d5db;
                 font-size: 1.8em;
                 margin-bottom: 25px;
                 border-left: 4px solid #3b82f6;
@@ -554,14 +554,15 @@ def admin_meeting():
             }
     
             .position {
-                background: linear-gradient(135deg, #ffffff, #f1f5f9);
-                border: 2px solid #e2e8f0;
+                background: #2a2a2a;
+                border: 2px solid #3a3a3a;
                 border-radius: 8px;
                 padding: 25px 35px;
                 text-align: center;
                 min-width: 220px;
                 transition: all 0.3s ease;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+                color: #f8fafc;
             }
     
             .position:hover {
@@ -607,12 +608,12 @@ def admin_meeting():
             }
     
             .team-card {
-                background: linear-gradient(135deg, #ffffff, #f8fafc);
-                border: 2px solid #e2e8f0;
+                background: #2a2a2a;
+                border: 2px solid #3a3a3a;
                 border-radius: 8px;
                 padding: 35px;
                 transition: all 0.3s ease;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
             }
     
             .team-card:hover {
@@ -632,13 +633,13 @@ def admin_meeting():
             }
     
             .member {
-                background: linear-gradient(135deg, #ffffff, #f8fafc);
+                background: #333333;
                 border-radius: 6px;
                 padding: 18px 25px;
                 margin: 18px 0;
                 border-left: 4px solid #3b82f6;
                 transition: all 0.3s ease;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
             }
     
             .member:hover {
@@ -648,16 +649,16 @@ def admin_meeting():
     
             .member.senior {
                 border-left-color: #10b981;
-                background: linear-gradient(135deg, #ecfdf5, #ffffff);
+                background: #2a3a32;
             }
     
             .member.coordinator {
                 border-left-color: #f59e0b;
-                background: linear-gradient(135deg, #fffbeb, #ffffff);
+                background: #3a352a;
             }
     
             .key-points {
-                background: linear-gradient(135deg, #fee2e2, #fecaca);
+                background: #3a2a2a;
                 border-radius: 8px;
                 padding: 30px;
                 margin: 30px 0;
@@ -674,7 +675,7 @@ def admin_meeting():
             }
     
             .key-points h3 {
-                color: #7f1d1d;
+                color: #f8fafc;
                 border-left: none;
                 padding-left: 0;
             }
@@ -739,19 +740,19 @@ def admin_meeting():
                 position: fixed;
                 top: 40px;
                 right: 40px;
-                background: rgba(255, 255, 255, 0.95);
-                color: #1e293b;
+                background: rgba(42, 42, 42, 0.95);
+                color: #f8fafc;
                 padding: 18px 25px;
                 border-radius: 6px;
                 font-weight: 700;
                 z-index: 1000;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                border: 2px solid #e2e8f0;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                border: 2px solid #3a3a3a;
                 font-size: 1.1em;
             }
     
             .highlight {
-                background: linear-gradient(135deg, #fef3c7, #fde68a);
+                background: #3a352a;
                 padding: 25px;
                 border-radius: 8px;
                 margin: 25px 0;
@@ -776,7 +777,7 @@ def admin_meeting():
             }
     
             .welcome-stats {
-                background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+                background: #2a2a2a;
                 border-radius: 8px;
                 padding: 35px;
                 margin: 40px 0;
@@ -785,7 +786,7 @@ def admin_meeting():
             }
     
             .welcome-stats h3 {
-                color: #064e3b;
+                color: #f8fafc;
                 border-left: none;
                 padding-left: 0;
                 margin-bottom: 20px;
@@ -799,11 +800,11 @@ def admin_meeting():
             }
     
             .stat-item {
-                background: white;
+                background: #2a2a2a;
                 padding: 20px;
                 border-radius: 6px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                border: 1px solid #e5e7eb;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                border: 1px solid #3a3a3a;
             }
     
             .stat-number {
@@ -920,31 +921,7 @@ def admin_meeting():
                         and introduce you to the dynamic team structure within fx-Studios.
                     </p>
                 </div>
-                <div class="welcome-stats">
-                    <h3>🎯 Your Leadership Journey Begins</h3>
-                    <p style="margin-bottom: 25px; color: #064e3b;">You're joining an elite group of leaders driving fx-Studios forward</p>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-number">2</div>
-                            <div class="stat-label">Senior Positions</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number">5</div>
-                            <div class="stat-label">Team Members</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number">3</div>
-                            <div class="stat-label">Time Zones</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number">24/7</div>
-                            <div class="stat-label">Coverage</div>
-                        </div>
-                    </div>
-                    <p style="margin-top: 20px; font-style: italic; color: #047857;">
-                        <strong>Created by Leadership Team</strong> • Updated July 2025 • Maintained by Steve & fxllenfx
-                    </p>
-                </div>
+
             </div>
     
             <!-- Slide 2: Organizational Structure -->
