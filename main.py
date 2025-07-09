@@ -246,7 +246,7 @@ def get_team_members(division):
             cursor.execute("""
                 SELECT u.id, u.username, u.avatar_url, s.role
                 FROM users u
-                JOIN staff s ON u.id = s.user_id
+                JOIN staff_members s ON u.id = s.user_id
                 WHERE s.division = %s 
                 AND s.role IN ('Senior Coordinator', 'Coordinator')
                 AND s.is_active = TRUE
