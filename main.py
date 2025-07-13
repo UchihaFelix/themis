@@ -220,11 +220,13 @@ def get_director_groups(director_id, division):
             # Get members for each group
             for group in groups:
                 cursor.execute("""
-                    SELECT gm.*, u.username, u.avatar_url
+                    SELECT gm.*, 
+                           u.discord_username as username,
+                           u.discord_user_id as user_id_alias
                     FROM group_members gm
-                    JOIN users u ON gm.user_id = u.id
+                    JOIN users u ON gm.user_id = u.discord_user_id
                     WHERE gm.group_id = %s
-                    ORDER BY gm.role DESC, u.username
+                    ORDER BY gm.role DESC, u.discord_username
                 """, (group['id'],))
                 group['members'] = cursor.fetchall()
             
@@ -337,9 +339,11 @@ def get_senior_coordinator_assignments(user_id):
         try:
             cursor = connection.cursor(dictionary=True)
             cursor.execute("""
-                SELECT a.*, u.username as created_by_name, g.group_name
+                SELECT a.*, 
+                       u.discord_username as created_by_name, 
+                       g.group_name
                 FROM assignments a
-                JOIN users u ON a.created_by = u.id
+                JOIN users u ON a.created_by = u.discord_user_id
                 LEFT JOIN coordination_groups g ON a.group_id = g.id
                 WHERE a.assigned_to = %s AND a.status IN ('open', 'in_progress')
                 ORDER BY 
@@ -366,9 +370,11 @@ def get_director_assignments(director_id, division):
         try:
             cursor = connection.cursor(dictionary=True)
             cursor.execute("""
-                SELECT a.*, u.username as assigned_to_name, g.group_name
+                SELECT a.*, 
+                       u.discord_username as assigned_to_name, 
+                       g.group_name
                 FROM assignments a
-                JOIN users u ON a.assigned_to = u.id
+                JOIN users u ON a.assigned_to = u.discord_user_id
                 LEFT JOIN coordination_groups g ON a.group_id = g.id
                 WHERE a.division = %s AND a.status = 'finished'
                 ORDER BY a.finished_at DESC
@@ -462,12 +468,12 @@ def get_executive_overview():
             cursor.execute("""
                 SELECT 
                     a.*,
-                    u1.username as assigned_to_name,
-                    u2.username as created_by_name,
+                    u1.discord_username as assigned_to_name,
+                    u2.discord_username as created_by_name,
                     g.group_name
                 FROM assignments a
-                JOIN users u1 ON a.assigned_to = u1.id
-                JOIN users u2 ON a.created_by = u2.id
+                JOIN users u1 ON a.assigned_to = u1.discord_user_id
+                JOIN users u2 ON a.created_by = u2.discord_user_id
                 LEFT JOIN coordination_groups g ON a.group_id = g.id
                 ORDER BY a.updated_at DESC
                 LIMIT 50
@@ -516,9 +522,11 @@ def get_unread_messages(user_id):
         try:
             cursor = connection.cursor(dictionary=True)
             cursor.execute("""
-                SELECT m.*, u.username as sender_name, a.title as assignment_title
+                SELECT m.*, 
+                       u.discord_username as sender_name, 
+                       a.title as assignment_title
                 FROM coordination_messages m
-                JOIN users u ON m.sender_id = u.id
+                JOIN users u ON m.sender_id = u.discord_user_id
                 LEFT JOIN assignments a ON m.assignment_id = a.id
                 WHERE m.recipient_id = %s AND m.is_read = FALSE
                 ORDER BY m.created_at DESC
@@ -578,11 +586,13 @@ def get_coordinator_team(senior_coordinator_id):
             coordinators = []
             for group in groups:
                 cursor.execute("""
-                    SELECT gm.*, u.username, u.avatar_url
+                    SELECT gm.*, 
+                           u.discord_username as username,
+                           u.discord_user_id as user_id_alias
                     FROM group_members gm
-                    JOIN users u ON gm.user_id = u.id
+                    JOIN users u ON gm.user_id = u.discord_user_id
                     WHERE gm.group_id = %s AND gm.role = 'Coordinator'
-                    ORDER BY u.username
+                    ORDER BY u.discord_username
                 """, (group['id'],))
                 
                 group_coordinators = cursor.fetchall()
