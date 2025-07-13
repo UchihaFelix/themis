@@ -244,18 +244,18 @@ def get_team_members(division):
         try:
             cursor = connection.cursor(dictionary=True)
             cursor.execute("""
-                SELECT u.id, u.username, u.avatar_url, s.role
+                SELECT 
+                    u.discord_user_id as id,
+                    u.discord_username as username,
+                    u.roblox_user_id,
+                    u.roblox_username,
+                    s.rank as role
                 FROM users u
-                JOIN staff_members s ON u.id = s.user_id
-                WHERE s.division = %s 
-                AND s.role IN ('Senior Coordinator', 'Coordinator')
-                AND s.is_active = TRUE
-                ORDER BY 
-                    CASE 
-                        WHEN s.role = 'Senior Coordinator' THEN 1
-                        WHEN s.role = 'Coordinator' THEN 2
-                    END,
-                    u.username
+                JOIN staff_members s ON u.discord_user_id = s.user_id
+                WHERE s.rank = %s 
+                AND u.roblox_user_id IS NOT NULL
+                AND u.roblox_username IS NOT NULL
+                ORDER BY u.discord_username
             """, (division,))
             return cursor.fetchall()
         except Error as e:
