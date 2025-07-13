@@ -937,7 +937,7 @@ def discord_callback():
                 'staff_info': staff_info or {}
             }
             
-            return redirect(url_for('admin_panel'))
+            return redirect(url_for('admin_dashboard'))
         else:
             return jsonify({'error': 'Failed to fetch user details'}), 400
             
