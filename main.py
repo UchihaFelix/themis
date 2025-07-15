@@ -436,7 +436,7 @@ def get_director_assignments(director_id):
 
 
 def get_executive_overview():
-    """Get executive dashboard overview data (using staff_members table)"""
+    """Get executive dashboard overview data (updated)"""
     connection = get_db_connection()
     if connection:
         try:
@@ -449,7 +449,7 @@ def get_executive_overview():
                     SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) as verified,
                     SUM(CASE WHEN status = 'finished' THEN 1 ELSE 0 END) as pending_verification,
                     SUM(CASE WHEN status = 'delayed' THEN 1 ELSE 0 END) as delayed,
-                    SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open,
+                    SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open_assignments,
                     SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress
                 FROM assignments
                 WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -460,10 +460,8 @@ def get_executive_overview():
             cursor.execute("""
                 SELECT 
                     s.rank,
-                    COUNT(DISTINCT s.user_id) as member_count,
-                    COUNT(DISTINCT a.id) as active_assignments
+                    COUNT(DISTINCT s.user_id) as member_count
                 FROM staff_members s
-                LEFT JOIN assignments a ON s.user_id = a.assigned_to AND a.status IN ('open', 'in_progress')
                 WHERE s.rank IN ('Senior Coordinator', 'Coordinator', 'Community Director', 'Project Director')
                 GROUP BY s.rank
                 ORDER BY 
@@ -476,12 +474,10 @@ def get_executive_overview():
             """)
             rank_breakdown = cursor.fetchall()
             
-            # Get recent assignments with details
+            # Get recent assignments with details (simplified without joins to users table)
             cursor.execute("""
                 SELECT 
                     a.*,
-                    a.assigned_to as assigned_to_name,
-                    a.created_by as created_by_name,
                     g.group_name
                 FROM assignments a
                 LEFT JOIN coordination_groups g ON a.group_id = g.id
@@ -3147,7 +3143,7 @@ def get_team_members_by_rank_fixed():
             cursor.execute("""
                 SELECT 
                     s.user_id as id,
-                    s.username as username,
+                    s.user_id as username,
                     s.rank as role
                 FROM staff_members s
                 WHERE s.rank IN ('Senior Coordinator', 'Coordinator')
@@ -3156,7 +3152,7 @@ def get_team_members_by_rank_fixed():
                         WHEN 'Senior Coordinator' THEN 1 
                         WHEN 'Coordinator' THEN 2 
                     END,
-                    s.username
+                    s.user_id
             """)
             
             result = cursor.fetchall()
@@ -3167,10 +3163,10 @@ def get_team_members_by_rank_fixed():
                 cursor.execute("""
                     SELECT 
                         s.user_id as id,
-                        s.username as username,
+                        s.user_id as username,
                         s.rank as role
                     FROM staff_members s
-                    ORDER BY s.rank, s.username
+                    ORDER BY s.rank, s.user_id
                     LIMIT 10
                 """)
                 all_staff = cursor.fetchall()
