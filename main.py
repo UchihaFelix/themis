@@ -196,9 +196,14 @@ def get_director_groups_updated(director_id):
                     SELECT gm.*, 
                            u.discord_username as username,
                            u.discord_user_id as user_id_alias
+                    SELECT gm.*, 
+                           u.discord_username as username,
+                           u.discord_user_id as user_id_alias
                     FROM group_members gm
                     JOIN users u ON gm.user_id = u.discord_user_id
+                    JOIN users u ON gm.user_id = u.discord_user_id
                     WHERE gm.group_id = %s
+                    ORDER BY gm.role DESC, u.discord_username
                     ORDER BY gm.role DESC, u.discord_username
                 """, (group['id'],))
                 group['members'] = cursor.fetchall()
@@ -851,7 +856,7 @@ def discord_callback():
                 'staff_info': staff_info or {}
             }
             
-            return redirect(url_for('admin_panel'))
+            return redirect(url_for('admin_dashboard'))
         else:
             return jsonify({'error': 'Failed to fetch user details'}), 400
             
