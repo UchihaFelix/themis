@@ -1462,43 +1462,41 @@ def admin_dashboard():
                     Welcome back, <span class="username-highlight">{user.get('username', 'User')}</span>
                 </h1>
                 <p class="dashboard-subtitle">
-                    Access your administration tools and manage the Themis system with precision and efficiency.
+                    We sure hope you're ready for all the bugs which are about to bless your eyes!
                 </p>
             </div>
             
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-value">24</div>
-                    <div class="stat-label">Active Cases</div>
+                    <div class="stat-value">18</div>
+                    <div class="stat-label">Staff Accounts</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">142</div>
+                    <div class="stat-value">72</div>
                     <div class="stat-label">Total Actions</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">98.2%</div>
-                    <div class="stat-label">Success Rate</div>
+                    <div class="stat-value">0.0%</div>
+                    <div class="stat-label">Code Integrity</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">5</div>
-                    <div class="stat-label">Pending Reviews</div>
+                    <div class="stat-value">100.0%</div>
+                    <div class="stat-label">Built on Hopes & Dreams</div>
                 </div>
             </div>
             
             <div class="quick-actions">
-                {generate_panel_card('cases', 'Manage Cases', 'Review, investigate, and resolve moderation cases across all connected platforms.', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-1-1h1v-2h-1v2zm1-4h-1V6h1v2zM7 8h6v4H7V8z" clip-rule="evenodd"/></svg>', '/admin/cases')}
+                {generate_panel_card('cases', 'View Cases', 'View a list of cases taken from our discord punishments table', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-1-1h1v-2h-1v2zm1-4h-1V6h1v2zM7 8h6v4H7V8z" clip-rule="evenodd"/></svg>', '/admin/cases')}
                 
-                {generate_panel_card('coordination_executive', 'Executive Overview', 'Monitor all coordination divisions and assignments from an executive perspective.', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>', '/admin/coordination/executive')}
+                {generate_panel_card('coordination_executive', 'Executive Overview', 'Monitor all divisions and assignments from an executive perspective', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>', '/admin/coordination/executive')}
                 
-                {generate_panel_card('coordination_director', 'Director Panel', 'Manage your coordination teams and assign tasks to coordinators.', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>', '/admin/coordination/director')}
+                {generate_panel_card('coordination_director', 'Director Panel', 'Manage your coordination teams and assign tasks to Senior Coordinators', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>', '/admin/coordination/director')}
                 
-                {generate_panel_card('coordination_senior', 'Senior Coordinator', 'Manage your coordinator team and handle incoming assignments.', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/></svg>', '/admin/coordination/senior')}
+                {generate_panel_card('coordination_senior', 'Senior Coordinator', 'Manage your coordinator team and handle incoming assignments', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/></svg>', '/admin/coordination/senior')}
                 
-                {generate_panel_card('coordination_basic', 'Coordinator Panel', 'View your assignments and communicate with supervisors.', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/></svg>', '/admin/coordination/coordinator')}
+                {generate_panel_card('coordination_basic', 'Coordinator Panel', 'View your assignments and communicate with your Senior Coordinators', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/></svg>', '/admin/coordination/coordinator')}
                 
-                {generate_panel_card('user_management', 'User Management', 'Manage user accounts, permissions, and staff roles across the system.', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>', '/admin/users')}
                 
-                {generate_panel_card('analytics', 'Analytics & Reports', 'View detailed analytics, trends, and insights about system performance and activities.', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>', '/admin/analytics')}
             </div>
         </main>
     </body>
@@ -2674,8 +2672,6 @@ def coordination_main():
         </html>
         ''', staff_rank=staff_rank), 403
 
-# Replace the existing director_panel route with this updated version
-# Replace the existing director_panel route with this updated version
 @app.route('/admin/coordination/director', methods=['GET', 'POST'])
 @login_required
 @require_ranks(['Community Director', 'Project Director', 'Executive Director', 'Administration Director'])
@@ -2684,7 +2680,7 @@ def director_panel():
     staff_role = user.get('staff_info', {}).get('role', 'Staff')
     rank_color = RANK_COLORS.get(staff_role, '#a977f8')
     
-    # Handle group creation
+    # Group Creation Handler
     if request.method == 'POST':
         data = request.get_json()
         group_name = data.get('group_name')
@@ -2697,10 +2693,13 @@ def director_panel():
             return jsonify({'success': False, 'error': 'Failed to create group'}), 400
         return jsonify({'success': False, 'error': 'Invalid data'}), 400
     
-    # Get data for display using updated functions
-    team_members = get_team_members_by_rank()
+    team_members = get_team_members_by_rank_fixed()
     groups = get_director_groups_updated(user['id'])
     pending_assignments = get_director_assignments_updated(user['id'])
+    
+    print(f"Team members found: {len(team_members)}")
+    for member in team_members:
+        print(f"- {member.get('username', 'Unknown')} ({member.get('role', 'Unknown')})")
     
     html = rf'''
     <!DOCTYPE html>
@@ -2711,6 +2710,7 @@ def director_panel():
         <title>Director Panel - Themis</title>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
         <style>
+            /* Same styles as before */
             :root {{
                 --primary-color: #a977f8;
                 --primary-rgb: 169, 119, 248;
@@ -2812,6 +2812,7 @@ def director_panel():
                 gap: 12px;
                 max-height: 400px;
                 overflow-y: auto;
+                min-height: 200px;
             }}
             
             .member-item {{
@@ -2923,6 +2924,29 @@ def director_panel():
                 cursor: not-allowed;
             }}
             
+            .empty-state {{
+                text-align: center;
+                padding: 40px 20px;
+                color: var(--text-muted);
+            }}
+            
+            .empty-state svg {{
+                width: 48px;
+                height: 48px;
+                margin-bottom: 16px;
+                opacity: 0.3;
+            }}
+            
+            .debug-info {{
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 8px;
+                padding: 12px;
+                margin-bottom: 16px;
+                font-size: 0.8rem;
+                color: var(--text-muted);
+            }}
+            
             .groups-display {{
                 display: grid;
                 gap: 24px;
@@ -2941,81 +2965,6 @@ def director_panel():
                 font-weight: 700;
                 margin-bottom: 16px;
                 color: var(--primary-color);
-            }}
-            
-            .group-structure {{
-                display: flex;
-                flex-direction: column;
-                gap: 20px;
-            }}
-            
-            .hierarchy-level {{
-                position: relative;
-                padding-left: 32px;
-            }}
-            
-            .hierarchy-level::before {{
-                content: '';
-                position: absolute;
-                left: 0;
-                top: 0;
-                bottom: 0;
-                width: 2px;
-                background: var(--primary-color);
-                opacity: 0.3;
-            }}
-            
-            .hierarchy-title {{
-                font-weight: 600;
-                color: var(--text-secondary);
-                margin-bottom: 8px;
-                font-size: 0.9rem;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }}
-            
-            .hierarchy-members {{
-                display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
-            }}
-            
-            .member-badge {{
-                background: rgba(var(--primary-rgb), 0.1);
-                border: 1px solid rgba(var(--primary-rgb), 0.3);
-                padding: 6px 12px;
-                border-radius: 6px;
-                font-size: 0.85rem;
-                font-weight: 500;
-            }}
-            
-            .assignments-panel {{
-                grid-column: 1 / -1;
-            }}
-            
-            .assignment-item {{
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 12px;
-                padding: 20px;
-                margin-bottom: 16px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }}
-            
-            .assignment-info {{
-                flex: 1;
-            }}
-            
-            .assignment-title {{
-                font-weight: 600;
-                margin-bottom: 4px;
-            }}
-            
-            .assignment-group {{
-                font-size: 0.85rem;
-                color: var(--text-secondary);
             }}
             
             .loading {{
@@ -3070,8 +3019,13 @@ def director_panel():
             <div class="panels-grid">
                 <div class="panel">
                     <h2 class="panel-title">Available Team Members</h2>
+                    
+                    <div class="debug-info">
+                        Debug: Found {len(team_members)} team members
+                    </div>
+                    
                     <div class="team-members-list">
-                        {generate_team_members_html_updated(team_members)}
+                        {generate_team_members_html_fixed(team_members)}
                     </div>
                     
                     <div class="create-group-section">
@@ -3093,14 +3047,7 @@ def director_panel():
                 <div class="panel">
                     <h2 class="panel-title">Active Groups</h2>
                     <div class="groups-display" id="groupsDisplay">
-                        {generate_groups_html_updated(groups)}
-                    </div>
-                </div>
-                
-                <div class="panel assignments-panel">
-                    <h2 class="panel-title">Assignment Overview</h2>
-                    <div class="assignments-list">
-                        {generate_assignments_html_updated(pending_assignments)}
+                        {generate_groups_html_fixed(groups)}
                     </div>
                 </div>
             </div>
@@ -3199,40 +3146,6 @@ def director_panel():
                     loadingIndicator.classList.remove('active');
                 }}
             }}
-            
-            async function verifyAssignment(assignmentId) {{
-                if (!confirm('Are you sure you want to verify this assignment?')) {{
-                    return;
-                }}
-                
-                const loadingIndicator = document.getElementById('loadingIndicator');
-                loadingIndicator.classList.add('active');
-                
-                try {{
-                    const response = await fetch('/admin/coordination/verify-assignment', {{
-                        method: 'POST',
-                        headers: {{
-                            'Content-Type': 'application/json',
-                        }},
-                        body: JSON.stringify({{
-                            assignment_id: assignmentId
-                        }})
-                    }});
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {{
-                        alert('Assignment verified successfully');
-                        window.location.reload();
-                    }} else {{
-                        alert('Error verifying assignment');
-                    }}
-                }} catch (error) {{
-                    alert('Error: ' + error.message);
-                }} finally {{
-                    loadingIndicator.classList.remove('active');
-                }}
-            }}
         </script>
     </body>
     </html>
@@ -3240,8 +3153,105 @@ def director_panel():
     
     return render_template_string(html)
 
-# Helper functions for updated director panel
-def generate_team_members_html_updated(members):
+# Fixed function to get team members (with more flexible requirements)
+def get_team_members_by_rank_fixed():
+    """Get all coordinators and senior coordinators (with more flexible requirements)"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            
+            # First, try with full requirements
+            cursor.execute("""
+                SELECT 
+                    u.discord_user_id as id,
+                    u.discord_username as username,
+                    u.roblox_user_id,
+                    u.roblox_username,
+                    s.rank as role
+                FROM users u
+                JOIN staff_members s ON u.discord_user_id = s.user_id
+                WHERE s.rank IN ('Senior Coordinator', 'Coordinator')
+                AND u.roblox_user_id IS NOT NULL
+                AND u.roblox_username IS NOT NULL
+                AND u.discord_username IS NOT NULL
+                ORDER BY 
+                    CASE s.rank 
+                        WHEN 'Senior Coordinator' THEN 1 
+                        WHEN 'Coordinator' THEN 2 
+                    END,
+                    u.discord_username
+            """)
+            
+            result = cursor.fetchall()
+            
+            # If no results, try with relaxed requirements
+            if not result:
+                print("No team members found with full requirements, trying relaxed search...")
+                cursor.execute("""
+                    SELECT 
+                        u.discord_user_id as id,
+                        u.discord_username as username,
+                        u.roblox_user_id,
+                        u.roblox_username,
+                        s.rank as role
+                    FROM users u
+                    JOIN staff_members s ON u.discord_user_id = s.user_id
+                    WHERE s.rank IN ('Senior Coordinator', 'Coordinator')
+                    AND u.discord_username IS NOT NULL
+                    ORDER BY 
+                        CASE s.rank 
+                            WHEN 'Senior Coordinator' THEN 1 
+                            WHEN 'Coordinator' THEN 2 
+                        END,
+                        u.discord_username
+                """)
+                result = cursor.fetchall()
+            
+            # If still no results, check if any staff exist at all
+            if not result:
+                print("No coordinators found, checking all staff...")
+                cursor.execute("""
+                    SELECT 
+                        u.discord_user_id as id,
+                        u.discord_username as username,
+                        u.roblox_user_id,
+                        u.roblox_username,
+                        s.rank as role
+                    FROM users u
+                    JOIN staff_members s ON u.discord_user_id = s.user_id
+                    WHERE u.discord_username IS NOT NULL
+                    ORDER BY s.rank, u.discord_username
+                    LIMIT 10
+                """)
+                all_staff = cursor.fetchall()
+                print(f"Found {len(all_staff)} total staff members:")
+                for staff in all_staff:
+                    print(f"  - {staff['username']} ({staff['role']})")
+            
+            return result
+            
+        except Error as e:
+            print(f"Error fetching team members: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+# Fixed HTML generation for team members
+def generate_team_members_html_fixed(members):
+    if not members:
+        return '''
+        <div class="empty-state">
+            <svg fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+            </svg>
+            <p>No team members found</p>
+            <p style="font-size: 0.8rem; margin-top: 8px;">Make sure you have Senior Coordinators and Coordinators in your staff_members table</p>
+        </div>
+        '''
+    
     html = ''
     for member in members:
         role_class = 'senior' if member['role'] == 'Senior Coordinator' else 'coordinator'
@@ -3256,7 +3266,8 @@ def generate_team_members_html_updated(members):
         '''
     return html
 
-def generate_groups_html_updated(groups):
+# Fixed groups HTML generation
+def generate_groups_html_fixed(groups):
     if not groups:
         return '<p style="text-align: center; color: var(--text-muted);">No groups created yet</p>'
     
@@ -3281,26 +3292,6 @@ def generate_groups_html_updated(groups):
                         {''.join([f'<div class="member-badge">{m["username"]}{" - " + m["role_label"] if m.get("role_label") else ""}</div>' for m in coordinators])}
                     </div>
                 </div>
-            </div>
-        </div>
-        '''
-    return html
-
-def generate_assignments_html_updated(assignments):
-    if not assignments:
-        return '<p style="text-align: center; color: var(--text-muted);">No assignments pending verification</p>'
-    
-    html = ''
-    for assignment in assignments:
-        html += f'''
-        <div class="assignment-item">
-            <div class="assignment-info">
-                <div class="assignment-title">{assignment['title']}</div>
-                <div class="assignment-group">{assignment['group_name'] or 'No Group'} - Assigned to: {assignment['assigned_to_name']}</div>
-            </div>
-            <div style="display: flex; align-items: center;">
-                <div class="assignment-status status-finished">Finished</div>
-                <button class="btn verify-btn" onclick="verifyAssignment({assignment['id']})">Verify</button>
             </div>
         </div>
         '''
@@ -5814,165 +5805,6 @@ def coordinator_send_message():
     
     return jsonify({'success': False, 'error': 'Database connection failed'}), 500
 
-def migrate_coordination_tables():
-    """
-    Migrate existing coordination tables to remove division dependencies
-    """
-    connection = get_db_connection()
-    if connection:
-        try:
-            cursor = connection.cursor()
-            
-            print("Starting coordination tables migration...")
-            
-            # Check if division column exists in coordination_groups
-            cursor.execute("""
-                SELECT COLUMN_NAME 
-                FROM INFORMATION_SCHEMA.COLUMNS 
-                WHERE TABLE_NAME = 'coordination_groups' 
-                AND COLUMN_NAME = 'division'
-                AND TABLE_SCHEMA = DATABASE()
-            """)
-            
-            division_exists = cursor.fetchone()
-            
-            if division_exists:
-                print("Removing division column from coordination_groups...")
-                cursor.execute("ALTER TABLE coordination_groups DROP COLUMN division")
-                print("✓ Division column removed from coordination_groups")
-            else:
-                print("✓ Division column not found in coordination_groups (already removed or never existed)")
-            
-            # Check if division column exists in assignments
-            cursor.execute("""
-                SELECT COLUMN_NAME 
-                FROM INFORMATION_SCHEMA.COLUMNS 
-                WHERE TABLE_NAME = 'assignments' 
-                AND COLUMN_NAME = 'division'
-                AND TABLE_SCHEMA = DATABASE()
-            """)
-            
-            division_exists_assignments = cursor.fetchone()
-            
-            if division_exists_assignments:
-                print("Removing division column from assignments...")
-                cursor.execute("ALTER TABLE assignments DROP COLUMN division")
-                print("✓ Division column removed from assignments")
-            else:
-                print("✓ Division column not found in assignments (already removed or never existed)")
-            
-            # Ensure all tables exist with correct structure
-            print("Ensuring all coordination tables exist with correct structure...")
-            
-            # coordination_groups table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS coordination_groups (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    group_name VARCHAR(255) NOT NULL,
-                    created_by INT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    INDEX idx_created_by (created_by),
-                    INDEX idx_active (is_active)
-                )
-            """)
-            
-            # group_members table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS group_members (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    group_id INT NOT NULL,
-                    user_id INT NOT NULL,
-                    role VARCHAR(50) NOT NULL,
-                    role_label VARCHAR(255) DEFAULT NULL,
-                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_group_id (group_id),
-                    INDEX idx_user_id (user_id),
-                    UNIQUE KEY unique_group_member (group_id, user_id)
-                )
-            """)
-            
-            # assignments table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS assignments (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    title VARCHAR(255) NOT NULL,
-                    description TEXT,
-                    group_id INT DEFAULT NULL,
-                    assigned_to INT DEFAULT NULL,
-                    created_by INT NOT NULL,
-                    priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
-                    status ENUM('open', 'in_progress', 'finished', 'verified', 'delayed') DEFAULT 'open',
-                    due_date DATETIME DEFAULT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    finished_at DATETIME DEFAULT NULL,
-                    verified_at DATETIME DEFAULT NULL,
-                    verified_by INT DEFAULT NULL,
-                    INDEX idx_assigned_to (assigned_to),
-                    INDEX idx_created_by (created_by),
-                    INDEX idx_status (status),
-                    INDEX idx_due_date (due_date)
-                )
-            """)
-            
-            # assignment_actions table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS assignment_actions (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    assignment_id INT NOT NULL,
-                    user_id INT NOT NULL,
-                    action_type ENUM('comment', 'status_change', 'contact_director', 'assignment') NOT NULL,
-                    action_data TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_assignment_id (assignment_id),
-                    INDEX idx_user_id (user_id),
-                    INDEX idx_created_at (created_at)
-                )
-            """)
-            
-            # coordination_messages table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS coordination_messages (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    assignment_id INT DEFAULT NULL,
-                    sender_id INT NOT NULL,
-                    recipient_id INT NOT NULL,
-                    message TEXT NOT NULL,
-                    is_read BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_assignment_id (assignment_id),
-                    INDEX idx_sender_id (sender_id),
-                    INDEX idx_recipient_id (recipient_id),
-                    INDEX idx_is_read (is_read),
-                    INDEX idx_created_at (created_at)
-                )
-            """)
-            
-            connection.commit()
-            print("✓ All coordination tables verified and updated")
-            print("Migration completed successfully!")
-            
-            return True
-            
-        except Error as e:
-            connection.rollback()
-            print(f"✗ Error during migration: {e}")
-            return False
-        finally:
-            cursor.close()
-            connection.close()
-    return False
-
-def run_coordination_migration():
-    print("=== Coordination System Migration ===")
-    success = migrate_coordination_tables()
-    if success:
-        print("=== Migration completed successfully! ===")
-    else:
-        print("=== Migration failed! ===")
-    return success
 
 if __name__ == '__main__':
-    run_coordination_migration()
     app.run(debug=False)
