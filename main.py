@@ -137,12 +137,6 @@ CREATE TABLE IF NOT EXISTS coordination_messages (
 );
 """
 
-import mysql.connector
-from mysql.connector import Error
-from datetime import datetime, timedelta
-import json
-
-
 def create_group_updated(group_name, created_by, members):
     """
     Create a new group with members (updated without division)
@@ -218,6 +212,36 @@ def get_director_groups_updated(director_id):
             connection.close()
     return []
 
+def update_coordinator_label(group_id, coordinator_id, label, updated_by):
+    """Update a coordinator's role label (by Senior Coordinator)"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            
+            # Verify the updater is a Senior Coordinator in the same group
+            cursor.execute("""
+                SELECT role FROM group_members 
+                WHERE group_id = %s AND user_id = %s AND role = 'Senior Coordinator'
+            """, (group_id, updated_by))
+            
+            if cursor.fetchone():
+                cursor.execute("""
+                    UPDATE group_members 
+                    SET role_label = %s 
+                    WHERE group_id = %s AND user_id = %s
+                """, (label, group_id, coordinator_id))
+                connection.commit()
+                return True
+            return False
+        except Error as e:
+            print(f"Error updating label: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False
+
 # Updated get team members function (based on ranks only)
 def get_team_members_by_rank():
     """Get all coordinators and senior coordinators"""
@@ -253,6 +277,53 @@ def get_team_members_by_rank():
             connection.close()
     return []
 
+def get_coordinator_team(senior_coordinator_id):
+    """Get the team members under a Senior Coordinator"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            
+            # First get the group(s) where this user is a Senior Coordinator
+            cursor.execute("""
+                SELECT DISTINCT g.id, g.group_name
+                FROM coordination_groups g
+                JOIN group_members gm ON g.id = gm.group_id
+                WHERE gm.user_id = %s AND gm.role = 'Senior Coordinator'
+                AND g.is_active = TRUE
+            """, (senior_coordinator_id,))
+            
+            groups = cursor.fetchall()
+            
+            # Get coordinators in these groups
+            coordinators = []
+            for group in groups:
+                cursor.execute("""
+                    SELECT gm.*, 
+                           u.discord_username as username,
+                           u.discord_user_id as user_id_alias
+                    FROM group_members gm
+                    JOIN users u ON gm.user_id = u.discord_user_id
+                    WHERE gm.group_id = %s AND gm.role = 'Coordinator'
+                    ORDER BY u.discord_username
+                """, (group['id'],))
+                
+                group_coordinators = cursor.fetchall()
+                for coord in group_coordinators:
+                    coord['group_name'] = group['group_name']
+                    coord['group_id'] = group['id']
+                coordinators.extend(group_coordinators)
+            
+            return coordinators
+        except Error as e:
+            print(f"Error fetching team: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+
 # Updated assignment creation function (without division)
 def create_assignment_updated(title, description, group_id, assigned_to, created_by, priority='medium', due_days=7):
     """Create a new assignment (updated without division)"""
@@ -287,6 +358,66 @@ def create_assignment_updated(title, description, group_id, assigned_to, created
             connection.close()
     return None
 
+def update_assignment_status(assignment_id, new_status, user_id):
+    """Update assignment status"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            
+            # Update status
+            update_query = "UPDATE assignments SET status = %s"
+            params = [new_status]
+            
+            if new_status == 'finished':
+                update_query += ", finished_at = NOW()"
+            elif new_status == 'verified':
+                update_query += ", verified_at = NOW(), verified_by = %s"
+                params.append(user_id)
+            
+            update_query += " WHERE id = %s"
+            params.append(assignment_id)
+            
+            cursor.execute(update_query, params)
+            
+            # Log the action
+            cursor.execute("""
+                INSERT INTO assignment_actions (assignment_id, user_id, action_type, action_data)
+                VALUES (%s, %s, 'status_change', %s)
+            """, (assignment_id, user_id, json.dumps({'new_status': new_status})))
+            
+            connection.commit()
+            return True
+        except Error as e:
+            connection.rollback()
+            print(f"Error updating assignment: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False
+
+def send_coordinator_message(sender_id, recipient_id, message, assignment_id=None):
+    """Send a message between director and coordinator"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            cursor.execute("""
+                INSERT INTO coordination_messages 
+                (sender_id, recipient_id, message, assignment_id)
+                VALUES (%s, %s, %s, %s)
+            """, (sender_id, recipient_id, message, assignment_id))
+            connection.commit()
+            return cursor.lastrowid
+        except Error as e:
+            print(f"Error sending message: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None
+
 # Updated get director assignments function (without division)
 def get_director_assignments_updated(director_id):
     """Get assignments for director verification (updated without division)"""
@@ -314,7 +445,7 @@ def get_director_assignments_updated(director_id):
     return []
 
 # Updated executive overview function (simplified)
-def get_executive_overview_updated():
+def get_executive_overview():
     """Get executive dashboard overview data (updated)"""
     connection = get_db_connection()
     if connection:
@@ -3846,6 +3977,39 @@ def generate_assignment_details_html(assignments):
     
     return html
 
+def get_senior_coordinator_assignments(user_id):
+    """Get assignments for a Senior Coordinator"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT a.*, 
+                       u.discord_username as created_by_name, 
+                       g.group_name
+                FROM assignments a
+                JOIN users u ON a.created_by = u.discord_user_id
+                LEFT JOIN coordination_groups g ON a.group_id = g.id
+                WHERE a.assigned_to = %s AND a.status IN ('open', 'in_progress')
+                ORDER BY 
+                    CASE a.priority 
+                        WHEN 'high' THEN 1 
+                        WHEN 'medium' THEN 2 
+                        WHEN 'low' THEN 3 
+                    END,
+                    a.created_at DESC
+            """, (user_id,))
+            return cursor.fetchall()
+        except Error as e:
+            print(f"Error fetching assignments: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+
+
 # Time formatting helpers
 def format_time_ago(timestamp):
     if isinstance(timestamp, str):
@@ -5100,9 +5264,6 @@ def format_status(status):
         'delayed': 'Delayed'
     }
     return status_map.get(status, status.title())
-
-# Initialize tables on startup
-init_coordination_tables()
 
 # Check for delayed assignments periodically (you might want to run this as a scheduled job)
 html3424 = '''check_and_update_delayed_assignments()
