@@ -5805,6 +5805,5 @@ def coordinator_send_message():
     
     return jsonify({'success': False, 'error': 'Database connection failed'}), 500
 
-
 if __name__ == '__main__':
     app.run(debug=False)
