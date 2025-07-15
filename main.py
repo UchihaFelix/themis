@@ -137,9 +137,9 @@ CREATE TABLE IF NOT EXISTS coordination_messages (
 );
 """
 
-def create_group_updated(group_name, created_by, members):
+def create_group(group_name, created_by, members):
     """
-    Create a new group with members (updated without division)
+    Create a new group with members (using staff_members table)
     members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
     """
     connection = get_db_connection()
@@ -173,9 +173,8 @@ def create_group_updated(group_name, created_by, members):
             connection.close()
     return None
 
-# Updated get director groups function (without division filtering)
-def get_director_groups_updated(director_id):
-    """Get all groups created by a director (updated without division)"""
+def get_director_groups(director_id):
+    """Get all groups created by a director (using staff_members table)"""
     connection = get_db_connection()
     if connection:
         try:
@@ -194,17 +193,11 @@ def get_director_groups_updated(director_id):
             for group in groups:
                 cursor.execute("""
                     SELECT gm.*, 
-                           u.discord_username as username,
-                           u.discord_user_id as user_id_alias
-                    SELECT gm.*, 
-                           u.discord_username as username,
-                           u.discord_user_id as user_id_alias
+                           gm.user_id as username,
+                           gm.user_id as user_id_alias
                     FROM group_members gm
-                    JOIN users u ON gm.user_id = u.discord_user_id
-                    JOIN users u ON gm.user_id = u.discord_user_id
                     WHERE gm.group_id = %s
-                    ORDER BY gm.role DESC, u.discord_username
-                    ORDER BY gm.role DESC, u.discord_username
+                    ORDER BY gm.role DESC, gm.user_id
                 """, (group['id'],))
                 group['members'] = cursor.fetchall()
             
@@ -247,31 +240,26 @@ def update_coordinator_label(group_id, coordinator_id, label, updated_by):
             connection.close()
     return False
 
-# Updated get team members function (based on ranks only)
+
 def get_team_members_by_rank():
-    """Get all coordinators and senior coordinators"""
+    """Get all coordinators and senior coordinators from staff_members table only"""
     connection = get_db_connection()
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
             cursor.execute("""
                 SELECT 
-                    u.discord_user_id as id,
-                    u.discord_username as username,
-                    u.roblox_user_id,
-                    u.roblox_username,
+                    s.user_id as id,
+                    s.user_id as username,
                     s.rank as role
-                FROM users u
-                JOIN staff_members s ON u.discord_user_id = s.user_id
+                FROM staff_members s
                 WHERE s.rank IN ('Senior Coordinator', 'Coordinator')
-                AND u.roblox_user_id IS NOT NULL
-                AND u.roblox_username IS NOT NULL
                 ORDER BY 
                     CASE s.rank 
                         WHEN 'Senior Coordinator' THEN 1 
                         WHEN 'Coordinator' THEN 2 
                     END,
-                    u.discord_username
+                    s.user_id
             """)
             return cursor.fetchall()
         except Error as e:
@@ -283,7 +271,7 @@ def get_team_members_by_rank():
     return []
 
 def get_coordinator_team(senior_coordinator_id):
-    """Get the team members under a Senior Coordinator"""
+    """Get the team members under a Senior Coordinator (using staff_members table)"""
     connection = get_db_connection()
     if connection:
         try:
@@ -305,12 +293,11 @@ def get_coordinator_team(senior_coordinator_id):
             for group in groups:
                 cursor.execute("""
                     SELECT gm.*, 
-                           u.discord_username as username,
-                           u.discord_user_id as user_id_alias
+                           gm.user_id as username,
+                           gm.user_id as user_id_alias
                     FROM group_members gm
-                    JOIN users u ON gm.user_id = u.discord_user_id
                     WHERE gm.group_id = %s AND gm.role = 'Coordinator'
-                    ORDER BY u.discord_username
+                    ORDER BY gm.user_id
                 """, (group['id'],))
                 
                 group_coordinators = cursor.fetchall()
@@ -327,7 +314,6 @@ def get_coordinator_team(senior_coordinator_id):
             cursor.close()
             connection.close()
     return []
-
 
 # Updated assignment creation function (without division)
 def create_assignment_updated(title, description, group_id, assigned_to, created_by, priority='medium', due_days=7):
@@ -424,18 +410,17 @@ def send_coordinator_message(sender_id, recipient_id, message, assignment_id=Non
     return None
 
 # Updated get director assignments function (without division)
-def get_director_assignments_updated(director_id):
-    """Get assignments for director verification (updated without division)"""
+def get_director_assignments(director_id):
+    """Get assignments for director verification (using staff_members table)"""
     connection = get_db_connection()
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
             cursor.execute("""
                 SELECT a.*, 
-                       u.discord_username as assigned_to_name, 
+                       a.assigned_to as assigned_to_name, 
                        g.group_name
                 FROM assignments a
-                JOIN users u ON a.assigned_to = u.discord_user_id
                 LEFT JOIN coordination_groups g ON a.group_id = g.id
                 WHERE a.created_by = %s AND a.status = 'finished'
                 ORDER BY a.finished_at DESC
@@ -449,9 +434,9 @@ def get_director_assignments_updated(director_id):
             connection.close()
     return []
 
-# Updated executive overview function (simplified)
+
 def get_executive_overview():
-    """Get executive dashboard overview data (updated)"""
+    """Get executive dashboard overview data (using staff_members table)"""
     connection = get_db_connection()
     if connection:
         try:
@@ -475,11 +460,10 @@ def get_executive_overview():
             cursor.execute("""
                 SELECT 
                     s.rank,
-                    COUNT(DISTINCT u.discord_user_id) as member_count,
+                    COUNT(DISTINCT s.user_id) as member_count,
                     COUNT(DISTINCT a.id) as active_assignments
                 FROM staff_members s
-                JOIN users u ON s.user_id = u.discord_user_id
-                LEFT JOIN assignments a ON u.discord_user_id = a.assigned_to AND a.status IN ('open', 'in_progress')
+                LEFT JOIN assignments a ON s.user_id = a.assigned_to AND a.status IN ('open', 'in_progress')
                 WHERE s.rank IN ('Senior Coordinator', 'Coordinator', 'Community Director', 'Project Director')
                 GROUP BY s.rank
                 ORDER BY 
@@ -496,12 +480,10 @@ def get_executive_overview():
             cursor.execute("""
                 SELECT 
                     a.*,
-                    u1.discord_username as assigned_to_name,
-                    u2.discord_username as created_by_name,
+                    a.assigned_to as assigned_to_name,
+                    a.created_by as created_by_name,
                     g.group_name
                 FROM assignments a
-                JOIN users u1 ON a.assigned_to = u1.discord_user_id
-                JOIN users u2 ON a.created_by = u2.discord_user_id
                 LEFT JOIN coordination_groups g ON a.group_id = g.id
                 ORDER BY a.updated_at DESC
                 LIMIT 50
@@ -2674,7 +2656,7 @@ def coordination_main():
 
 @app.route('/admin/coordination/director', methods=['GET', 'POST'])
 @login_required
-@require_ranks(['Community Director', 'Project Director', 'Executive Director', 'Administration Director'])
+@require_ranks(['Community Director', 'Executive Director'])
 def director_panel():
     user = session['user']
     staff_role = user.get('staff_info', {}).get('role', 'Staff')
@@ -2687,15 +2669,15 @@ def director_panel():
         members = data.get('members', [])
         
         if group_name and members:
-            group_id = create_group_updated(group_name, user['id'], members)
+            group_id = create_group(group_name, user['id'], members)
             if group_id:
                 return jsonify({'success': True, 'group_id': group_id})
             return jsonify({'success': False, 'error': 'Failed to create group'}), 400
         return jsonify({'success': False, 'error': 'Invalid data'}), 400
     
     team_members = get_team_members_by_rank_fixed()
-    groups = get_director_groups_updated(user['id'])
-    pending_assignments = get_director_assignments_updated(user['id'])
+    groups = get_director_groups(user['id'])
+    pending_assignments = get_director_assignments(user['id'])
     
     print(f"Team members found: {len(team_members)}")
     for member in team_members:
@@ -3025,7 +3007,7 @@ def director_panel():
                     </div>
                     
                     <div class="team-members-list">
-                        {generate_team_members_html_fixed(team_members)}
+                        {generate_team_members_html(team_members)}
                     </div>
                     
                     <div class="create-group-section">
@@ -3047,7 +3029,7 @@ def director_panel():
                 <div class="panel">
                     <h2 class="panel-title">Active Groups</h2>
                     <div class="groups-display" id="groupsDisplay">
-                        {generate_groups_html_fixed(groups)}
+                        {generate_groups_html(groups)}
                     </div>
                 </div>
             </div>
@@ -3155,73 +3137,40 @@ def director_panel():
 
 # Fixed function to get team members (with more flexible requirements)
 def get_team_members_by_rank_fixed():
-    """Get all coordinators and senior coordinators (with more flexible requirements)"""
+    """Get all coordinators and senior coordinators from staff_members table only"""
     connection = get_db_connection()
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
             
-            # First, try with full requirements
+            # Get coordinators and senior coordinators from staff_members table only
             cursor.execute("""
                 SELECT 
-                    u.discord_user_id as id,
-                    u.discord_username as username,
-                    u.roblox_user_id,
-                    u.roblox_username,
+                    s.user_id as id,
+                    s.username as username,
                     s.rank as role
-                FROM users u
-                JOIN staff_members s ON u.discord_user_id = s.user_id
+                FROM staff_members s
                 WHERE s.rank IN ('Senior Coordinator', 'Coordinator')
-                AND u.roblox_user_id IS NOT NULL
-                AND u.roblox_username IS NOT NULL
-                AND u.discord_username IS NOT NULL
                 ORDER BY 
                     CASE s.rank 
                         WHEN 'Senior Coordinator' THEN 1 
                         WHEN 'Coordinator' THEN 2 
                     END,
-                    u.discord_username
+                    s.username
             """)
             
             result = cursor.fetchall()
             
-            # If no results, try with relaxed requirements
+            # If no results, debug by checking all staff ranks
             if not result:
-                print("No team members found with full requirements, trying relaxed search...")
+                print("No coordinators found, checking all staff ranks...")
                 cursor.execute("""
                     SELECT 
-                        u.discord_user_id as id,
-                        u.discord_username as username,
-                        u.roblox_user_id,
-                        u.roblox_username,
+                        s.user_id as id,
+                        s.username as username,
                         s.rank as role
-                    FROM users u
-                    JOIN staff_members s ON u.discord_user_id = s.user_id
-                    WHERE s.rank IN ('Senior Coordinator', 'Coordinator')
-                    AND u.discord_username IS NOT NULL
-                    ORDER BY 
-                        CASE s.rank 
-                            WHEN 'Senior Coordinator' THEN 1 
-                            WHEN 'Coordinator' THEN 2 
-                        END,
-                        u.discord_username
-                """)
-                result = cursor.fetchall()
-            
-            # If still no results, check if any staff exist at all
-            if not result:
-                print("No coordinators found, checking all staff...")
-                cursor.execute("""
-                    SELECT 
-                        u.discord_user_id as id,
-                        u.discord_username as username,
-                        u.roblox_user_id,
-                        u.roblox_username,
-                        s.rank as role
-                    FROM users u
-                    JOIN staff_members s ON u.discord_user_id = s.user_id
-                    WHERE u.discord_username IS NOT NULL
-                    ORDER BY s.rank, u.discord_username
+                    FROM staff_members s
+                    ORDER BY s.rank, s.username
                     LIMIT 10
                 """)
                 all_staff = cursor.fetchall()
@@ -3240,7 +3189,7 @@ def get_team_members_by_rank_fixed():
     return []
 
 # Fixed HTML generation for team members
-def generate_team_members_html_fixed(members):
+def generate_team_members_html(members):
     if not members:
         return '''
         <div class="empty-state">
@@ -3255,11 +3204,13 @@ def generate_team_members_html_fixed(members):
     html = ''
     for member in members:
         role_class = 'senior' if member['role'] == 'Senior Coordinator' else 'coordinator'
+        # Use user_id as display name since we don't have usernames
+        display_name = f"User {member['id']}"
         html += f'''
         <div class="member-item" onclick="toggleMember(this)">
-            <input type="checkbox" class="member-checkbox" data-role="{role_class}" data-user-id="{member['id']}" data-name="{member['username']}">
+            <input type="checkbox" class="member-checkbox" data-role="{role_class}" data-user-id="{member['id']}" data-name="{display_name}">
             <div class="member-info">
-                <div class="member-name">{member['username']}</div>
+                <div class="member-name">{display_name}</div>
                 <div class="member-role {role_class}">{member['role']}</div>
             </div>
         </div>
@@ -3267,7 +3218,7 @@ def generate_team_members_html_fixed(members):
     return html
 
 # Fixed groups HTML generation
-def generate_groups_html_fixed(groups):
+def generate_groups_html(groups):
     if not groups:
         return '<p style="text-align: center; color: var(--text-muted);">No groups created yet</p>'
     
@@ -3283,19 +3234,20 @@ def generate_groups_html_fixed(groups):
                 <div class="hierarchy-level">
                     <div class="hierarchy-title">Senior Coordinators</div>
                     <div class="hierarchy-members">
-                        {''.join([f'<div class="member-badge">{m["username"]}</div>' for m in seniors])}
+                        {''.join([f'<div class="member-badge">User {m["user_id"]}</div>' for m in seniors])}
                     </div>
                 </div>
                 <div class="hierarchy-level">
                     <div class="hierarchy-title">Coordinators</div>
                     <div class="hierarchy-members">
-                        {''.join([f'<div class="member-badge">{m["username"]}{" - " + m["role_label"] if m.get("role_label") else ""}</div>' for m in coordinators])}
+                        {''.join([f'<div class="member-badge">User {m["user_id"]}{" - " + m["role_label"] if m.get("role_label") else ""}</div>' for m in coordinators])}
                     </div>
                 </div>
             </div>
         </div>
         '''
     return html
+
 
 # Route to verify assignments
 @app.route('/admin/coordination/verify-assignment', methods=['POST'])
@@ -3974,17 +3926,16 @@ def generate_assignment_details_html(assignments):
     return html
 
 def get_senior_coordinator_assignments(user_id):
-    """Get assignments for a Senior Coordinator"""
+    """Get assignments for a Senior Coordinator (using staff_members table)"""
     connection = get_db_connection()
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
             cursor.execute("""
                 SELECT a.*, 
-                       u.discord_username as created_by_name, 
+                       a.created_by as created_by_name, 
                        g.group_name
                 FROM assignments a
-                JOIN users u ON a.created_by = u.discord_user_id
                 LEFT JOIN coordination_groups g ON a.group_id = g.id
                 WHERE a.assigned_to = %s AND a.status IN ('open', 'in_progress')
                 ORDER BY 
