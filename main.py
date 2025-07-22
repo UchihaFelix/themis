@@ -9,7 +9,6 @@ import json
 import mysql.connector # type: ignore
 from mysql.connector import Error # type: ignore
 
-# For R2 file upload and proxy
 import boto3 # type: ignore
 from werkzeug.utils import secure_filename # type: ignore
 from dotenv import load_dotenv # type: ignore
@@ -17,9 +16,20 @@ from flask import Response # type: ignore
 
 load_dotenv()
 
-# Initialize Flask app
-# Use a strong secret key from environment variable for production
+# Secrets
+DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
+DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
+DISCORD_REDIRECT_URI = os.getenv('DISCORD_REDIRECT_URI')
+DB_CONFIG = {
+    'host': os.getenv('DB_HOST'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'),
+    'database': os.getenv('DB_DATABASE'),
+    'port': int(os.getenv('DB_PORT', 3306))
+}
+BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
 SECRET_KEY = os.getenv('SECRET_KEY')
+
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
@@ -30,32 +40,34 @@ RANK_LEVELS = {
     'Administration Director': 2,
     'Project Director': 3,
     'Community Director': 4,
-    'Administrator': 5,
-    'Junior Administrator': 6,
-    'Senior Moderator': 7,
-    'Moderator': 8,
-    'Trial Moderator': 9,
-    'Senior Developer': 10,
-    'Developer': 11,
-    'Junior Developer': 12,
-    'Senior Coordinator': 13,
-    'Coordinator': 14
+    'Senior Administrator' : 5,
+    'Administrator': 6,
+    'Junior Administrator': 7,
+    'Senior Moderator': 8,
+    'Moderator': 9,
+    'Trial Moderator': 10,
+    'Senior Developer': 11,
+    'Developer': 12,
+    'Junior Developer': 13,
+    'Senior Coordinator': 14,
+    'Coordinator': 15
 }
 
 # Rank color mapping for user info box
 # Set the colours to match staff server role colours for consistency. (can't be bothered changing the colour names)
 RANK_COLORS = {
-    'Executive Director': '#3d0079',         # indigo purple
-    'Administration Director': '#a11a1a',    # darker-red
-    'Project Director': "#70006c",           # dark blue
-    'Community Director': '#166534',         # dark green
-    'Administrator': '#8b0000',              # darkish-red
-    'Junior Administrator': '#ff0000',       # red
-    'Senior Moderator': '#992d22',           # dark orange
-    'Moderator': '#f59e42',                  # orange
-    'Trial Moderator': '#c27c0e',            # yellow
-    'Senior Developer': '#0004d3',           # dark blue
-    'Developer': '#4750ff',                  # blue
+    'Executive Director': "#480091ff",         # indigo purple
+    'Administration Director': "#420f0f",    # darker-red
+    'Project Director': "#002394B7",           # dark blue
+    'Community Director': "#003113",  
+    'Senior Administrator' : "#5A0000",       # dark green
+    'Administrator': "#9e0000ff",              # darkish-red
+    'Junior Administrator': "#ff00007f",       # red
+    'Senior Moderator': "#992e22b3",           # dark orange
+    'Moderator': "#ff8400c8",                  # orange
+    'Trial Moderator': "#f2ffa7b0",            # yellow
+    'Senior Developer': "#0003af",           # dark blue
+    'Developer': "#3c46ff",                  # blue
     'Junior Developer': '#848cff',           # pastel blue
     'Senior Coordinator': '#006428',         # darkish green
     'Coordinator': "#2ecc71"                 # neon green
@@ -466,7 +478,7 @@ s3 = boto3.client(
 BUCKET_NAME = os.getenv('R2_BUCKET')
 
 
-# Evidence upload route
+# API
 @app.route('/api/evidence/upload', methods=['POST'])
 def upload_evidence():
     if 'file' not in request.files or 'case_id' not in request.form:
@@ -530,21 +542,7 @@ app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookie over HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'     # Adjust as needed
 
-# Discord OAuth2 Configuration
-DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
-DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
-DISCORD_REDIRECT_URI = os.getenv('DISCORD_REDIRECT_URI')
 
-# Database Configuration
-DB_CONFIG = {
-    'host': os.getenv('DB_HOST'),
-    'user': os.getenv('DB_USER'),
-    'password': os.getenv('DB_PASSWORD'),
-    'database': os.getenv('DB_DATABASE'),
-    'port': int(os.getenv('DB_PORT', 3306))
-}
-
-BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
 
 # Initialize OAuth
 oauth = OAuth(app)
@@ -5676,8 +5674,6 @@ def coordinator_send_message():
             connection.close()
     
     return jsonify({'success': False, 'error': 'Database connection failed'}), 500
-
-from flask import request, redirect
 
 # Redirect all /admin and root traffic to themis.fxs-host.xyz if accessed via fxs-host.xyz
 @app.before_request
