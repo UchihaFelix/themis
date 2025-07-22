@@ -2614,17 +2614,13 @@ def coordination_main():
 @require_ranks(['Community Director', 'Project Director', 'Executive Director', 'Administration Director'])
 def director_create_group():
     user = session['user']
-    staff_role = user.get('staff_info', {}).get('role', 'Staff')
-    
-    # Determine division based on role
-    division = 'Community' if staff_role == 'Community Director' else 'Project'
     
     data = request.get_json()
     group_name = data.get('group_name')
     members = data.get('members', [])
     
     if group_name and members:
-        group_id = create_group(group_name, division, user['id'], members)
+        group_id = create_group(group_name, user['id'], members)
         if group_id:
             return jsonify({'success': True, 'group_id': group_id})
         return jsonify({'success': False, 'error': 'Failed to create group'}), 400
