@@ -2610,7 +2610,52 @@ def coordination_main():
         </html>
         ''', staff_rank=staff_rank), 403
 
-@app.route('/admin/coordination/director', methods=['GET', 'POST'])
+@app.route('/admin/coordination/director/create-group', methods=['POST'])
+@login_required
+@require_ranks(['Community Director', 'Project Director', 'Executive Director', 'Administration Director'])
+def director_create_group():
+    user = session['user']
+    staff_role = user.get('staff_info', {}).get('role', 'Staff')
+    
+    # Determine division based on role
+    division = 'Community' if staff_role == 'Community Director' else 'Project'
+    
+    data = request.get_json()
+    group_name = data.get('group_name')
+    members = data.get('members', [])
+    
+    if group_name and members:
+        group_id = create_group(group_name, division, user['id'], members)
+        if group_id:
+            return jsonify({'success': True, 'group_id': group_id})
+        return jsonify({'success': False, 'error': 'Failed to create group'}), 400
+    return jsonify({'success': False, 'error': 'Invalid data'}), 400
+
+@app.route('/admin/coordination/director/create-assignment', methods=['POST'])
+@login_required
+@require_ranks(['Community Director', 'Project Director', 'Executive Director', 'Administration Director'])
+def director_create_assignment():
+    user = session['user']
+    
+    data = request.get_json()
+    title = data.get('title')
+    description = data.get('description')
+    group_id = data.get('group_id')
+    assigned_to = data.get('assigned_to')
+    priority = data.get('priority', 'medium')
+    due_days = data.get('due_days', 7)
+    
+    if all([title, group_id, assigned_to]):
+        assignment_id = create_assignment_updated(
+            title, description, group_id, assigned_to, 
+            user['id'], priority, due_days
+        )
+        if assignment_id:
+            return jsonify({'success': True, 'assignment_id': assignment_id})
+        return jsonify({'success': False, 'error': 'Failed to create assignment'}), 400
+    return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
+@app.route('/admin/coordination/director', methods=['GET'])
 @login_required
 @require_ranks(['Community Director', 'Project Director', 'Executive Director', 'Administration Director'])
 def director_panel():
@@ -2619,7 +2664,7 @@ def director_panel():
     rank_color = RANK_COLORS.get(staff_role, '#a977f8')
     
     # Determine division based on role
-    division = 'Community' if staff_role == 'Community Director' else 'Project'
+    division = 'Community' if staff_role == 'Community Director' else 'Executive'
     
 
 
@@ -2822,38 +2867,7 @@ def director_panel():
             '''
         return html
 
-    # Handle different POST requests
-    if request.method == 'POST':
-        if request.path.endswith('/create-group'):
-            data = request.get_json()
-            group_name = data.get('group_name')
-            members = data.get('members', [])
-            
-            if group_name and members:
-                group_id = create_group(group_name, division, user['id'], members)
-                if group_id:
-                    return jsonify({'success': True, 'group_id': group_id})
-                return jsonify({'success': False, 'error': 'Failed to create group'}), 400
-            return jsonify({'success': False, 'error': 'Invalid data'}), 400
-            
-        elif request.path.endswith('/create-assignment'):
-            data = request.get_json()
-            title = data.get('title')
-            description = data.get('description')
-            group_id = data.get('group_id')
-            assigned_to = data.get('assigned_to')
-            priority = data.get('priority', 'medium')
-            due_days = data.get('due_days', 7)
-            
-            if all([title, group_id, assigned_to]):
-                assignment_id = create_assignment_updated(
-                    title, description, group_id, assigned_to, 
-                    user['id'], priority, due_days
-                )
-                if assignment_id:
-                    return jsonify({'success': True, 'assignment_id': assignment_id})
-                return jsonify({'success': False, 'error': 'Failed to create assignment'}), 400
-            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
     
     # Get data for display
     team_members = get_team_members_by_rank_fixed()
