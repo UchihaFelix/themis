@@ -73,7 +73,6 @@ RANK_COLORS = {
     'Coordinator': "#2ecc71"                 # neon green
 }
 
-
 def create_group(group_name, created_by, members):
     """
     Create a new group with members (using staff_members table)
