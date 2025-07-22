@@ -61,81 +61,6 @@ RANK_COLORS = {
     'Coordinator': "#2ecc71"                 # neon green
 }
 
-# Database table creation SQL
-COORDINATION_TABLES_SQL = """
--- Groups table for storing team groups
-CREATE TABLE IF NOT EXISTS coordination_groups (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    group_name VARCHAR(255) NOT NULL,
-    division VARCHAR(100) NOT NULL,
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (created_by) REFERENCES users(id)
-);
-
--- Group members table for storing group hierarchy
-CREATE TABLE IF NOT EXISTS group_members (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    group_id INT NOT NULL,
-    user_id INT NOT NULL,
-    role VARCHAR(50) NOT NULL, -- 'Senior Coordinator' or 'Coordinator'
-    role_label VARCHAR(255) DEFAULT NULL, -- Custom label assigned by Senior Coordinator
-    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (group_id) REFERENCES coordination_groups(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    UNIQUE KEY unique_group_member (group_id, user_id)
-);
-
--- Assignments table
-CREATE TABLE IF NOT EXISTS assignments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    division VARCHAR(100) NOT NULL,
-    group_id INT DEFAULT NULL,
-    assigned_to INT DEFAULT NULL, -- Senior Coordinator
-    created_by INT NOT NULL, -- Director who created it
-    priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
-    status ENUM('open', 'in_progress', 'finished', 'verified', 'delayed') DEFAULT 'open',
-    due_date DATETIME DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    finished_at DATETIME DEFAULT NULL,
-    verified_at DATETIME DEFAULT NULL,
-    verified_by INT DEFAULT NULL,
-    FOREIGN KEY (group_id) REFERENCES coordination_groups(id),
-    FOREIGN KEY (assigned_to) REFERENCES users(id),
-    FOREIGN KEY (created_by) REFERENCES users(id),
-    FOREIGN KEY (verified_by) REFERENCES users(id)
-);
-
--- Assignment actions/comments
-CREATE TABLE IF NOT EXISTS assignment_actions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    assignment_id INT NOT NULL,
-    user_id INT NOT NULL,
-    action_type ENUM('comment', 'status_change', 'contact_director', 'assignment') NOT NULL,
-    action_data TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
-
--- Messages between directors and coordinators
-CREATE TABLE IF NOT EXISTS coordination_messages (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    assignment_id INT DEFAULT NULL,
-    sender_id INT NOT NULL,
-    recipient_id INT NOT NULL,
-    message TEXT NOT NULL,
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (assignment_id) REFERENCES assignments(id),
-    FOREIGN KEY (sender_id) REFERENCES users(id),
-    FOREIGN KEY (recipient_id) REFERENCES users(id)
-);
-"""
 
 def create_group(group_name, created_by, members):
     """
@@ -474,7 +399,7 @@ def get_executive_overview():
             """)
             rank_breakdown = cursor.fetchall()
             
-            # Get recent assignments with details (simplified without joins to users table)
+            # Get recent assignments with details
             cursor.execute("""
                 SELECT 
                     a.*,
@@ -5473,7 +5398,7 @@ html3424 = '''check_and_update_delayed_assignments()
             .assignment-group {{
                 font-size: 0.85rem;
                 color: var(--
-'''
+''' # gonna finish later
 @app.route('/admin/create-modlog', methods=['POST'])
 @login_required
 @staff_required
@@ -5751,6 +5676,20 @@ def coordinator_send_message():
             connection.close()
     
     return jsonify({'success': False, 'error': 'Database connection failed'}), 500
+
+from flask import request, redirect
+
+# Redirect all /admin and root traffic to themis.fxs-host.xyz if accessed via fxs-host.xyz
+@app.before_request
+def redirect_to_themis_subdomain():
+    host = request.headers.get('Host', '')
+    # Only redirect if on the root domain (not already on themis.)
+    if host.lower() == 'fxs-host.xyz' or host.lower().startswith('www.fxs-host.xyz'):
+        # Only redirect /admin and root ("/") paths
+        if request.path == '/' or request.path.startswith('/admin'):
+            # Build new URL with themis.fxs-host.xyz, preserve path and query string
+            new_url = request.url.replace(host, 'themis.fxs-host.xyz', 1)
+            return redirect(new_url, code=301)
 
 if __name__ == '__main__':
     app.run(debug=False)
