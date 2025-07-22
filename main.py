@@ -5675,17 +5675,6 @@ def coordinator_send_message():
     
     return jsonify({'success': False, 'error': 'Database connection failed'}), 500
 
-# Redirect all /admin and root traffic to themis.fxs-host.xyz if accessed via fxs-host.xyz
-@app.before_request
-def redirect_to_themis_subdomain():
-    host = request.headers.get('Host', '')
-    # Only redirect if on the root domain (not already on themis.)
-    if host.lower() == 'fxs-host.xyz' or host.lower().startswith('www.fxs-host.xyz'):
-        # Only redirect /admin and root ("/") paths
-        if request.path == '/' or request.path.startswith('/admin'):
-            # Build new URL with themis.fxs-host.xyz, preserve path and query string
-            new_url = request.url.replace(host, 'themis.fxs-host.xyz', 1)
-            return redirect(new_url, code=301)
-
 if __name__ == '__main__':
     app.run(debug=False)
+
