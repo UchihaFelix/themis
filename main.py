@@ -178,7 +178,7 @@ def update_coordinator_label(group_id, coordinator_id, label, updated_by):
     return False
 
 
-def get_team_members_by_rank():
+def get_team_members_by_rank_fixed():
     """Get all coordinators and senior coordinators from staff_members table only"""
     connection = get_db_connection()
     if connection:
@@ -662,6 +662,43 @@ def staff_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def format_time_ago(timestamp):
+    if isinstance(timestamp, str):
+        timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        
+    now = datetime.now()
+    diff = now - timestamp
+        
+    if diff.days > 7:
+        return timestamp.strftime('%B %d, %Y')
+    elif diff.days > 0:
+        return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+    elif diff.seconds > 3600:
+        hours = diff.seconds // 3600
+        return f"{hours} hour{'s' if hours > 1 else ''} ago"
+    elif diff.seconds > 60:
+        minutes = diff.seconds // 60
+        return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+    else:
+        return "Just now"
+
+def format_time_until(timestamp):
+    if isinstance(timestamp, str):
+        timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        
+    now = datetime.now()
+    diff = timestamp - now
+        
+    if diff.days < 0:
+        return f"{abs(diff.days)} day{'s' if abs(diff.days) > 1 else ''} overdue"
+    elif diff.days > 0:
+        return f"{diff.days} day{'s' if diff.days > 1 else ''}"
+    elif diff.seconds > 3600:
+        hours = diff.seconds // 3600
+        return f"{hours} hour{'s' if hours > 1 else ''}"
+    else:
+        return "Today"
+    
 # Routes
 @app.route('/')
 def index():
@@ -1391,9 +1428,9 @@ def admin_dashboard():
                 
                 {generate_panel_card('coordination_executive', 'Executive Overview', 'Monitor all divisions and assignments from an executive perspective', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>', '/admin/coordination/executive')}
                 
-                {generate_panel_card('coordination_director', 'Director Panel', 'Manage your coordination teams and assign tasks to Senior Coordinators', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>', '/admin/coordination/director')}
+                {generate_panel_card('coordination_director', 'Director Panel', 'Manage your coordination teams and manage assignments', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>', '/admin/coordination/director')}
                 
-                {generate_panel_card('coordination_senior', 'Senior Coordinator', 'Manage your coordinator team and handle incoming assignments', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/></svg>', '/admin/coordination/senior')}
+                {generate_panel_card('coordination_senior', 'Senior Coordinator', 'Manage your coordinator team, handle and review incoming assignments', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/></svg>', '/admin/coordination/senior')}
                 
                 {generate_panel_card('coordination_basic', 'Coordinator Panel', 'View your assignments and communicate with your Senior Coordinators', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/></svg>', '/admin/coordination/coordinator')}
                 
@@ -2575,32 +2612,256 @@ def coordination_main():
 
 @app.route('/admin/coordination/director', methods=['GET', 'POST'])
 @login_required
-@require_ranks(['Community Director', 'Executive Director'])
+@require_ranks(['Community Director', 'Project Director', 'Executive Director', 'Administration Director'])
 def director_panel():
     user = session['user']
     staff_role = user.get('staff_info', {}).get('role', 'Staff')
     rank_color = RANK_COLORS.get(staff_role, '#a977f8')
     
-    # Group Creation Handler
-    if request.method == 'POST':
-        data = request.get_json()
-        group_name = data.get('group_name')
-        members = data.get('members', [])
-        
-        if group_name and members:
-            group_id = create_group(group_name, user['id'], members)
-            if group_id:
-                return jsonify({'success': True, 'group_id': group_id})
-            return jsonify({'success': False, 'error': 'Failed to create group'}), 400
-        return jsonify({'success': False, 'error': 'Invalid data'}), 400
+    # Determine division based on role
+    division = 'Community' if staff_role == 'Community Director' else 'Project'
     
+
+
+    def get_division_stats(division, director_id):
+        """Get statistics for a specific division"""
+        connection = get_db_connection()
+        if connection:
+            try:
+                cursor = connection.cursor(dictionary=True)
+                
+                # Get total groups
+                cursor.execute("""
+                    SELECT COUNT(*) as total_groups
+                    FROM coordination_groups
+                    WHERE created_by = %s AND is_active = TRUE
+                """, (director_id,))
+                stats = cursor.fetchone()
+                
+                # Get total members across all groups
+                cursor.execute("""
+                    SELECT COUNT(DISTINCT gm.user_id) as total_members
+                    FROM group_members gm
+                    JOIN coordination_groups g ON gm.group_id = g.id
+                    WHERE g.created_by = %s AND g.is_active = TRUE
+                """, (director_id,))
+                members = cursor.fetchone()
+                stats['total_members'] = members['total_members']
+                
+                # Get active assignments
+                cursor.execute("""
+                    SELECT COUNT(*) as active_assignments
+                    FROM assignments a
+                    JOIN coordination_groups g ON a.group_id = g.id
+                    WHERE g.created_by = %s AND a.status IN ('open', 'in_progress')
+                """, (director_id,))
+                active = cursor.fetchone()
+                stats['active_assignments'] = active['active_assignments']
+                
+                # Calculate completion rate
+                cursor.execute("""
+                    SELECT 
+                        COUNT(CASE WHEN status = 'verified' THEN 1 END) as completed,
+                        COUNT(*) as total
+                    FROM assignments a
+                    JOIN coordination_groups g ON a.group_id = g.id
+                    WHERE g.created_by = %s
+                """, (director_id,))
+                completion = cursor.fetchone()
+                
+                if completion['total'] > 0:
+                    stats['completion_rate'] = int((completion['completed'] / completion['total']) * 100)
+                else:
+                    stats['completion_rate'] = 0
+                
+                return stats
+            except Error as e:
+                print(f"Error fetching division stats: {e}")
+                return {'total_groups': 0, 'total_members': 0, 'active_assignments': 0, 'completion_rate': 0}
+            finally:
+                cursor.close()
+                connection.close()
+        return {'total_groups': 0, 'total_members': 0, 'active_assignments': 0, 'completion_rate': 0}
+
+    # Update the create_group function to include division
+    def create_group(group_name, division, created_by, members):
+        """Create a new group with members and division"""
+        connection = get_db_connection()
+        if connection:
+            try:
+                cursor = connection.cursor()
+                
+                # Create the group with division
+                cursor.execute("""
+                    INSERT INTO coordination_groups (group_name, division, created_by)
+                    VALUES (%s, %s, %s)
+                """, (group_name, division, created_by))
+                
+                group_id = cursor.lastrowid
+                
+                # Add members to the group
+                for member in members:
+                    cursor.execute("""
+                        INSERT INTO group_members (group_id, user_id, role)
+                        VALUES (%s, %s, %s)
+                    """, (group_id, member['user_id'], member['role']))
+                
+                connection.commit()
+                return group_id
+            except Error as e:
+                connection.rollback()
+                print(f"Error creating group: {e}")
+                return None
+            finally:
+                cursor.close()
+                connection.close()
+        return None
+
+    # Helper function to generate group options for select dropdown
+    def generate_group_options(groups):
+        if not groups:
+            return '<option value="">No teams available</option>'
+        
+        html = ''
+        for group in groups:
+            member_count = len(group.get('members', []))
+            html += f'<option value="{group["id"]}">{group["group_name"]} ({member_count} members)</option>'
+        
+        return html
+
+    # Helper function to generate groups display
+    def generate_groups_display(groups):
+        if not groups:
+            return '''
+            <div class="empty-state">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                </svg>
+                <p>No teams created yet</p>
+            </div>
+            '''
+        
+        html = ''
+        for group in groups:
+            seniors = [m for m in group['members'] if m['role'] == 'Senior Coordinator']
+            coordinators = [m for m in group['members'] if m['role'] == 'Coordinator']
+            
+            # Get assignment stats for this group
+            active_count = 0  # You would query this from the database
+            completed_count = 0  # You would query this from the database
+            
+            html += f'''
+            <div class="group-card" data-group-id="{group['id']}">
+                <div class="group-name">{group['group_name']}</div>
+                
+                <div class="group-metrics">
+                    <div class="group-metric">
+                        <div class="metric-value">{len(seniors)}</div>
+                        <div class="metric-label">Seniors</div>
+                    </div>
+                    <div class="group-metric">
+                        <div class="metric-value">{len(coordinators)}</div>
+                        <div class="metric-label">Coordinators</div>
+                    </div>
+                    <div class="group-metric">
+                        <div class="metric-value">{active_count}</div>
+                        <div class="metric-label">Active</div>
+                    </div>
+                </div>
+                
+                <div class="group-members-preview">
+                    {''.join([f'<div class="member-badge">User {m["user_id"]}</div>' for m in seniors[:2]])}
+                    {f'<div class="member-badge">+{len(seniors) - 2} more</div>' if len(seniors) > 2 else ''}
+                </div>
+            </div>
+            '''
+        
+        return html
+
+    # Helper function to generate pending assignments
+    def generate_pending_assignments(assignments):
+        if not assignments:
+            return '''
+            <div class="empty-state">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 6h12v10H4V6z" clip-rule="evenodd"/>
+                </svg>
+                <p>No assignments pending verification</p>
+            </div>
+            '''
+        
+        html = ''
+        for assignment in assignments:
+            finished_ago = format_time_ago(assignment['finished_at']) if assignment.get('finished_at') else 'Unknown'
+            
+            html += f'''
+            <div class="assignment-item">
+                <div class="assignment-header">
+                    <div class="assignment-title">{assignment['title']}</div>
+                    <div class="assignment-status status-finished">Pending</div>
+                </div>
+                
+                <div class="assignment-details">
+                    <span>By: User {assignment['assigned_to']}</span>
+                    <span>Team: {assignment.get('group_name', 'Unknown')}</span>
+                    <span>Completed: {finished_ago}</span>
+                </div>
+                
+                <div class="assignment-actions">
+                    <button class="btn btn-success btn-small" onclick="verifyAssignment({assignment['id']})">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        Verify Complete
+                    </button>
+                    <button class="btn btn-secondary btn-small" onclick="viewAssignmentDetails({assignment['id']})">
+                        View Details
+                    </button>
+                </div>
+            </div>
+            '''
+        return html
+
+    # Handle different POST requests
+    if request.method == 'POST':
+        if request.path.endswith('/create-group'):
+            data = request.get_json()
+            group_name = data.get('group_name')
+            members = data.get('members', [])
+            
+            if group_name and members:
+                group_id = create_group(group_name, division, user['id'], members)
+                if group_id:
+                    return jsonify({'success': True, 'group_id': group_id})
+                return jsonify({'success': False, 'error': 'Failed to create group'}), 400
+            return jsonify({'success': False, 'error': 'Invalid data'}), 400
+            
+        elif request.path.endswith('/create-assignment'):
+            data = request.get_json()
+            title = data.get('title')
+            description = data.get('description')
+            group_id = data.get('group_id')
+            assigned_to = data.get('assigned_to')
+            priority = data.get('priority', 'medium')
+            due_days = data.get('due_days', 7)
+            
+            if all([title, group_id, assigned_to]):
+                assignment_id = create_assignment_updated(
+                    title, description, group_id, assigned_to, 
+                    user['id'], priority, due_days
+                )
+                if assignment_id:
+                    return jsonify({'success': True, 'assignment_id': assignment_id})
+                return jsonify({'success': False, 'error': 'Failed to create assignment'}), 400
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    # Get data for display
     team_members = get_team_members_by_rank_fixed()
     groups = get_director_groups(user['id'])
     pending_assignments = get_director_assignments(user['id'])
     
-    print(f"Team members found: {len(team_members)}")
-    for member in team_members:
-        print(f"- {member.get('username', 'Unknown')} ({member.get('role', 'Unknown')})")
+    # Get division statistics
+    stats = get_division_stats(division, user['id'])
     
     html = rf'''
     <!DOCTYPE html>
@@ -2608,10 +2869,9 @@ def director_panel():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Director Panel - Themis</title>
+        <title>{division} Director Panel - Themis</title>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
         <style>
-            /* Same styles as before */
             :root {{
                 --primary-color: #a977f8;
                 --primary-rgb: 169, 119, 248;
@@ -2625,6 +2885,7 @@ def director_panel():
                 --success-color: #4ade80;
                 --warning-color: #fbbf24;
                 --error-color: #f87171;
+                --info-color: #60a5fa;
                 --rank-color: {rank_color};
                 --shadow-primary: 0 4px 32px rgba(169, 119, 248, 0.15);
                 --shadow-elevated: 0 8px 48px rgba(169, 119, 248, 0.2);
@@ -2645,8 +2906,22 @@ def director_panel():
                 min-height: 100vh;
             }}
             
+            /* Background gradient */
+            .background-gradient {{
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: -1;
+                background: 
+                    radial-gradient(circle at 20% 30%, rgba(var(--primary-rgb), 0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 70%, rgba(var(--primary-rgb), 0.06) 0%, transparent 50%);
+            }}
+            
             .container {{
-                max-width: 1400px;
+                max-width: 1600px;
                 margin: 0 auto;
                 padding: 40px 20px;
             }}
@@ -2685,9 +2960,52 @@ def director_panel():
                 transform: translateX(-4px);
             }}
             
-            .panels-grid {{
+            /* Stats Row */
+            .stats-row {{
                 display: grid;
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-bottom: 40px;
+            }}
+            
+            .stat-card {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border-color);
+                border-radius: 16px;
+                padding: 24px;
+                backdrop-filter: var(--backdrop-blur);
+                position: relative;
+                overflow: hidden;
+            }}
+            
+            .stat-card::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, var(--primary-color) 0%, #d946ef 100%);
+            }}
+            
+            .stat-value {{
+                font-size: 2rem;
+                font-weight: 800;
+                color: var(--primary-color);
+                margin-bottom: 4px;
+            }}
+            
+            .stat-label {{
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }}
+            
+            /* Main Grid */
+            .main-grid {{
+                display: grid;
+                grid-template-columns: 350px 1fr 380px;
                 gap: 32px;
                 margin-bottom: 40px;
             }}
@@ -2707,13 +3025,28 @@ def director_panel():
                 color: var(--text-primary);
             }}
             
+            /* Team Building Panel */
             .team-members-list {{
                 display: flex;
                 flex-direction: column;
                 gap: 12px;
                 max-height: 400px;
                 overflow-y: auto;
-                min-height: 200px;
+                padding-right: 8px;
+            }}
+            
+            .team-members-list::-webkit-scrollbar {{
+                width: 6px;
+            }}
+            
+            .team-members-list::-webkit-scrollbar-track {{
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 3px;
+            }}
+            
+            .team-members-list::-webkit-scrollbar-thumb {{
+                background: rgba(169, 119, 248, 0.3);
+                border-radius: 3px;
             }}
             
             .member-item {{
@@ -2766,6 +3099,7 @@ def director_panel():
                 color: #60a5fa;
             }}
             
+            /* Create Group Section */
             .create-group-section {{
                 margin-top: 32px;
                 padding-top: 32px;
@@ -2783,7 +3117,7 @@ def director_panel():
                 color: var(--text-secondary);
             }}
             
-            .form-input {{
+            .form-input, .form-select, .form-textarea {{
                 width: 100%;
                 background: rgba(255, 255, 255, 0.05);
                 border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2792,14 +3126,211 @@ def director_panel():
                 color: var(--text-primary);
                 font-size: 1rem;
                 transition: all 0.2s ease;
+                font-family: inherit;
             }}
             
-            .form-input:focus {{
+            .form-input:focus, .form-select:focus, .form-textarea:focus {{
                 outline: none;
                 border-color: var(--primary-color);
                 background: rgba(255, 255, 255, 0.08);
             }}
             
+            .form-textarea {{
+                min-height: 100px;
+                resize: vertical;
+            }}
+            
+            /* Assignment Creation */
+            .assignment-form {{
+                display: none;
+            }}
+            
+            .assignment-form.active {{
+                display: block;
+                animation: fadeIn 0.3s ease;
+            }}
+            
+            @keyframes fadeIn {{
+                from {{
+                    opacity: 0;
+                    transform: translateY(10px);
+                }}
+                to {{
+                    opacity: 1;
+                    transform: translateY(0);
+                }}
+            }}
+            
+            .priority-selector {{
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+                margin-top: 8px;
+            }}
+            
+            .priority-option {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                padding: 12px;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }}
+            
+            .priority-option:hover {{
+                border-color: var(--primary-color);
+            }}
+            
+            .priority-option.selected {{
+                border-color: var(--primary-color);
+                background: rgba(var(--primary-rgb), 0.2);
+            }}
+            
+            .priority-option.low {{
+                border-color: var(--success-color);
+            }}
+            
+            .priority-option.medium {{
+                border-color: var(--warning-color);
+            }}
+            
+            .priority-option.high {{
+                border-color: var(--error-color);
+            }}
+            
+            /* Groups Display */
+            .groups-display {{
+                display: grid;
+                gap: 24px;
+            }}
+            
+            .group-card {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border-color);
+                border-radius: 16px;
+                padding: 24px;
+                position: relative;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }}
+            
+            .group-card:hover {{
+                border-color: var(--primary-color);
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            .group-card.selected {{
+                border-color: var(--primary-color);
+                background: rgba(var(--primary-rgb), 0.1);
+            }}
+            
+            .group-name {{
+                font-size: 1.25rem;
+                font-weight: 700;
+                margin-bottom: 16px;
+                color: var(--primary-color);
+            }}
+            
+            .group-metrics {{
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+                margin-bottom: 20px;
+            }}
+            
+            .group-metric {{
+                text-align: center;
+            }}
+            
+            .metric-value {{
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--text-primary);
+            }}
+            
+            .metric-label {{
+                font-size: 0.75rem;
+                color: var(--text-muted);
+                text-transform: uppercase;
+            }}
+            
+            .group-members-preview {{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }}
+            
+            .member-badge {{
+                background: rgba(var(--primary-rgb), 0.1);
+                border: 1px solid rgba(var(--primary-rgb), 0.3);
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                font-weight: 500;
+            }}
+            
+            /* Assignments List */
+            .assignments-list {{
+                display: grid;
+                gap: 16px;
+            }}
+            
+            .assignment-item {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                padding: 20px;
+                transition: all 0.2s ease;
+            }}
+            
+            .assignment-item:hover {{
+                border-color: var(--primary-color);
+                transform: translateY(-2px);
+            }}
+            
+            .assignment-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 12px;
+            }}
+            
+            .assignment-title {{
+                font-weight: 600;
+                font-size: 1.1rem;
+                color: var(--text-primary);
+            }}
+            
+            .assignment-status {{
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 0.8rem;
+                font-weight: 600;
+                text-transform: uppercase;
+            }}
+            
+            .status-finished {{
+                background: rgba(251, 191, 36, 0.2);
+                color: var(--warning-color);
+                border: 1px solid rgba(251, 191, 36, 0.3);
+            }}
+            
+            .assignment-details {{
+                display: flex;
+                gap: 16px;
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                margin-bottom: 16px;
+            }}
+            
+            .assignment-actions {{
+                display: flex;
+                gap: 12px;
+            }}
+            
+            /* Buttons */
             .btn {{
                 background: var(--primary-color);
                 color: white;
@@ -2825,6 +3356,27 @@ def director_panel():
                 cursor: not-allowed;
             }}
             
+            .btn-secondary {{
+                background: rgba(255, 255, 255, 0.08);
+                color: var(--text-primary);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }}
+            
+            .btn-secondary:hover {{
+                background: rgba(255, 255, 255, 0.12);
+            }}
+            
+            .btn-success {{
+                background: var(--success-color);
+                color: black;
+            }}
+            
+            .btn-small {{
+                padding: 8px 16px;
+                font-size: 0.875rem;
+            }}
+            
+            /* Empty States */
             .empty-state {{
                 text-align: center;
                 padding: 40px 20px;
@@ -2838,36 +3390,7 @@ def director_panel():
                 opacity: 0.3;
             }}
             
-            .debug-info {{
-                background: rgba(255, 255, 255, 0.02);
-                border: 1px solid rgba(255, 255, 255, 0.05);
-                border-radius: 8px;
-                padding: 12px;
-                margin-bottom: 16px;
-                font-size: 0.8rem;
-                color: var(--text-muted);
-            }}
-            
-            .groups-display {{
-                display: grid;
-                gap: 24px;
-            }}
-            
-            .group-card {{
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid var(--border-color);
-                border-radius: 16px;
-                padding: 24px;
-                position: relative;
-            }}
-            
-            .group-name {{
-                font-size: 1.25rem;
-                font-weight: 700;
-                margin-bottom: 16px;
-                color: var(--primary-color);
-            }}
-            
+            /* Loading */
             .loading {{
                 display: none;
                 position: fixed;
@@ -2884,11 +3407,14 @@ def director_panel():
                 display: block;
             }}
             
-            @media (max-width: 768px) {{
-                .panels-grid {{
+            /* Responsive */
+            @media (max-width: 1200px) {{
+                .main-grid {{
                     grid-template-columns: 1fr;
                 }}
-                
+            }}
+            
+            @media (max-width: 768px) {{
                 .container {{
                     padding: 20px 16px;
                 }}
@@ -2896,10 +3422,19 @@ def director_panel():
                 .page-title {{
                     font-size: 2rem;
                 }}
+                
+                .stats-row {{
+                    grid-template-columns: 1fr 1fr;
+                }}
+                
+                .priority-selector {{
+                    grid-template-columns: 1fr;
+                }}
             }}
         </style>
     </head>
     <body>
+        <div class="background-gradient"></div>
         <div class="loading" id="loadingIndicator">
             <div style="color: white;">Processing...</div>
         </div>
@@ -2913,42 +3448,127 @@ def director_panel():
             </a>
             
             <div class="header">
-                <h1 class="page-title">Director Panel</h1>
-                <p class="page-subtitle">Manage your coordination teams and review assignments</p>
+                <h1 class="page-title">{division} Director Panel</h1>
+                <p class="page-subtitle">Build teams, assign tasks, and oversee {division.lower()} operations</p>
             </div>
             
-            <div class="panels-grid">
+            <!-- Statistics Row -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-value">{stats.get('total_groups', 0)}</div>
+                    <div class="stat-label">Active Teams</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{stats.get('total_members', 0)}</div>
+                    <div class="stat-label">Team Members</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{stats.get('active_assignments', 0)}</div>
+                    <div class="stat-label">Active Tasks</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{stats.get('completion_rate', 0)}%</div>
+                    <div class="stat-label">Completion Rate</div>
+                </div>
+            </div>
+            
+            <!-- Main Grid -->
+            <div class="main-grid">
+                <!-- Team Building Panel -->
                 <div class="panel">
-                    <h2 class="panel-title">Available Team Members</h2>
-                    
-                    <div class="debug-info">
-                        Debug: Found {len(team_members)} team members
-                    </div>
+                    <h2 class="panel-title">Team Builder</h2>
                     
                     <div class="team-members-list">
                         {generate_team_members_html(team_members)}
                     </div>
                     
                     <div class="create-group-section">
-                        <h3 style="font-size: 1.1rem; margin-bottom: 16px;">Create New Group</h3>
+                        <h3 style="font-size: 1.1rem; margin-bottom: 16px;">Create New Team</h3>
                         <div class="form-group">
-                            <label class="form-label">Group Name</label>
-                            <input type="text" class="form-input" id="groupName" placeholder="Enter group name...">
+                            <label class="form-label">Team Name</label>
+                            <input type="text" class="form-input" id="groupName" placeholder="Enter team name...">
                         </div>
                         <button class="btn" id="createGroupBtn" onclick="createGroup()" disabled>
                             <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                             </svg>
-                            Create Group
+                            Create Team
                         </button>
                         <div id="groupError" style="color: var(--error-color); font-size: 0.85rem; margin-top: 8px; display: none;"></div>
                     </div>
                 </div>
                 
+                <!-- Assignment Creation Panel -->
                 <div class="panel">
-                    <h2 class="panel-title">Active Groups</h2>
-                    <div class="groups-display" id="groupsDisplay">
-                        {generate_groups_html(groups)}
+                    <h2 class="panel-title">Create Assignment</h2>
+                    
+                    <div class="assignment-form active">
+                        <div class="form-group">
+                            <label class="form-label">Select Team</label>
+                            <select class="form-select" id="selectGroup" onchange="updateAssigneeList()">
+                                <option value="">Choose a team...</option>
+                                {generate_group_options(groups)}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Assign To</label>
+                            <select class="form-select" id="selectAssignee" disabled>
+                                <option value="">Select team first...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Task Title</label>
+                            <input type="text" class="form-input" id="assignmentTitle" placeholder="Enter task title...">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-textarea" id="assignmentDescription" placeholder="Provide task details..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Priority</label>
+                            <div class="priority-selector">
+                                <div class="priority-option low" data-priority="low" onclick="selectPriority('low')">
+                                    Low
+                                </div>
+                                <div class="priority-option medium selected" data-priority="medium" onclick="selectPriority('medium')">
+                                    Medium
+                                </div>
+                                <div class="priority-option high" data-priority="high" onclick="selectPriority('high')">
+                                    High
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Due In (Days)</label>
+                            <input type="number" class="form-input" id="dueDays" value="7" min="1" max="30">
+                        </div>
+                        
+                        <button class="btn" onclick="createAssignment()">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 6h12v10H4V6z" clip-rule="evenodd"/>
+                            </svg>
+                            Create Assignment
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Teams & Assignments Panel -->
+                <div class="panel">
+                    <h2 class="panel-title">Active Teams</h2>
+                    
+                    <div class="groups-display">
+                        {generate_groups_display(groups)}
+                    </div>
+                    
+                    <h3 style="font-size: 1.25rem; margin: 32px 0 16px 0;">Pending Verification</h3>
+                    
+                    <div class="assignments-list">
+                        {generate_pending_assignments(pending_assignments)}
                     </div>
                 </div>
             </div>
@@ -2959,6 +3579,9 @@ def director_panel():
                 senior: [],
                 coordinator: []
             }};
+            
+            let selectedPriority = 'medium';
+            let groupsData = {json.dumps([{'id': g['id'], 'name': g['group_name'], 'members': g['members']} for g in groups])};
             
             function toggleMember(element) {{
                 const checkbox = element.querySelector('.member-checkbox');
@@ -2991,11 +3614,11 @@ def director_panel():
                 const hasName = groupName.length > 0;
                 
                 if (!hasSenior || !hasCoordinator) {{
-                    errorDiv.textContent = 'You must select at least 1 Senior Coordinator and 1 Coordinator';
+                    errorDiv.textContent = 'Select at least 1 Senior Coordinator and 1 Coordinator';
                     errorDiv.style.display = 'block';
                     createBtn.disabled = true;
                 }} else if (!hasName) {{
-                    errorDiv.textContent = 'Please enter a group name';
+                    errorDiv.textContent = 'Please enter a team name';
                     errorDiv.style.display = 'block';
                     createBtn.disabled = true;
                 }} else {{
@@ -3006,11 +3629,39 @@ def director_panel():
             
             document.getElementById('groupName').addEventListener('input', validateGroupCreation);
             
+            function selectPriority(priority) {{
+                document.querySelectorAll('.priority-option').forEach(opt => {{
+                    opt.classList.remove('selected');
+                }});
+                document.querySelector(`.priority-option[data-priority="${{priority}}"]`).classList.add('selected');
+                selectedPriority = priority;
+            }}
+            
+            function updateAssigneeList() {{
+                const groupId = document.getElementById('selectGroup').value;
+                const assigneeSelect = document.getElementById('selectAssignee');
+                
+                assigneeSelect.innerHTML = '<option value="">Choose assignee...</option>';
+                assigneeSelect.disabled = !groupId;
+                
+                if (groupId) {{
+                    const group = groupsData.find(g => g.id == groupId);
+                    if (group) {{
+                        const seniors = group.members.filter(m => m.role === 'Senior Coordinator');
+                        seniors.forEach(member => {{
+                            const option = document.createElement('option');
+                            option.value = member.user_id;
+                            option.textContent = `User ${{member.user_id}} (Senior Coordinator)`;
+                            assigneeSelect.appendChild(option);
+                        }});
+                    }}
+                }}
+            }}
+            
             async function createGroup() {{
                 const groupName = document.getElementById('groupName').value.trim();
                 const loadingIndicator = document.getElementById('loadingIndicator');
                 
-                // Prepare members array
                 const members = [];
                 selectedMembers.senior.forEach(m => {{
                     members.push({{user_id: parseInt(m.id), role: 'Senior Coordinator'}});
@@ -3022,7 +3673,7 @@ def director_panel():
                 loadingIndicator.classList.add('active');
                 
                 try {{
-                    const response = await fetch('/admin/coordination/director', {{
+                    const response = await fetch('/admin/coordination/director/create-group', {{
                         method: 'POST',
                         headers: {{
                             'Content-Type': 'application/json',
@@ -3036,13 +3687,101 @@ def director_panel():
                     const data = await response.json();
                     
                     if (data.success) {{
-                        alert('Group created successfully!');
+                        alert('Team created successfully!');
                         window.location.reload();
                     }} else {{
-                        alert('Error creating group: ' + (data.error || 'Unknown error'));
+                        alert('Error creating team: ' + (data.error || 'Unknown error'));
                     }}
                 }} catch (error) {{
-                    alert('Error creating group: ' + error.message);
+                    alert('Error creating team: ' + error.message);
+                }} finally {{
+                    loadingIndicator.classList.remove('active');
+                }}
+            }}
+            
+            async function createAssignment() {{
+                const groupId = document.getElementById('selectGroup').value;
+                const assigneeId = document.getElementById('selectAssignee').value;
+                const title = document.getElementById('assignmentTitle').value.trim();
+                const description = document.getElementById('assignmentDescription').value.trim();
+                const dueDays = document.getElementById('dueDays').value;
+                
+                if (!groupId || !assigneeId || !title) {{
+                    alert('Please fill in all required fields');
+                    return;
+                }}
+                
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                loadingIndicator.classList.add('active');
+                
+                try {{
+                    const response = await fetch('/admin/coordination/director/create-assignment', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json',
+                        }},
+                        body: JSON.stringify({{
+                            title: title,
+                            description: description,
+                            group_id: parseInt(groupId),
+                            assigned_to: parseInt(assigneeId),
+                            priority: selectedPriority,
+                            due_days: parseInt(dueDays)
+                        }})
+                    }});
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {{
+                        alert('Assignment created successfully!');
+                        // Clear form
+                        document.getElementById('assignmentTitle').value = '';
+                        document.getElementById('assignmentDescription').value = '';
+                        document.getElementById('selectGroup').value = '';
+                        document.getElementById('selectAssignee').value = '';
+                        document.getElementById('selectAssignee').disabled = true;
+                        document.getElementById('dueDays').value = '7';
+                        selectPriority('medium');
+                        
+                        // Reload to show new assignment
+                        setTimeout(() => window.location.reload(), 1000);
+                    }} else {{
+                        alert('Error creating assignment: ' + (data.error || 'Unknown error'));
+                    }}
+                }} catch (error) {{
+                    alert('Error creating assignment: ' + error.message);
+                }} finally {{
+                    loadingIndicator.classList.remove('active');
+                }}
+            }}
+            
+            async function verifyAssignment(assignmentId) {{
+                if (!confirm('Verify this assignment as completed?')) return;
+                
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                loadingIndicator.classList.add('active');
+                
+                try {{
+                    const response = await fetch('/admin/coordination/verify-assignment', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json',
+                        }},
+                        body: JSON.stringify({{
+                            assignment_id: assignmentId
+                        }})
+                    }});
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {{
+                        alert('Assignment verified successfully!');
+                        window.location.reload();
+                    }} else {{
+                        alert('Error verifying assignment');
+                    }}
+                }} catch (error) {{
+                    alert('Error: ' + error.message);
                 }} finally {{
                     loadingIndicator.classList.remove('active');
                 }}
@@ -3053,7 +3792,7 @@ def director_panel():
     '''
     
     return render_template_string(html)
-
+            
 # Fixed function to get team members (with more flexible requirements)
 def get_team_members_by_rank_fixed():
     """Get all coordinators and senior coordinators from staff_members table only"""
@@ -3875,44 +4614,6 @@ def get_senior_coordinator_assignments(user_id):
     return []
 
 
-
-# Time formatting helpers
-def format_time_ago(timestamp):
-    if isinstance(timestamp, str):
-        timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-    
-    now = datetime.now()
-    diff = now - timestamp
-    
-    if diff.days > 7:
-        return timestamp.strftime('%B %d, %Y')
-    elif diff.days > 0:
-        return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
-    elif diff.seconds > 3600:
-        hours = diff.seconds // 3600
-        return f"{hours} hour{'s' if hours > 1 else ''} ago"
-    elif diff.seconds > 60:
-        minutes = diff.seconds // 60
-        return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
-    else:
-        return "Just now"
-
-def format_time_until(timestamp):
-    if isinstance(timestamp, str):
-        timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-    
-    now = datetime.now()
-    diff = timestamp - now
-    
-    if diff.days < 0:
-        return f"{abs(diff.days)} day{'s' if abs(diff.days) > 1 else ''} overdue"
-    elif diff.days > 0:
-        return f"{diff.days} day{'s' if diff.days > 1 else ''}"
-    elif diff.seconds > 3600:
-        hours = diff.seconds // 3600
-        return f"{hours} hour{'s' if hours > 1 else ''}"
-    else:
-        return "Today"
 
 # Additional routes for Senior Coordinator actions
 @app.route('/admin/coordination/finish-assignment', methods=['POST'])
