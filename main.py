@@ -2304,7 +2304,7 @@ def admin_cases():
                         </tr>
                     </thead>
                     <tbody>
-                        {''.join(f'''
+""" + (''.join([f'''
                         <tr>
                             <td><span class="case-id">#{c["id"]}</span></td>
                             <td><span class="user-id">{c["user_id"]}</span></td>
@@ -2323,7 +2323,7 @@ def admin_cases():
                                 </button>
                             </td>
                         </tr>
-                        ''' for c in cases) if cases else '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">No cases found</td></tr>'}
+''' for c in cases]) if cases else '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 40px;">No cases found</td></tr>') + """
                     </tbody>
                 </table>
             </div>
