@@ -1384,7 +1384,7 @@ def admin_dashboard():
         
         <div class="user-info">
             <div class="user-avatar">
-                {f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}
+                {f'<img src="{user.get("avatar_url")}" alt="Avatar">' if user.get("avatar_url") else user.get("username", "U")[0].upper()}
             </div>
             <div class="user-details">
                 <div class="user-name">{user.get('username', 'User')}</div>
@@ -2269,7 +2269,7 @@ def admin_cases():
         
         <div class="user-info">
             <div class="user-avatar">
-                {f'<img src="{user.get('avatar_url')}" alt="Avatar">' if user.get('avatar_url') else user.get('username', 'U')[0].upper()}
+                {f'<img src="{user.get("avatar_url")}" alt="Avatar">' if user.get("avatar_url") else user.get("username", "U")[0].upper()}
             </div>
             <div class="user-details">
                 <div class="user-name">{user.get('username', 'User')}</div>
