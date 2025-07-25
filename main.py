@@ -1501,6 +1501,7 @@ def admin_cases():
             cases = []
         finally:
             connection.close()
+    
     def render_evidence_block(evidence_list):
         if not evidence_list:
             return '<span style="color:#888">No evidence</span>'
@@ -1531,10 +1532,35 @@ def admin_cases():
     def get_type_color(ptype):
         return PUNISHMENT_COLORS.get(ptype.lower(), PUNISHMENT_COLORS['default']) if ptype else PUNISHMENT_COLORS['default']
 
-    # The following HTML contains inline JS that references 'document', which is not a Python variable.
-    # noqa: E501, F405, F821  # For linters: ignore long lines and undefined names in inline JS
-    # Use a raw string to avoid SyntaxWarning for backslashes in JS/HTML
-    html = rf'''
+    # Generate table rows
+    table_rows = ""
+    if cases:
+        for c in cases:
+            reason_text = c['reason'] or 'No reason provided'
+            status_class = 'status-appealed' if c['status'] == 'Appealed' else 'status-active'
+            table_rows += f'''
+                        <tr>
+                            <td><span class="case-id">#{c["id"]}</span></td>
+                            <td><span class="user-id">{c["user_id"]}</span></td>
+                            <td><span class="type-badge" style="background-color: {get_type_color(c['type'])}">{c["type"].title()}</span></td>
+                            <td><span class="case-reason" title="{reason_text}">{reason_text}</span></td>
+                            <td><span class="status-badge {status_class}">{c["status"]}</span></td>
+                            <td>{c["length"]}</td>
+                            <td>{render_evidence_block(c.get('evidence_list', []))}</td>
+                            <td>
+                                <button class="action-btn" onclick="viewCase('{c['id']}', '{c['user_id']}', '{c['type']}', '{reason_text}', '{c['status']}', '{c['length']}')">
+                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                    View
+                                </button>
+                            </td>
+                        </tr>'''
+    else:
+        table_rows = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 40px;">No cases found</td></tr>'
+
+    html = f'''
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -2293,37 +2319,18 @@ def admin_cases():
                 <table class="cases-table">
                     <thead>
                         <tr>
-    <th>Case ID</th>
-    <th>User ID</th>
-    <th>Type</th>
-    <th>Reason</th>
-    <th>Status</th>
-    <th>Length</th>
-    <th>Evidence</th>
-    <th>Actions</th>
+                            <th>Case ID</th>
+                            <th>User ID</th>
+                            <th>Type</th>
+                            <th>Reason</th>
+                            <th>Status</th>
+                            <th>Length</th>
+                            <th>Evidence</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-""" + (''.join([f'''
-                        <tr>
-                            <td><span class="case-id">#{c["id"]}</span></td>
-                            <td><span class="user-id">{c["user_id"]}</span></td>
-                            <td><span class="type-badge" style="background-color: {get_type_color(c['type'])}">{c["type"].title()}</span></td>
-                            <td><span class="case-reason" title="{c['reason'] or 'No reason provided'}">{c["reason"] or 'No reason provided'}</span></td>
-                            <td><span class="status-badge {'status-appealed' if c['status'] == 'Appealed' else 'status-active'}">{c["status"]}</span></td>
-                            <td>{c["length"]}</td>
-                            <td>{render_evidence_block(c.get('evidence_list', []))}</td>
-                            <td>
-                                <button class="action-btn" onclick="viewCase('{c['id']}', '{c['user_id']}', '{c['type']}', '{c['reason'] or 'No reason provided'}', '{c['status']}', '{c['length']}')">
-                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-                                    </svg>
-                                    View
-                                </button>
-                            </td>
-                        </tr>
-''' for c in cases]) if cases else '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 40px;">No cases found</td></tr>') + """
+                        {table_rows}
                     </tbody>
                 </table>
             </div>
