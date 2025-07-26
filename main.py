@@ -74,54 +74,44 @@ RANK_COLORS = {
 }
 
 def create_group(group_name, created_by_discord_id, members):
-    """
-    Create a new group with members (using staff_members table)
-    created_by_discord_id = Discord ID from session
-    members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
-    """
-    connection = get_db_connection()
-    if connection:
-        try:
-            cursor = connection.cursor()
-            
-            # First, get the actual database user ID from the Discord ID
-            cursor.execute("SELECT id FROM users WHERE discord_user_id = %s", (created_by_discord_id,))
-            user_row = cursor.fetchone()
-            
-            if not user_row:
-                print(f"User not found in users table for Discord ID: {created_by_discord_id}")
-                return None
-            
-            created_by_user_id = user_row[0]
-            
-            # Create the group with the proper user ID
-            cursor.execute("""
-                INSERT INTO coordination_groups (group_name, created_by)
-                VALUES (%s, %s)
-            """, (group_name, created_by_user_id))
-            
-            group_id = cursor.lastrowid
-            
-            # Add members to the group
-            for member in members:
+        """
+        Create a new group with members (using staff_members table)
+        created_by_discord_id = Discord ID from session
+        members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
+        """
+        connection = get_db_connection()
+        if connection:
+            try:
+                cursor = connection.cursor()
+                
+                # Create the group directly with Discord ID
                 cursor.execute("""
-                    INSERT INTO group_members (group_id, user_id, role)
-                    VALUES (%s, %s, %s)
-                """, (group_id, member['user_id'], member['role']))
-            
-            connection.commit()
-            return group_id
-        except Error as e:
-            connection.rollback()
-            print(f"Error creating group: {e}")
-            return None
-        finally:
-            cursor.close()
-            connection.close()
-    return None
+                    INSERT INTO coordination_groups (group_name, created_by)
+                    VALUES (%s, %s)
+                """, (group_name, created_by_discord_id))
+                
+                group_id = cursor.lastrowid
+                
+                # Add members to the group
+                for member in members:
+                    cursor.execute("""
+                        INSERT INTO group_members (group_id, user_id, role)
+                        VALUES (%s, %s, %s)
+                    """, (group_id, member['user_id'], member['role']))
+                
+                connection.commit()
+                return group_id
+            except Error as e:
+                connection.rollback()
+                print(f"Error creating group: {e}")
+                return None
+            finally:
+                cursor.close()
+                connection.close()
+        return None
 
-def get_director_groups(director_id):
-    """Get all groups created by a director (using staff_members table)"""
+def get_director_groups(director_discord_id):
+    """Get all groups created by a director (using Discord ID)"""
     connection = get_db_connection()
     if connection:
         try:
@@ -132,7 +122,7 @@ def get_director_groups(director_id):
                 FROM coordination_groups g
                 WHERE g.created_by = %s AND g.is_active = TRUE
                 ORDER BY g.created_at DESC
-            """, (director_id,))
+            """, (director_discord_id,))
             
             groups = cursor.fetchall()
             
@@ -355,32 +345,6 @@ def send_coordinator_message(sender_id, recipient_id, message, assignment_id=Non
             cursor.close()
             connection.close()
     return None
-
-# Updated get director assignments function (without division)
-def get_director_assignments(director_id):
-    """Get assignments for director verification (using staff_members table)"""
-    connection = get_db_connection()
-    if connection:
-        try:
-            cursor = connection.cursor(dictionary=True)
-            cursor.execute("""
-                SELECT a.*, 
-                       a.assigned_to as assigned_to_name, 
-                       g.group_name
-                FROM assignments a
-                LEFT JOIN coordination_groups g ON a.group_id = g.id
-                WHERE a.created_by = %s AND a.status = 'finished'
-                ORDER BY a.finished_at DESC
-            """, (director_id,))
-            return cursor.fetchall()
-        except Error as e:
-            print(f"Error fetching assignments: {e}")
-            return []
-        finally:
-            cursor.close()
-            connection.close()
-    return []
-
 
 def get_executive_overview():
     """Get executive dashboard overview data (updated)"""
@@ -2754,21 +2718,11 @@ def director_panel():
             try:
                 cursor = connection.cursor()
                 
-                # First, get the actual database user ID from the Discord ID
-                cursor.execute("SELECT id FROM users WHERE discord_user_id = %s", (created_by_discord_id,))
-                user_row = cursor.fetchone()
-                
-                if not user_row:
-                    print(f"User not found in users table for Discord ID: {created_by_discord_id}")
-                    return None
-                
-                created_by_user_id = user_row[0]
-                
-                # Create the group with the proper user ID
+                # Create the group directly with Discord ID
                 cursor.execute("""
                     INSERT INTO coordination_groups (group_name, created_by)
                     VALUES (%s, %s)
-                """, (group_name, created_by_user_id))
+                """, (group_name, created_by_discord_id))
                 
                 group_id = cursor.lastrowid
                 
