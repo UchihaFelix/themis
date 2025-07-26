@@ -2744,6 +2744,43 @@ def director_panel():
                 connection.close()
         return None
 
+    def get_director_groups(director_discord_id):
+        """Get all groups created by a director (using Discord ID)"""
+        connection = get_db_connection()
+        if connection:
+            try:
+                cursor = connection.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT g.*, 
+                        (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count
+                    FROM coordination_groups g
+                    WHERE g.created_by = %s AND g.is_active = TRUE
+                    ORDER BY g.created_at DESC
+                """, (director_discord_id,))
+                
+                groups = cursor.fetchall()
+                
+                # Get members for each group
+                for group in groups:
+                    cursor.execute("""
+                        SELECT gm.*, 
+                            gm.user_id as username,
+                            gm.user_id as user_id_alias
+                        FROM group_members gm
+                        WHERE gm.group_id = %s
+                        ORDER BY gm.role DESC, gm.user_id
+                    """, (group['id'],))
+                    group['members'] = cursor.fetchall()
+                
+                return groups
+            except Error as e:
+                print(f"Error fetching groups: {e}")
+                return []
+            finally:
+                cursor.close()
+                connection.close()
+        return []
+
     # Helper function to generate group options for select dropdown
     def generate_group_options(groups):
         if not groups:
