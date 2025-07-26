@@ -346,6 +346,35 @@ def send_coordinator_message(sender_id, recipient_id, message, assignment_id=Non
             connection.close()
     return None
 
+def get_director_assignments(director_discord_id):
+    """Get assignments for director verification (using Discord ID)"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT a.*, 
+                       a.assigned_to as assigned_to_name, 
+                       g.group_name,
+                       CASE 
+                           WHEN a.finished_at IS NOT NULL THEN a.finished_at
+                           ELSE a.updated_at 
+                       END as sort_date
+                FROM assignments a
+                LEFT JOIN coordination_groups g ON a.group_id = g.id
+                WHERE g.created_by = %s AND a.status = 'finished'
+                ORDER BY sort_date DESC
+                LIMIT 50
+            """, (director_discord_id,))
+            return cursor.fetchall()
+        except Error as e:
+            print(f"Error fetching director assignments: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
 def get_executive_overview():
     """Get executive dashboard overview data (updated)"""
     connection = get_db_connection()
