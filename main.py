@@ -73,41 +73,6 @@ RANK_COLORS = {
     'Coordinator': "#2ecc71"                 # neon green
 }
 
-def create_group(group_name, created_by, members):
-    """
-    Create a new group with members (using staff_members table)
-    members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
-    """
-    connection = get_db_connection()
-    if connection:
-        try:
-            cursor = connection.cursor()
-            
-            # Create the group
-            cursor.execute("""
-                INSERT INTO coordination_groups (group_name, created_by)
-                VALUES (%s, %s)
-            """, (group_name, created_by))
-            
-            group_id = cursor.lastrowid
-            
-            # Add members to the group
-            for member in members:
-                cursor.execute("""
-                    INSERT INTO group_members (group_id, user_id, role)
-                    VALUES (%s, %s, %s)
-                """, (group_id, member['user_id'], member['role']))
-            
-            connection.commit()
-            return group_id
-        except Error as e:
-            connection.rollback()
-            print(f"Error creating group: {e}")
-            return None
-        finally:
-            cursor.close()
-            connection.close()
-    return None
 
 def get_director_groups(director_id):
     """Get all groups created by a director (using staff_members table)"""
@@ -2627,10 +2592,12 @@ def director_create_group():
     members = data.get('members', [])
     
     if group_name and members:
-        group_id = create_group(group_name, user['id'], members)
+        # Pass the Discord user ID, not the session user ID
+        discord_user_id = user['id']  # This is the Discord ID from session
+        group_id = create_group(group_name, discord_user_id, members)
         if group_id:
             return jsonify({'success': True, 'group_id': group_id})
-        return jsonify({'success': False, 'error': 'Failed to create group'}), 400
+        return jsonify({'success': False, 'error': 'Failed to create group - user not found in database'}), 400
     return jsonify({'success': False, 'error': 'Invalid data'}), 400
 
 @app.route('/admin/coordination/director/create-assignment', methods=['POST'])
@@ -2730,19 +2697,32 @@ def director_panel():
                 connection.close()
         return {'total_groups': 0, 'total_members': 0, 'active_assignments': 0, 'completion_rate': 0}
 
-    # Update the create_group function to include division
-    def create_group(group_name, division, created_by, members):
-        """Create a new group with members and division"""
+    def create_group(group_name, created_by_discord_id, members):
+        """
+        Create a new group with members (using staff_members table)
+        created_by_discord_id = Discord ID from session
+        members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
+        """
         connection = get_db_connection()
         if connection:
             try:
                 cursor = connection.cursor()
                 
-                # Create the group with division
+                # First, get the actual database user ID from the Discord ID
+                cursor.execute("SELECT id FROM users WHERE discord_user_id = %s", (created_by_discord_id,))
+                user_row = cursor.fetchone()
+                
+                if not user_row:
+                    print(f"User not found in users table for Discord ID: {created_by_discord_id}")
+                    return None
+                
+                created_by_user_id = user_row[0]
+                
+                # Create the group with the proper user ID
                 cursor.execute("""
-                    INSERT INTO coordination_groups (group_name, division, created_by)
-                    VALUES (%s, %s, %s)
-                """, (group_name, division, created_by))
+                    INSERT INTO coordination_groups (group_name, created_by)
+                    VALUES (%s, %s)
+                """, (group_name, created_by_user_id))
                 
                 group_id = cursor.lastrowid
                 
