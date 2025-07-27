@@ -3715,7 +3715,7 @@ def director_panel():
             }};
             
             let selectedPriority = 'medium';
-            let groupsData = {json.dumps([{'id': g['id'], 'name': g['group_name'], 'members': g['members']} for g in groups])};
+            let groupsData = {json.dumps([{'id': g['id'], 'name': g['group_name'], 'members': [{'user_id': m['user_id'], 'role': m['role']} for m in g.get('members', [])]} for g in groups])};
             
             function toggleMember(element) {{
                 const checkbox = element.querySelector('.member-checkbox');
