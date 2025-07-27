@@ -77,7 +77,7 @@ def create_group(group_name, created_by_discord_id, members):
     """
     Create a new group with members (using staff_members table)
     created_by_discord_id = Discord ID from session
-    members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
+    members = [{'user_id': '660419748894343168', 'role': 'Senior Coordinator'}, ...]
     """
     print(f"=== CREATE_GROUP FUNCTION ===")
     print(f"Group name: {group_name}")
@@ -92,27 +92,47 @@ def create_group(group_name, created_by_discord_id, members):
     try:
         cursor = connection.cursor()
         
-        # First, verify the creator exists in staff_members (optional check)
-        cursor.execute("SELECT user_id FROM staff_members WHERE user_id = %s", (str(created_by_discord_id),))
-        creator_exists = cursor.fetchone()
-        print(f"Creator exists in staff_members: {creator_exists is not None}")
+        # Convert Discord ID to integer for database storage
+        try:
+            creator_id_int = int(created_by_discord_id)
+            print(f"Converted creator ID to int: {creator_id_int}")
+        except ValueError:
+            print(f"Error: Could not convert creator Discord ID to integer: {created_by_discord_id}")
+            connection.close()
+            return None
         
-        # Verify all members exist in staff_members
+        # Verify all members exist in staff_members and convert their IDs
+        validated_members = []
         for member in members:
-            cursor.execute("SELECT user_id FROM staff_members WHERE user_id = %s", (str(member['user_id']),))
-            member_exists = cursor.fetchone()
-            print(f"Member {member['user_id']} exists in staff_members: {member_exists is not None}")
-            if not member_exists:
-                print(f"Error: Member with user_id {member['user_id']} not found in staff_members table")
+            try:
+                user_id_int = int(member['user_id'])
+                
+                # Check if member exists in staff_members table
+                cursor.execute("SELECT user_id FROM staff_members WHERE user_id = %s", (user_id_int,))
+                member_exists = cursor.fetchone()
+                print(f"Member {user_id_int} exists in staff_members: {member_exists is not None}")
+                
+                if not member_exists:
+                    print(f"Error: Member with user_id {user_id_int} not found in staff_members table")
+                    connection.close()
+                    return None
+                
+                validated_members.append({
+                    'user_id': user_id_int,
+                    'role': member['role']
+                })
+                
+            except ValueError:
+                print(f"Error: Could not convert member user_id to integer: {member['user_id']}")
                 connection.close()
                 return None
         
-        # Create the group directly with Discord ID
+        # Create the group with integer Discord ID
         print("Creating group in coordination_groups table...")
         cursor.execute("""
             INSERT INTO coordination_groups (group_name, created_by)
             VALUES (%s, %s)
-        """, (group_name, str(created_by_discord_id)))
+        """, (group_name, creator_id_int))
         
         # Get the group ID immediately after insertion
         group_id = cursor.lastrowid
@@ -127,16 +147,16 @@ def create_group(group_name, created_by_discord_id, members):
         
         # Add members to the group
         print("Adding members to group_members table...")
-        for member in members:
-            print(f"Adding member: {member}")
+        for member in validated_members:
+            print(f"Adding member: user_id={member['user_id']}, role={member['role']}")
             cursor.execute("""
                 INSERT INTO group_members (group_id, user_id, role)
                 VALUES (%s, %s, %s)
-            """, (group_id, str(member['user_id']), member['role']))
+            """, (group_id, member['user_id'], member['role']))
         
         # Commit all changes
         connection.commit()
-        print(f"Successfully created group {group_id} with {len(members)} members")
+        print(f"Successfully created group {group_id} with {len(validated_members)} members")
         connection.close()
         return group_id
         
