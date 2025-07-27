@@ -3772,17 +3772,26 @@ def director_panel():
                 }}
             }}
             
+            // Fixed createGroup function - keep IDs as strings (for f-string)
             async function createGroup() {{
                 const groupName = document.getElementById('groupName').value.trim();
                 const loadingIndicator = document.getElementById('loadingIndicator');
                 
                 const members = [];
                 selectedMembers.senior.forEach(m => {{
-                    members.push({{user_id: parseInt(m.id), role: 'Senior Coordinator'}});
+                    members.push({{
+                        user_id: m.id, // Keep as string, don't use parseInt()
+                        role: 'Senior Coordinator'
+                    }});
                 }});
                 selectedMembers.coordinator.forEach(m => {{
-                    members.push({{user_id: parseInt(m.id), role: 'Coordinator'}});
+                    members.push({{
+                        user_id: m.id, // Keep as string, don't use parseInt()
+                        role: 'Coordinator'
+                    }});
                 }});
+                
+                console.log('Creating group with members:', members); // Debug log
                 
                 loadingIndicator.classList.add('active');
                 
@@ -3811,6 +3820,56 @@ def director_panel():
                 }} finally {{
                     loadingIndicator.classList.remove('active');
                 }}
+            }}
+
+            // Also fix the toggleMember function to ensure IDs stay as strings
+            function toggleMember(element) {{
+                const checkbox = element.querySelector('.member-checkbox');
+                checkbox.checked = !checkbox.checked;
+                element.classList.toggle('selected', checkbox.checked);
+                
+                const role = checkbox.dataset.role;
+                const userId = checkbox.dataset.userId; // Keep as string
+                const name = checkbox.dataset.name;
+                
+                if (checkbox.checked) {{
+                    selectedMembers[role].push({{
+                        id: userId, // Keep as string, don't convert to int
+                        name: name
+                    }});
+                }} else {{
+                    const index = selectedMembers[role].findIndex(m => m.id === userId);
+                    if (index > -1) {{
+                        selectedMembers[role].splice(index, 1);
+                    }}
+                }}
+                
+                validateGroupCreation();
+            }}
+
+            // Also fix the toggleMember function to ensure IDs stay as strings
+            function toggleMember(element) {{
+                const checkbox = element.querySelector('.member-checkbox');
+                checkbox.checked = !checkbox.checked;
+                element.classList.toggle('selected', checkbox.checked);
+                
+                const role = checkbox.dataset.role;
+                const userId = checkbox.dataset.userId; // Keep as string
+                const name = checkbox.dataset.name;    
+
+                if (checkbox.checked) {{
+                    selectedMembers[role].push({{
+                        id: userId, // Keep as string, dont convert to int
+                        name: name
+                    }});
+                }} else {{
+                    const index = selectedMembers[role].findIndex(m => m.id === userId);
+                    if (index > -1) {{
+                        selectedMembers[role].splice(index, 1);
+                    }}
+                }}
+                
+                validateGroupCreation();
             }}
             
             async function createAssignment() {{
