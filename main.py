@@ -79,54 +79,76 @@ def create_group(group_name, created_by_discord_id, members):
     created_by_discord_id = Discord ID from session
     members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
     """
+    print(f"=== CREATE_GROUP FUNCTION ===")
+    print(f"Group name: {group_name}")
+    print(f"Created by Discord ID: {created_by_discord_id} (type: {type(created_by_discord_id)})")
+    print(f"Members: {members}")
+    
     connection = get_db_connection()
-    if connection:
-        try:
-            cursor = connection.cursor()
-            
-            # Create the group directly with Discord ID
-            cursor.execute("""
-                INSERT INTO coordination_groups (group_name, created_by)
-                VALUES (%s, %s)
-            """, (group_name, created_by_discord_id))
-            
-            # Get the group ID immediately after insertion
-            group_id = cursor.lastrowid
-            print(f"Created group with ID: {group_id}")  # Debug log
-            
-            # Verify the group was created
-            if not group_id:
-                print("Error: No group ID returned from insertion")
-                connection.rollback()
-                return None
-            
-            # Add members to the group
-            for member in members:
-                print(f"Adding member: {member}")  # Debug log
-                cursor.execute("""
-                    INSERT INTO group_members (group_id, user_id, role)
-                    VALUES (%s, %s, %s)
-                """, (group_id, member['user_id'], member['role']))
-            
-            # Commit all changes
-            connection.commit()
-            print(f"Successfully created group {group_id} with {len(members)} members")
-            return group_id
-            
-        except Error as e:
-            connection.rollback()
-            print(f"Database error creating group: {e}")
-            return None
-        except Exception as e:
-            connection.rollback()
-            print(f"General error creating group: {e}")
-            return None
-        finally:
-            if cursor:
-                cursor.close()
-            connection.close()
-    else:
+    if not connection:
         print("Error: Could not establish database connection")
+        return None
+        
+    try:
+        cursor = connection.cursor()
+        
+        # First, verify the creator exists in staff_members (optional check)
+        cursor.execute("SELECT user_id FROM staff_members WHERE user_id = %s", (str(created_by_discord_id),))
+        creator_exists = cursor.fetchone()
+        print(f"Creator exists in staff_members: {creator_exists is not None}")
+        
+        # Verify all members exist in staff_members
+        for member in members:
+            cursor.execute("SELECT user_id FROM staff_members WHERE user_id = %s", (str(member['user_id']),))
+            member_exists = cursor.fetchone()
+            print(f"Member {member['user_id']} exists in staff_members: {member_exists is not None}")
+            if not member_exists:
+                print(f"Error: Member with user_id {member['user_id']} not found in staff_members table")
+                connection.close()
+                return None
+        
+        # Create the group directly with Discord ID
+        print("Creating group in coordination_groups table...")
+        cursor.execute("""
+            INSERT INTO coordination_groups (group_name, created_by)
+            VALUES (%s, %s)
+        """, (group_name, str(created_by_discord_id)))
+        
+        # Get the group ID immediately after insertion
+        group_id = cursor.lastrowid
+        print(f"Group created with ID: {group_id}")
+        
+        # Verify the group was created
+        if not group_id:
+            print("Error: No group ID returned from insertion")
+            connection.rollback()
+            connection.close()
+            return None
+        
+        # Add members to the group
+        print("Adding members to group_members table...")
+        for member in members:
+            print(f"Adding member: {member}")
+            cursor.execute("""
+                INSERT INTO group_members (group_id, user_id, role)
+                VALUES (%s, %s, %s)
+            """, (group_id, str(member['user_id']), member['role']))
+        
+        # Commit all changes
+        connection.commit()
+        print(f"Successfully created group {group_id} with {len(members)} members")
+        connection.close()
+        return group_id
+        
+    except Error as e:
+        connection.rollback()
+        print(f"Database error creating group: {e}")
+        connection.close()
+        return None
+    except Exception as e:
+        connection.rollback()
+        print(f"General error creating group: {e}")
+        connection.close()
         return None
 
 def get_director_groups(director_discord_id):
@@ -2649,14 +2671,61 @@ def director_create_group():
     group_name = data.get('group_name')
     members = data.get('members', [])
     
+    # Debug logging
+    print(f"=== CREATE GROUP DEBUG ===")
+    print(f"User session: {user}")
+    print(f"Discord ID from session: {user['id']} (type: {type(user['id'])})")
+    print(f"Group name: {group_name}")
+    print(f"Members: {members}")
+    
+    # Check if the Discord ID exists in staff_members table
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            
+            # Check if user exists in staff_members table
+            cursor.execute("SELECT * FROM staff_members WHERE user_id = %s", (str(user['id']),))
+            staff_record = cursor.fetchone()
+            print(f"Staff record found: {staff_record}")
+            
+            # Also try checking with different data types
+            cursor.execute("SELECT * FROM staff_members WHERE user_id = %s", (user['id'],))
+            staff_record_raw = cursor.fetchone()
+            print(f"Staff record (raw): {staff_record_raw}")
+            
+            # Check what's actually in the staff_members table
+            cursor.execute("SELECT user_id FROM staff_members LIMIT 5")
+            sample_users = cursor.fetchall()
+            print(f"Sample user_ids in staff_members: {sample_users}")
+            
+            cursor.close()
+            connection.close()
+            
+        except Exception as e:
+            print(f"Debug query error: {e}")
+            if cursor:
+                cursor.close()
+            connection.close()
+    
     if group_name and members:
         # Pass the Discord user ID, not the session user ID
         discord_user_id = user['id']  # This is the Discord ID from session
+        print(f"Calling create_group with discord_id: {discord_user_id}")
+        
         group_id = create_group(group_name, discord_user_id, members)
+        print(f"create_group returned: {group_id}")
+        
         if group_id:
             return jsonify({'success': True, 'group_id': group_id})
-        return jsonify({'success': False, 'error': 'Failed to create group - user not found in database'}), 400
-    return jsonify({'success': False, 'error': 'Invalid data'}), 400
+        
+        # More specific error message
+        return jsonify({
+            'success': False, 
+            'error': f'Failed to create group. Discord ID {discord_user_id} may not exist in staff_members table or group creation failed.'
+        }), 400
+    
+    return jsonify({'success': False, 'error': 'Invalid data - missing group name or members'}), 400
 
 @app.route('/admin/coordination/director/create-assignment', methods=['POST'])
 @login_required
