@@ -74,40 +74,59 @@ RANK_COLORS = {
 }
 
 def create_group(group_name, created_by_discord_id, members):
-        """
-        Create a new group with members (using staff_members table)
-        created_by_discord_id = Discord ID from session
-        members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
-        """
-        connection = get_db_connection()
-        if connection:
-            try:
-                cursor = connection.cursor()
-                
-                # Create the group directly with Discord ID
-                cursor.execute("""
-                    INSERT INTO coordination_groups (group_name, created_by)
-                    VALUES (%s, %s)
-                """, (group_name, created_by_discord_id))
-                
-                group_id = cursor.lastrowid
-                
-                # Add members to the group
-                for member in members:
-                    cursor.execute("""
-                        INSERT INTO group_members (group_id, user_id, role)
-                        VALUES (%s, %s, %s)
-                    """, (group_id, member['user_id'], member['role']))
-                
-                connection.commit()
-                return group_id
-            except Error as e:
+    """
+    Create a new group with members (using staff_members table)
+    created_by_discord_id = Discord ID from session
+    members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
+    """
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            
+            # Create the group directly with Discord ID
+            cursor.execute("""
+                INSERT INTO coordination_groups (group_name, created_by)
+                VALUES (%s, %s)
+            """, (group_name, created_by_discord_id))
+            
+            # Get the group ID immediately after insertion
+            group_id = cursor.lastrowid
+            print(f"Created group with ID: {group_id}")  # Debug log
+            
+            # Verify the group was created
+            if not group_id:
+                print("Error: No group ID returned from insertion")
                 connection.rollback()
-                print(f"Error creating group: {e}")
                 return None
-            finally:
+            
+            # Add members to the group
+            for member in members:
+                print(f"Adding member: {member}")  # Debug log
+                cursor.execute("""
+                    INSERT INTO group_members (group_id, user_id, role)
+                    VALUES (%s, %s, %s)
+                """, (group_id, member['user_id'], member['role']))
+            
+            # Commit all changes
+            connection.commit()
+            print(f"Successfully created group {group_id} with {len(members)} members")
+            return group_id
+            
+        except Error as e:
+            connection.rollback()
+            print(f"Database error creating group: {e}")
+            return None
+        except Exception as e:
+            connection.rollback()
+            print(f"General error creating group: {e}")
+            return None
+        finally:
+            if cursor:
                 cursor.close()
-                connection.close()
+            connection.close()
+    else:
+        print("Error: Could not establish database connection")
         return None
 
 def get_director_groups(director_discord_id):
@@ -354,7 +373,7 @@ def get_director_assignments(director_discord_id):
             cursor = connection.cursor(dictionary=True)
             cursor.execute("""
                 SELECT a.*, 
-                       a.assigned_to as assigned_to_name, 
+                       a.assigned_to as assigned_to_name,
                        g.group_name,
                        CASE 
                            WHEN a.finished_at IS NOT NULL THEN a.finished_at
@@ -2736,42 +2755,6 @@ def director_panel():
                 connection.close()
         return {'total_groups': 0, 'total_members': 0, 'active_assignments': 0, 'completion_rate': 0}
 
-    def create_group(group_name, created_by_discord_id, members):
-        """
-        Create a new group with members (using staff_members table)
-        created_by_discord_id = Discord ID from session
-        members = [{'user_id': 1, 'role': 'Senior Coordinator'}, ...]
-        """
-        connection = get_db_connection()
-        if connection:
-            try:
-                cursor = connection.cursor()
-                
-                # Create the group directly with Discord ID
-                cursor.execute("""
-                    INSERT INTO coordination_groups (group_name, created_by)
-                    VALUES (%s, %s)
-                """, (group_name, created_by_discord_id))
-                
-                group_id = cursor.lastrowid
-                
-                # Add members to the group
-                for member in members:
-                    cursor.execute("""
-                        INSERT INTO group_members (group_id, user_id, role)
-                        VALUES (%s, %s, %s)
-                    """, (group_id, member['user_id'], member['role']))
-                
-                connection.commit()
-                return group_id
-            except Error as e:
-                connection.rollback()
-                print(f"Error creating group: {e}")
-                return None
-            finally:
-                cursor.close()
-                connection.close()
-        return None
 
     def get_director_groups(director_discord_id):
         """Get all groups created by a director (using Discord ID)"""
