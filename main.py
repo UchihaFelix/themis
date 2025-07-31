@@ -937,7 +937,7 @@ def admin_dashboard():
                 --text-primary: #ffffff;
                 --text-secondary: #b7b7c9;
                 --text-muted: #8b8b99;
-                --rank-color: {rank_color};
+                --rank-color: #a977f8;
                 --shadow-primary: 0 4px 32px rgba(169, 119, 248, 0.15);
                 --shadow-elevated: 0 8px 48px rgba(169, 119, 248, 0.2);
                 --backdrop-blur: blur(16px);
@@ -958,7 +958,7 @@ def admin_dashboard():
                 min-height: 100vh;
             }}
             
-            /* Animated background */
+            /* Background pattern matching cases site */
             .background-pattern {{
                 position: fixed;
                 top: 0;
@@ -968,219 +968,124 @@ def admin_dashboard():
                 pointer-events: none;
                 z-index: -1;
                 background: 
+                    radial-gradient(ellipse 80% 50% at 50% 40%, rgba(var(--primary-rgb), 0.04) 0%, transparent 60%),
                     radial-gradient(circle at 20% 30%, rgba(var(--primary-rgb), 0.08) 0%, transparent 50%),
-                    radial-gradient(circle at 80% 70%, rgba(var(--primary-rgb), 0.06) 0%, transparent 50%),
-                    radial-gradient(circle at 40% 80%, rgba(var(--primary-rgb), 0.04) 0%, transparent 50%);
+                    radial-gradient(circle at 80% 70%, rgba(var(--primary-rgb), 0.06) 0%, transparent 50%);
             }}
             
-            /* Sidebar */
-            .sidebar {{
+            /* Header matching cases site */
+            header {{
                 position: fixed;
                 top: 0;
-                left: 0;
-                width: 280px;
-                height: 100vh;
-                background: rgba(20, 20, 24, 0.95);
-                backdrop-filter: var(--backdrop-blur);
-                border-right: 1px solid var(--border-color);
-                display: flex;
-                flex-direction: column;
+                width: 100%;
+                background: rgba(10, 10, 10, 0.8);
+                backdrop-filter: blur(20px);
                 z-index: 1000;
-                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                border-bottom: 1px solid var(--border-color);
             }}
-            
-            .sidebar::before {{
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: linear-gradient(180deg, 
-                    rgba(var(--primary-rgb), 0.02) 0%, 
-                    transparent 100%);
-                pointer-events: none;
+    
+            nav {{
+                max-width: 1400px;
+                margin: 0 auto;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1rem 2rem;
             }}
-            
+    
             .logo {{
+                font-size: 1.5rem;
+                font-weight: 600;
+                color: #ffffff;
                 display: flex;
                 align-items: center;
-                gap: 12px;
-                padding: 32px 24px;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-                position: relative;
-            }}
-            
-            .logo img {{
-                width: 42px;
-                height: 42px;
-                border-radius: 12px;
-                filter: drop-shadow(0 4px 16px rgba(var(--primary-rgb), 0.3));
-            }}
-            
-            .logo-text {{
-                font-size: 1.75rem;
-                font-weight: 800;
-                background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-color) 100%);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
+                gap: 0.75rem;
                 letter-spacing: -0.02em;
             }}
-            
-            .nav-links {{
-                flex: 1;
-                padding: 24px 16px;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
+    
+            .logo img {{
+                width: 28px;
+                height: 28px;
+                border-radius: 6px;
             }}
-            
-            .nav-item {{
-                position: relative;
-                text-decoration: none;
-                color: var(--text-secondary);
-                padding: 16px 20px;
-                border-radius: 12px;
-                font-weight: 500;
-                font-size: 0.95rem;
-                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    
+            .nav-links {{
                 display: flex;
                 align-items: center;
-                gap: 12px;
-                border: 1px solid transparent;
+                gap: 1rem;
             }}
-            
-            .nav-item::before {{
-                content: '';
-                position: absolute;
-                left: 0;
-                top: 50%;
-                transform: translateY(-50%);
-                width: 3px;
-                height: 0;
-                background: var(--primary-color);
-                border-radius: 0 2px 2px 0;
-                transition: height 0.2s ease;
+    
+            .nav-link {{
+                background: rgba(255, 255, 255, 0.06);
+                color: #ffffff;
+                padding: 0.5rem 1rem;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 6px;
+                text-decoration: none;
+                transition: all 0.2s ease;
+                font-weight: 500;
+                font-size: 0.875rem;
+                cursor: pointer;
             }}
-            
-            .nav-item:hover {{
-                background: rgba(var(--primary-rgb), 0.08);
-                color: var(--text-primary);
-                transform: translateX(4px);
-                border-color: rgba(var(--primary-rgb), 0.2);
+    
+            .nav-link:hover {{
+                background: rgba(169, 119, 248, 0.1);
+                border-color: rgba(169, 119, 248, 0.4);
+                transform: translateY(-1px);
             }}
-            
-            .nav-item.active {{
-                background: rgba(var(--primary-rgb), 0.12);
-                color: var(--primary-color);
-                border-color: rgba(var(--primary-rgb), 0.3);
+    
+            .nav-link.active {{
+                background: rgba(169, 119, 248, 0.2);
+                border-color: rgba(169, 119, 248, 0.5);
             }}
-            
-            .nav-item.active::before {{
-                height: 24px;
+    
+            .user-profile {{
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                background: rgba(255, 255, 255, 0.06);
+                padding: 0.5rem 1rem;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 6px;
+                color: var(--rank-color);
+                font-weight: 500;
+                font-size: 0.875rem;
             }}
-            
-            .nav-icon {{
+    
+            .user-avatar {{
                 width: 20px;
                 height: 20px;
-                opacity: 0.7;
-                transition: opacity 0.2s ease;
-            }}
-            
-            .nav-item:hover .nav-icon,
-            .nav-item.active .nav-icon {{
-                opacity: 1;
-            }}
-            
-            /* Main content */
-            .main-content {{
-                margin-left: 280px;
-                padding: 40px;
-                min-height: 100vh;
-                position: relative;
-            }}
-            
-            /* User info */
-            .user-info {{
-                position: fixed;
-                top: 24px;
-                right: 40px;
-                z-index: 1100;
-                display: flex;
-                align-items: center;
-                gap: 16px;
-                background: rgba(255, 255, 255, 0.08);
-                backdrop-filter: var(--backdrop-blur);
-                border: 1px solid rgba(var(--primary-rgb), 0.3);
-                border-radius: 16px;
-                padding: 12px 16px;
-                box-shadow: var(--shadow-primary);
-            }}
-            
-            .user-avatar {{
-                width: 44px;
-                height: 44px;
-                border-radius: 12px;
-                background: var(--primary-color);
+                border-radius: 50%;
+                background: var(--rank-color);
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 font-weight: 700;
-                font-size: 1.1rem;
+                font-size: 0.75rem;
                 overflow: hidden;
-                border: 2px solid rgba(var(--primary-rgb), 0.3);
             }}
-            
+    
             .user-avatar img {{
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
             }}
             
-            .user-details {{
-                display: flex;
-                flex-direction: column;
-                gap: 2px;
+            /* Main content */
+            .main-content {{
+                margin-top: 80px;
+                min-height: calc(100vh - 80px);
+                padding: 2rem;
             }}
-            
-            .user-name {{
-                font-weight: 600;
-                font-size: 0.95rem;
-                color: var(--rank-color);
-            }}
-            
-            .user-rank {{
-                font-size: 0.8rem;
-                color: var(--text-muted);
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }}
-            
-            .logout-btn {{
-                background: rgba(255, 255, 255, 0.08);
-                border: 1px solid rgba(var(--primary-rgb), 0.3);
-                color: var(--text-primary);
-                padding: 8px 16px;
-                border-radius: 8px;
-                font-size: 0.85rem;
-                font-weight: 500;
-                text-decoration: none;
-                transition: all 0.2s ease;
-                cursor: pointer;
-            }}
-            
-            .logout-btn:hover {{
-                background: var(--primary-color);
-                color: white;
-                transform: translateY(-1px);
-                box-shadow: var(--shadow-primary);
+    
+            .container {{
+                max-width: 1400px;
+                margin: 0 auto;
             }}
             
             /* Dashboard content */
             .dashboard-header {{
-                margin-bottom: 48px;
-                padding-top: 20px;
+                margin-bottom: 3rem;
             }}
             
             .dashboard-title {{
@@ -1208,6 +1113,44 @@ def admin_dashboard():
                 max-width: 600px;
                 line-height: 1.6;
                 font-weight: 400;
+            }}
+            
+            /* Stats grid */
+            .stats-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-bottom: 40px;
+            }}
+            
+            .stat-card {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(var(--primary-rgb), 0.2);
+                border-radius: 16px;
+                padding: 24px;
+                text-align: center;
+                backdrop-filter: var(--backdrop-blur);
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }}
+    
+            .stat-card:hover {{
+                transform: translateY(-4px);
+                border-color: rgba(var(--primary-rgb), 0.4);
+                box-shadow: var(--shadow-primary);
+            }}
+            
+            .stat-value {{
+                font-size: 2rem;
+                font-weight: 800;
+                color: var(--primary-color);
+                margin-bottom: 8px;
+            }}
+            
+            .stat-label {{
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
             }}
             
             /* Quick actions grid */
@@ -1286,101 +1229,23 @@ def admin_dashboard():
                 line-height: 1.5;
             }}
             
-            /* Stats grid */
-            .stats-grid {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 20px;
-                margin-bottom: 40px;
-            }}
-            
-            .stat-card {{
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid rgba(var(--primary-rgb), 0.2);
-                border-radius: 16px;
-                padding: 24px;
-                text-align: center;
-                backdrop-filter: var(--backdrop-blur);
-            }}
-            
-            .stat-value {{
-                font-size: 2rem;
-                font-weight: 800;
-                color: var(--primary-color);
-                margin-bottom: 8px;
-            }}
-            
-            .stat-label {{
-                color: var(--text-secondary);
-                font-size: 0.9rem;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }}
-            
             /* Responsive design */
             @media (max-width: 1024px) {{
-                .sidebar {{
-                    width: 240px;
-                }}
-                
                 .main-content {{
-                    margin-left: 240px;
-                    padding: 32px;
-                }}
-                
-                .user-info {{
-                    right: 32px;
+                    padding: 1.5rem;
                 }}
             }}
             
             @media (max-width: 768px) {{
-                .sidebar {{
-                    transform: translateX(-100%);
-                    width: 100%;
-                    height: auto;
-                    position: fixed;
-                    bottom: 0;
-                    top: auto;
-                    flex-direction: row;
-                    padding: 16px;
-                    border-right: none;
-                    border-top: 1px solid var(--border-color);
-                    z-index: 2000;
+                nav {{
+                    padding: 1rem;
+                    flex-direction: column;
+                    gap: 1rem;
                 }}
-                
-                .logo {{
-                    display: none;
-                }}
-                
-                .nav-links {{
-                    flex-direction: row;
-                    padding: 0;
-                    width: 100%;
-                    justify-content: space-around;
-                }}
-                
-                .nav-item {{
-                    flex: 1;
-                    justify-content: center;
-                    padding: 12px 8px;
-                    font-size: 0.8rem;
-                }}
-                
+    
                 .main-content {{
-                    margin-left: 0;
-                    padding: 20px 16px 100px 16px;
-                }}
-                
-                .user-info {{
-                    top: 16px;
-                    right: 16px;
-                    padding: 8px 12px;
-                    gap: 12px;
-                }}
-                
-                .user-avatar {{
-                    width: 36px;
-                    height: 36px;
+                    padding: 1rem;
+                    margin-top: 120px;
                 }}
                 
                 .dashboard-title {{
@@ -1394,21 +1259,16 @@ def admin_dashboard():
                 .stats-grid {{
                     grid-template-columns: repeat(2, 1fr);
                 }}
+    
+                .nav-links {{
+                    flex-wrap: wrap;
+                    justify-content: center;
+                }}
             }}
             
             @media (max-width: 480px) {{
                 .main-content {{
-                    padding: 16px 12px 100px 12px;
-                }}
-                
-                .user-info {{
-                    top: 12px;
-                    right: 12px;
-                    padding: 6px 8px;
-                }}
-                
-                .user-details {{
-                    display: none;
+                    padding: 0.75rem;
                 }}
                 
                 .action-card {{
@@ -1419,86 +1279,132 @@ def admin_dashboard():
                     grid-template-columns: 1fr;
                 }}
             }}
+    
+            /* Animations */
+            .main-content {{
+                animation: fadeInUp 0.8s ease-out;
+            }}
+    
+            @keyframes fadeInUp {{
+                from {{
+                    opacity: 0;
+                    transform: translateY(20px);
+                }}
+                to {{
+                    opacity: 1;
+                    transform: translateY(0);
+                }}
+            }}
         </style>
     </head>
     <body>
         <div class="background-pattern"></div>
         
-        <div class="sidebar">
-            <div class="logo">
-                <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
-                <div class="logo-text">Themis</div>
-            </div>
-            <nav class="nav-links">
-                <a href="/admin/dashboard" class="nav-item active">
-                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                    </svg>
-                    Dashboard
-                </a>
-                {'<a href="/admin/cases" class="nav-item"><svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-1-1h1v-2h-1v2zm1-4h-1V6h1v2zM7 8h6v4H7V8z" clip-rule="evenodd"/></svg>Cases</a>' if 'cases' in available_panels else ''}
-                {'<a href="/admin/coordination" class="nav-item"><svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>Coordination</a>' if any(panel.startswith('coordination') for panel in available_panels) else ''}
-                <a href="/" class="nav-item">
-                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
-                    </svg>
-                    Home
-                </a>
+        <!-- Header matching cases site -->
+        <header>
+            <nav>
+                <div class="logo">
+                    <img src="https://cdn.discordapp.com/attachments/1359093144376840212/1391111028552765550/image.png?ex=686caeda&is=686b5d5a&hm=2f7a401945da09ff951d426aaf651ade57dad6b6a52c567713aacf466c214a85&" alt="Themis">
+                    Themis
+                </div>
+    
+                <div class="nav-links">
+                    <a href="/admin/dashboard" class="nav-link active">Dashboard</a>
+                    <a href="/admin/cases" class="nav-link">Cases</a>
+                    <a href="/admin/coordination" class="nav-link">Coordination</a>
+                    <a href="/" class="nav-link">Home</a>
+                    
+                    <div class="user-profile">
+                        <div class="user-avatar">U</div>
+                        <span>User</span>
+                    </div>
+                    
+                    <a href="/logout" class="nav-link">Logout</a>
+                </div>
             </nav>
-        </div>
-        
-        <div class="user-info">
-            <div class="user-avatar">
-                {f'<img src="{user.get("avatar_url")}" alt="Avatar">' if user.get("avatar_url") else user.get("username", "U")[0].upper()}
-            </div>
-            <div class="user-details">
-                <div class="user-name">{user.get('username', 'User')}</div>
-                <div class="user-rank">{staff_rank}</div>
-            </div>
-            <a href="/logout" class="logout-btn">Logout</a>
-        </div>
+        </header>
         
         <main class="main-content">
-            <div class="dashboard-header">
-                <h1 class="dashboard-title">
-                    Welcome back, <span class="username-highlight">{user.get('username', 'User')}</span>
-                </h1>
-                <p class="dashboard-subtitle">
-                    We sure hope you're ready for all the bugs which are about to bless your eyes!
-                </p>
-            </div>
-            
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value">18</div>
-                    <div class="stat-label">Staff Accounts</div>
+            <div class="container">
+                <div class="dashboard-header">
+                    <h1 class="dashboard-title">
+                        Welcome back, <span class="username-highlight">User</span>
+                    </h1>
+                    <p class="dashboard-subtitle">
+                        We sure hope you're ready for all the bugs which are about to bless your eyes!
+                    </p>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value">72</div>
-                    <div class="stat-label">Total Actions</div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">18</div>
+                        <div class="stat-label">Staff Accounts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">72</div>
+                        <div class="stat-label">Total Actions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">0.0%</div>
+                        <div class="stat-label">Code Integrity</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">100.0%</div>
+                        <div class="stat-label">Built on Hopes & Dreams</div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value">0.0%</div>
-                    <div class="stat-label">Code Integrity</div>
+                
+                <div class="quick-actions">
+                    <a href="/admin/cases" class="action-card">
+                        <div class="card-icon">
+                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-1-1h1v-2h-1v2zm1-4h-1V6h1v2zM7 8h6v4H7V8z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="card-title">View Cases</div>
+                        <div class="card-description">View a list of cases taken from our discord punishments table</div>
+                    </a>
+                    
+                    <a href="/admin/coordination/executive" class="action-card">
+                        <div class="card-icon">
+                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+                            </svg>
+                        </div>
+                        <div class="card-title">Executive Overview</div>
+                        <div class="card-description">Monitor all divisions and assignments from an executive perspective</div>
+                    </a>
+                    
+                    <a href="/admin/coordination/director" class="action-card">
+                        <div class="card-icon">
+                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                            </svg>
+                        </div>
+                        <div class="card-title">Director Panel</div>
+                        <div class="card-description">Manage your coordination teams and manage assignments</div>
+                    </a>
+                    
+                    <a href="/admin/coordination/senior" class="action-card">
+                        <div class="card-icon">
+                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+                            </svg>
+                        </div>
+                        <div class="card-title">Senior Coordinator</div>
+                        <div class="card-description">Manage your coordinator team, handle and review incoming assignments</div>
+                    </a>
+                    
+                    <a href="/admin/coordination/coordinator" class="action-card">
+                        <div class="card-icon">
+                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="card-title">Coordinator Panel</div>
+                        <div class="card-description">View your assignments and communicate with your Senior Coordinators</div>
+                    </a>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value">100.0%</div>
-                    <div class="stat-label">Built on Hopes & Dreams</div>
-                </div>
-            </div>
-            
-            <div class="quick-actions">
-                {generate_panel_card('cases', 'View Cases', 'View a list of cases taken from our discord punishments table', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-1-1h1v-2h-1v2zm1-4h-1V6h1v2zM7 8h6v4H7V8z" clip-rule="evenodd"/></svg>', '/admin/cases')}
-                
-                {generate_panel_card('coordination_executive', 'Executive Overview', 'Monitor all divisions and assignments from an executive perspective', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>', '/admin/coordination/executive')}
-                
-                {generate_panel_card('coordination_director', 'Director Panel', 'Manage your coordination teams and manage assignments', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>', '/admin/coordination/director')}
-                
-                {generate_panel_card('coordination_senior', 'Senior Coordinator', 'Manage your coordinator team, handle and review incoming assignments', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/></svg>', '/admin/coordination/senior')}
-                
-                {generate_panel_card('coordination_basic', 'Coordinator Panel', 'View your assignments and communicate with your Senior Coordinators', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/></svg>', '/admin/coordination/coordinator')}
-                
-                
             </div>
         </main>
     </body>
