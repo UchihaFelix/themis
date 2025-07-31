@@ -937,12 +937,12 @@ def admin_dashboard():
                 --text-primary: #ffffff;
                 --text-secondary: #b7b7c9;
                 --text-muted: #8b8b99;
-                --rank-color: #a977f8;
+                --rank-color: {rank_color};
                 --shadow-primary: 0 4px 32px rgba(169, 119, 248, 0.15);
                 --shadow-elevated: 0 8px 48px rgba(169, 119, 248, 0.2);
                 --backdrop-blur: blur(16px);
             }}
-            
+        
             * {{
                 margin: 0;
                 padding: 0;
@@ -1310,13 +1310,13 @@ def admin_dashboard():
     
                 <div class="nav-links">
                     <a href="/admin/dashboard" class="nav-link active">Dashboard</a>
-                    <a href="/admin/cases" class="nav-link">Cases</a>
-                    <a href="/admin/coordination" class="nav-link">Coordination</a>
+                    {'<a href="/admin/cases" class="nav-link">Cases</a>' if 'cases' in available_panels else ''}
+                    {'<a href="/admin/coordination" class="nav-link">Coordination</a>' if any(panel.startswith('coordination') for panel in available_panels) else ''}
                     <a href="/" class="nav-link">Home</a>
                     
                     <div class="user-profile">
-                        <div class="user-avatar">U</div>
-                        <span>User</span>
+                        {f'<img src="{user.get("avatar_url")}" alt="Avatar" class="user-avatar">' if user.get("avatar_url") else f'<div class="user-avatar">{user.get("username", "U")[0].upper()}</div>'}
+                        <span>{user.get('username', 'User')}</span>
                     </div>
                     
                     <a href="/logout" class="nav-link">Logout</a>
@@ -1328,7 +1328,7 @@ def admin_dashboard():
             <div class="container">
                 <div class="dashboard-header">
                     <h1 class="dashboard-title">
-                        Welcome back, <span class="username-highlight">User</span>
+                        Welcome back, <span class="username-highlight">{user.get('username', 'User')}</span>
                     </h1>
                     <p class="dashboard-subtitle">
                         We sure hope you're ready for all the bugs which are about to bless your eyes!
@@ -1355,55 +1355,17 @@ def admin_dashboard():
                 </div>
                 
                 <div class="quick-actions">
-                    <a href="/admin/cases" class="action-card">
-                        <div class="card-icon">
-                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-1-1h1v-2h-1v2zm1-4h-1V6h1v2zM7 8h6v4H7V8z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        <div class="card-title">View Cases</div>
-                        <div class="card-description">View a list of cases taken from our discord punishments table</div>
-                    </a>
+                    {generate_panel_card('cases', 'View Cases', 'View a list of cases taken from our discord punishments table', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-1-1h1v-2h-1v2zm1-4h-1V6h1v2zM7 8h6v4H7V8z" clip-rule="evenodd"/></svg>', '/admin/cases')}
                     
-                    <a href="/admin/coordination/executive" class="action-card">
-                        <div class="card-icon">
-                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
-                            </svg>
-                        </div>
-                        <div class="card-title">Executive Overview</div>
-                        <div class="card-description">Monitor all divisions and assignments from an executive perspective</div>
-                    </a>
+                    {generate_panel_card('coordination_executive', 'Executive Overview', 'Monitor all divisions and assignments from an executive perspective', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>', '/admin/coordination/executive')}
                     
-                    <a href="/admin/coordination/director" class="action-card">
-                        <div class="card-icon">
-                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
-                            </svg>
-                        </div>
-                        <div class="card-title">Director Panel</div>
-                        <div class="card-description">Manage your coordination teams and manage assignments</div>
-                    </a>
+                    {generate_panel_card('coordination_director', 'Director Panel', 'Manage your coordination teams and manage assignments', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>', '/admin/coordination/director')}
                     
-                    <a href="/admin/coordination/senior" class="action-card">
-                        <div class="card-icon">
-                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-                            </svg>
-                        </div>
-                        <div class="card-title">Senior Coordinator</div>
-                        <div class="card-description">Manage your coordinator team, handle and review incoming assignments</div>
-                    </a>
+                    {generate_panel_card('coordination_senior', 'Senior Coordinator', 'Manage your coordinator team, handle and review incoming assignments', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/></svg>', '/admin/coordination/senior')}
                     
-                    <a href="/admin/coordination/coordinator" class="action-card">
-                        <div class="card-icon">
-                            <svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        <div class="card-title">Coordinator Panel</div>
-                        <div class="card-description">View your assignments and communicate with your Senior Coordinators</div>
-                    </a>
+                    {generate_panel_card('coordination_basic', 'Coordinator Panel', 'View your assignments and communicate with your Senior Coordinators', '<svg width="28" height="28" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/></svg>', '/admin/coordination/coordinator')}
+                    
+                    
                 </div>
             </div>
         </main>
