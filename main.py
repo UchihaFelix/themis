@@ -2319,7 +2319,7 @@ def admin_dashboard():
                     }}
                 }}
             }}
-        <\script>
+        </script>
     </body>
     </html>
     '''
