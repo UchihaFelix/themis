@@ -1351,6 +1351,11 @@
                 this.DEPTH_LAYERS = 5;
                 this.charHeight = 12; // Fixed character height
                 this.charWidth = 8;   // Fixed character width
+                
+                // Atlas parameters
+                this.charCols = 36;
+                this.charRows = 3;
+                this.charCount = this.charCols * this.charRows;
             }
             
             createShaders() {
@@ -1438,7 +1443,7 @@
                         lastUpdate: 0,
                         trail: [],
                         trailChars: [],
-                        headChar: Math.floor(Math.random() * charCount), // Fixed head character
+                        headChar: Math.floor(Math.random() * this.charCount), // Fixed head character
                         headChangeTimer: 0,
                         headChangeDuration: Math.random() * 2000 + 1000 // Change every 1-3 seconds
                     });
@@ -1471,13 +1476,13 @@
                 if (!this.atlasReady) return;
 
                 // Atlas parameters
-                const charCols = 36;
-                const charRows = 3;
+                const charCols = this.charCols;
+                const charRows = this.charRows;
                 const charWidth = 8;
                 const charHeight = 8;
                 const atlasWidth = 256;
                 const atlasHeight = 24;
-                const charCount = charCols * charRows;
+                const charCount = this.charCount;
 
                 const now = performance.now();
                 if (!this.lastTime) this.lastTime = now;
@@ -1496,7 +1501,7 @@
                     drop.lastHeadUpdate = now;
                     
                     if (drop.headChangeTimer >= drop.headChangeDuration) {
-                        drop.headChar = Math.floor(Math.random() * charCount);
+                        drop.headChar = Math.floor(Math.random() * this.charCount);
                         drop.headChangeTimer = 0;
                         drop.headChangeDuration = Math.random() * 2000 + 1000;
                     }
@@ -1508,7 +1513,7 @@
                         
                         // Add new trailing character with random character index
                         if (drop.currentRow >= 0) {
-                            drop.trailChars.unshift(Math.floor(Math.random() * charCount));
+                            drop.trailChars.unshift(Math.floor(Math.random() * this.charCount));
                         }
                         
                         // Limit trail length
@@ -1520,7 +1525,7 @@
                         if (drop.currentRow > maxRows + drop.length) {
                             drop.currentRow = -Math.floor(Math.random() * 20) - drop.length;
                             drop.trailChars = [];
-                            drop.headChar = Math.floor(Math.random() * charCount);
+                            drop.headChar = Math.floor(Math.random() * this.charCount);
                         }
                     }
                 });
