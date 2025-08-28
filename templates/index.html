@@ -1386,11 +1386,8 @@
                     void main() {
                         vec4 tex = texture2D(u_atlas, v_uv);
                         
-                        // Keep the original purple colour
-                        vec3 color = vec3(0.6627, 0.4667, 0.9725); // Purple for lead
-                        if (u_isLead == 0) {
-                            color = vec3(0.4, 0.2, 0.6); // Darker purple for trail
-                        }
+                        // Keep the original purple colour scheme
+                        vec3 color = vec3(0.6627, 0.4667, 0.9725); // Purple for both lead and trail
                         
                         gl_FragColor = vec4(color, tex.a * v_alpha);
                     }
@@ -1426,7 +1423,7 @@
                     const depthRatio = depthLayer / (this.DEPTH_LAYERS - 1);
                     
                     const scale = this.lerp(1.5, 0.6, depthRatio);
-                    const speed = this.lerp(12, 6, depthRatio); // Faster character movement
+                    const speed = this.lerp(15, 8, depthRatio); // Much faster - characters per second
                     const length = Math.floor(this.lerp(25, 8, depthRatio));
                     const baseAlpha = this.lerp(1.0, 0.4, depthRatio);
                     
@@ -1441,9 +1438,9 @@
                         lastUpdate: 0,
                         trail: [],
                         trailChars: [],
-                        // Add smooth interpolation for visual smoothness
-                        visualY: 0,
-                        targetY: 0
+                        headChar: Math.floor(Math.random() * charCount), // Fixed head character
+                        headChangeTimer: 0,
+                        headChangeDuration: Math.random() * 2000 + 1000 // Change every 1-3 seconds
                     });
                 }
                 
@@ -1489,16 +1486,25 @@
 
                 const maxRows = Math.ceil(this.canvas.height / this.charHeight) + 5;
 
-                // Update drops with character-by-character movement but smoother visuals
+                // Update drops with character-by-character movement
                 this.drops.forEach(drop => {
                     const timeSinceLastMove = now - drop.lastUpdate;
                     const moveInterval = 1000 / drop.speed; // milliseconds per character move
+                    
+                    // Update head character timer
+                    drop.headChangeTimer += now - (drop.lastHeadUpdate || now);
+                    drop.lastHeadUpdate = now;
+                    
+                    if (drop.headChangeTimer >= drop.headChangeDuration) {
+                        drop.headChar = Math.floor(Math.random() * charCount);
+                        drop.headChangeTimer = 0;
+                        drop.headChangeDuration = Math.random() * 2000 + 1000;
+                    }
                     
                     if (timeSinceLastMove >= moveInterval) {
                         // Move down one character position
                         drop.currentRow++;
                         drop.lastUpdate = now;
-                        drop.targetY = drop.currentRow * this.charHeight;
                         
                         // Add new trailing character with random character index
                         if (drop.currentRow >= 0) {
@@ -1513,15 +1519,10 @@
                         // Reset when completely off screen
                         if (drop.currentRow > maxRows + drop.length) {
                             drop.currentRow = -Math.floor(Math.random() * 20) - drop.length;
-                            drop.targetY = drop.currentRow * this.charHeight;
-                            drop.visualY = drop.targetY;
                             drop.trailChars = [];
+                            drop.headChar = Math.floor(Math.random() * charCount);
                         }
                     }
-                    
-                    // Smooth interpolation for visual position
-                    const lerpSpeed = 8; // How fast to catch up to target
-                    drop.visualY = this.lerp(drop.visualY, drop.targetY, delta * lerpSpeed);
                 });
 
                 // Render trail characters (static)
@@ -1538,33 +1539,29 @@
                 const scales = [];
 
                 this.drops.forEach(drop => {
-                    // Calculate proper character spacing based on scale
-                    const scaledCharHeight = this.charHeight * drop.scale;
-                    const scaledCharWidth = this.charWidth * drop.scale;
-                    
                     if (isLead) {
-                        // Render only the lead character using smooth visual position
-                        if (drop.currentRow >= -2 && drop.currentRow < maxRows) {
+                        // Render only the lead character
+                        if (drop.currentRow >= 0 && drop.currentRow < maxRows) {
                             const px = drop.x;
-                            const py = drop.visualY;
+                            const py = drop.currentRow * this.charHeight * drop.scale; // Scale the spacing
                             
-                            // Pick a random character for the lead
-                            const charIndex = Math.floor(Math.random() * charCount);
+                            // Use the stable head character
+                            const charIndex = drop.headChar;
                             const u = (charIndex % charCols) * charWidth / atlasWidth;
                             const v = Math.floor(charIndex / charCols) * charHeight / atlasHeight;
                             const uSize = charWidth / atlasWidth;
                             const vSize = charHeight / atlasHeight;
 
                             this.addCharacterQuad(positions, uvs, alphas, scales, px, py, u, v, uSize, vSize, 
-                                                drop.baseAlpha, scaledCharWidth, scaledCharHeight);
+                                                drop.baseAlpha, drop.scale);
                         }
                     } else {
-                        // Render trail characters (static) using grid positions
+                        // Render trail characters (static)
                         drop.trailChars.forEach((charIndex, i) => {
                             const trailRow = drop.currentRow - (i + 1);
-                            if (trailRow >= -2 && trailRow < maxRows) {
+                            if (trailRow >= 0 && trailRow < maxRows) {
                                 const px = drop.x;
-                                const py = trailRow * this.charHeight; // Use grid position for trail
+                                const py = trailRow * this.charHeight * drop.scale; // Scale the spacing
                                 
                                 const u = (charIndex % charCols) * charWidth / atlasWidth;
                                 const v = Math.floor(charIndex / charCols) * charHeight / atlasHeight;
@@ -1575,7 +1572,7 @@
                                 const trailAlpha = drop.baseAlpha * (1.0 - (i / drop.length)) * 0.7;
                                 
                                 this.addCharacterQuad(positions, uvs, alphas, scales, px, py, u, v, uSize, vSize, 
-                                                    trailAlpha, scaledCharWidth, scaledCharHeight);
+                                                    trailAlpha, drop.scale);
                             }
                         });
                     }
@@ -1619,8 +1616,11 @@
                 }
             }
             
-            addCharacterQuad(positions, uvs, alphas, scales, px, py, u, v, uSize, vSize, alpha, scaledWidth, scaledHeight) {
-                // Create quad vertices with properly scaled dimensions
+            addCharacterQuad(positions, uvs, alphas, scales, px, py, u, v, uSize, vSize, alpha, scale) {
+                const scaledWidth = this.charWidth * scale;
+                const scaledHeight = this.charHeight * scale;
+                
+                // Create quad vertices
                 const vertices = [
                     px, py,
                     px, py + scaledHeight,
@@ -1646,7 +1646,7 @@
                 
                 for (let j = 0; j < 6; j++) {
                     alphas.push(alpha);
-                    scales.push(1.0); // Scale is already applied to dimensions
+                    scales.push(scale);
                 }
             }
         }
