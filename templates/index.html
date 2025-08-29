@@ -1547,8 +1547,11 @@
                     if (isLead) {
                         // Render only the lead character
                         if (drop.currentRow >= 0 && drop.currentRow < maxRows) {
-                            const px = drop.x;
-                            const py = drop.currentRow * this.charHeight * drop.scale; // Scale the spacing
+                            // Center the character in its column based on scale
+                            const scaledWidth = this.charWidth * drop.scale;
+                            const columnWidth = this.canvas.width / this.COLUMN_COUNT;
+                            const px = drop.x + (columnWidth - scaledWidth) / 2;
+                            const py = drop.currentRow * this.charHeight * drop.scale;
                             
                             // Use the stable head character
                             const charIndex = drop.headChar;
@@ -1565,8 +1568,11 @@
                         drop.trailChars.forEach((charIndex, i) => {
                             const trailRow = drop.currentRow - (i + 1);
                             if (trailRow >= 0 && trailRow < maxRows) {
-                                const px = drop.x;
-                                const py = trailRow * this.charHeight * drop.scale; // Scale the spacing
+                                // Center the character in its column based on scale
+                                const scaledWidth = this.charWidth * drop.scale;
+                                const columnWidth = this.canvas.width / this.COLUMN_COUNT;
+                                const px = drop.x + (columnWidth - scaledWidth) / 2;
+                                const py = trailRow * this.charHeight * drop.scale;
                                 
                                 const u = (charIndex % charCols) * charWidth / atlasWidth;
                                 const v = Math.floor(charIndex / charCols) * charHeight / atlasHeight;
