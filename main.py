@@ -38,7 +38,7 @@ BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
 SECRET_KEY = os.getenv('SECRET_KEY')
 RP_ID = os.getenv('RP_ID', 'localhost')
 RP_NAME = os.getenv('RP_NAME', 'Themis Administration System')
-ORIGIN = os.getenv('ORIGIN', 'http://localhost:5000')
+ORIGIN = os.getenv('ORIGIN', 'https://localhost:5000')
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -462,7 +462,7 @@ def get_executive_overview():
                     COUNT(*) as total,
                     SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) as verified,
                     SUM(CASE WHEN status = 'finished' THEN 1 ELSE 0 END) as pending_verification,
-                    SUM(CASE WHEN status = 'delayed' THEN 1 ELSE 0 END) as delayed,
+                    SUM(CASE WHEN status = 'delayed' THEN 1 ELSE 0 END) as `delayed`,
                     SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open_assignments,
                     SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress
                 FROM assignments
@@ -1057,8 +1057,16 @@ def passkey_register_begin():
         existing_credentials = get_user_credentials(user_id)
         
         # Generate registration options
+        # Get the actual request origin and RP ID for WebAuthn
+        request_origin = request.headers.get('Origin', ORIGIN)
+        request_host = request.headers.get('Host', RP_ID)
+        
+        # For Cloudflare tunnel, use the actual host
+        actual_rp_id = request_host.split(':')[0] if request_host else RP_ID
+        actual_origin = request_origin if request_origin else ORIGIN
+        
         registration_options = generate_registration_options(
-            rp_id=RP_ID,
+            rp_id=actual_rp_id,
             rp_name=RP_NAME,
             user_id=str(user_id).encode(),
             user_name=user['username'],
@@ -1073,8 +1081,10 @@ def passkey_register_begin():
             ],
         )
         
-        # Store challenge in session
+        # Store challenge and configuration in session
         session['passkey_challenge'] = registration_options.challenge
+        session['passkey_rp_id'] = actual_rp_id
+        session['passkey_origin'] = actual_origin
         
         # Convert registration options to dict format
         registration_dict = {
@@ -1115,6 +1125,9 @@ def passkey_register_complete():
             return jsonify({'error': 'Missing credential data'}), 400
             
         challenge = session.get('passkey_challenge')
+        expected_rp_id = session.get('passkey_rp_id', RP_ID)
+        expected_origin = session.get('passkey_origin', ORIGIN)
+        
         if not challenge:
             return jsonify({'error': 'No registration in progress'}), 400
         
@@ -1122,8 +1135,8 @@ def passkey_register_complete():
         verification = verify_registration_response(
             credential=credential,
             expected_challenge=challenge,
-            expected_origin=ORIGIN,
-            expected_rp_id=RP_ID,
+            expected_origin=expected_origin,
+            expected_rp_id=expected_rp_id,
         )
         
         if verification.verified:
@@ -1184,9 +1197,14 @@ def passkey_auth_begin():
             if not credentials:
                 return jsonify({'error': 'No passkeys registered for this user'}), 400
             
+            # Get the actual request origin and RP ID for WebAuthn
+            request_origin = request.headers.get('Origin', ORIGIN)
+            request_host = request.headers.get('Host', RP_ID)
+            actual_rp_id = request_host.split(':')[0] if request_host else RP_ID
+            
             # Generate authentication options
             authentication_options = generate_authentication_options(
-                rp_id=RP_ID,
+                rp_id=actual_rp_id,
                 allow_credentials=credentials,
                 user_verification=UserVerificationRequirement.REQUIRED,
             )
@@ -1425,55 +1443,6 @@ def delete_user_passkey(passkey_id):
 
 from flask import redirect # type: ignore
 
-@app.route('/admin/migrate-db')
-@login_required
-@staff_required
-def migrate_database():
-    """Temporary route to run database migration - REMOVE AFTER USE"""
-    user = session['user']
-    # Only allow Executive Directors to run migrations
-    if user.get('staff_info', {}).get('role') != 'Executive Director':
-        return "Unauthorized - Only Executive Directors can run database migrations", 403
-    
-    connection = get_db_connection()
-    if not connection:
-        return "Database connection failed", 500
-    
-    try:
-        cursor = connection.cursor()
-        results = []
-        
-        # Read and execute migration SQL
-        with open('database_migration_fixed.sql', 'r') as f:
-            sql_content = f.read()
-        
-        # Split by semicolon and filter out empty commands
-        sql_commands = [cmd.strip() for cmd in sql_content.split(';') if cmd.strip()]
-        
-        for i, command in enumerate(sql_commands):
-            try:
-                cursor.execute(command)
-                results.append(f"✅ Command {i+1}: Success")
-            except Exception as cmd_error:
-                # Continue with other commands even if one fails
-                results.append(f"⚠️ Command {i+1}: {str(cmd_error)}")
-        
-        connection.commit()
-        
-        # Format results as HTML
-        result_html = "<h2>Database Migration Results</h2><ul>"
-        for result in results:
-            result_html += f"<li>{result}</li>"
-        result_html += "</ul><p><strong>Migration completed! Please remove this route from main.py now.</strong></p>"
-        
-        return result_html
-        
-    except Exception as e:
-        connection.rollback()
-        return f"Migration failed: {str(e)}", 500
-    finally:
-        cursor.close()
-        connection.close()
 
 @app.route('/login')
 def login_page():
@@ -1513,6 +1482,55 @@ def admin_dashboard():
     
     # Get available panels for current user
     available_panels = rank_panels.get(staff_rank, ['cases'])
+    
+    # Get real dashboard stats from database
+    connection = get_db_connection()
+    stats = {
+        'total_staff': 0,
+        'recent_cases': 0,
+        'pending_assignments': 0,
+        'active_groups': 0
+    }
+    
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            
+            # Get total staff count
+            cursor.execute("SELECT COUNT(*) as count FROM staff_members")
+            result = cursor.fetchone()
+            stats['total_staff'] = result['count'] if result else 0
+            
+            # Get recent cases count (last 30 days)
+            cursor.execute("""
+                SELECT COUNT(*) as count 
+                FROM discord 
+                WHERE punishment_type IS NOT NULL 
+                AND punishment_type != ''
+                AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            """)
+            result = cursor.fetchone()
+            stats['recent_cases'] = result['count'] if result else 0
+            
+            # Get pending assignments count  
+            cursor.execute("""
+                SELECT COUNT(*) as count 
+                FROM assignments 
+                WHERE status IN ('open', 'in_progress')
+            """)
+            result = cursor.fetchone()
+            stats['pending_assignments'] = result['count'] if result else 0
+            
+            # Get active groups count
+            cursor.execute("SELECT COUNT(*) as count FROM coordination_groups WHERE status = 'active'")
+            result = cursor.fetchone()
+            stats['active_groups'] = result['count'] if result else 0
+            
+            cursor.close()
+        except Exception as e:
+            print(f'Error fetching dashboard stats: {e}')
+        finally:
+            connection.close()
     
     # Generate panel cards based on available access
     def generate_panel_card(panel_id, title, description, icon, url):
@@ -1951,16 +1969,6 @@ def admin_dashboard():
         </style>
     </head>
     <body>
-        <canvas id="webglCanvas" width="885" height="997" style="pointer-events:auto;z-index:1;position:fixed;top:0;left:0;"></canvas>
-        <div class="interaction-overlay"></div>
-        <div class="bg-selector">
-            <h4>Background</h4>
-            <div class="bg-options">
-                <div class="bg-option active" data-bg="particles">Neural Network</div>
-                <div class="bg-option" data-bg="matrix">Matrix Rain</div>
-                <div class="bg-option" data-bg="geometric">Geometric</div>
-            </div>
-        </div>
         
         <!-- Header matching cases site -->
         <header>
@@ -1999,20 +2007,20 @@ def admin_dashboard():
                 
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-value">18</div>
-                        <div class="stat-label">Staff Accounts</div>
+                        <div class="stat-value">{stats['total_staff']}</div>
+                        <div class="stat-label">Staff Members</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">72</div>
-                        <div class="stat-label">Total Actions</div>
+                        <div class="stat-value">{stats['recent_cases']}</div>
+                        <div class="stat-label">Recent Cases</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">0.0%</div>
-                        <div class="stat-label">Code Integrity</div>
+                        <div class="stat-value">{stats['pending_assignments']}</div>
+                        <div class="stat-label">Pending Tasks</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">100.0%</div>
-                        <div class="stat-label">Built on Hopes & Dreams</div>
+                        <div class="stat-value">{stats['active_groups']}</div>
+                        <div class="stat-label">Active Groups</div>
                     </div>
                 </div>
                 
@@ -2031,8 +2039,87 @@ def admin_dashboard():
                 </div>
             </div>
         </main>
-        <script>
-            // Background Visualization Manager
+    </body>
+    </html>
+    '''
+    
+    return html
+
+@app.route('/admin/cases')
+@login_required
+@require_ranks([
+    'Executive Director',
+    'Administration Director',
+    'Project Director',
+    'Community Director',
+    'Administrator',
+    'Junior Administrator',
+    'Senior Moderator',
+    'Moderator',
+    'Trial Moderator',
+])
+def admin_cases():
+    user = session['user']
+    staff_rank = user.get('staff_info', {}).get('role', 'Staff')
+    rank_color = RANK_COLORS.get(staff_rank, '#a977f8')
+    
+    # Fetch cases from the discord table ONLY (no join with users), filter out those without punishment_type
+    import ast
+    connection = get_db_connection()
+    cases = []
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = '''
+                SELECT reference_id, user_id, punishment_type, reason, appealed, length, evidence
+                FROM discord
+                WHERE punishment_type IS NOT NULL AND punishment_type != ''
+                ORDER BY reference_id DESC
+                LIMIT 100
+            '''
+            cursor.execute(query)
+            for row in cursor.fetchall():
+                # Parse evidence as list
+                evidence_list = []
+                if row.get('evidence'):
+                    try:
+                        if row['evidence'].strip().startswith('['):
+                            evidence_list = ast.literal_eval(row['evidence'])
+                        else:
+                            evidence_list = [url.strip() for url in row['evidence'].split('\n') if url.strip()]
+                    except Exception:
+                        evidence_list = [url.strip() for url in row['evidence'].split('\n') if url.strip()]
+                cases.append({
+                    'id': row['reference_id'],
+                    'user_id': row['user_id'],
+                    'type': row['punishment_type'],
+                    'reason': row['reason'],
+                    'status': 'Appealed' if row['appealed'] == 1 else 'Active',
+                    'length': row['length'] if row['length'] else 'N/A',
+                    'evidence_list': evidence_list
+                })
+            cursor.close()
+        except Exception as e:
+            print('Error in /admin/cases:', e)
+            cases = []
+        finally:
+            connection.close()
+    
+    def render_evidence_block(evidence_list):
+        if not evidence_list:
+            return '<span style="color:#888">No evidence</span>'
+        html = ''
+        for url in evidence_list:
+            ext = url.split('.')[-1].lower().split('?')[0]
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']:
+                html += f'<img src="{url}" alt="evidence" style="max-width:60px;max-height:45px;margin:2px;border-radius:4px;border:1px solid #333;vertical-align:middle;">'
+            elif ext in ['mp4', 'webm', 'ogg', 'mov', 'm4v']:
+                html += f'<video src="{url}" controls style="max-width:60px;max-height:45px;margin:2px;border-radius:4px;vertical-align:middle;background:#111;"></video>'
+            else:
+                html += f'<a href="{url}" target="_blank" style="color:#a977f8;font-size:0.8rem;">File</a> '
+        return html
+    
+    # Color coding for punishment types
             class BackgroundManager {{
                 constructor() {{
                     this.canvas = document.getElementById('webglCanvas');
@@ -2935,7 +3022,7 @@ def admin_dashboard():
     </html>
     '''
     
-    return render_template('admin_complete.html', user=user, page_title='Dashboard', page_subtitle=f'Welcome back, {user.get("display_name") or user["username"]}')
+    return html
 
 @app.route('/admin/cases')
 @login_required

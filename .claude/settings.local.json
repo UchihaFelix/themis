@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Read(//**)",
+      "Bash(docker compose restart:*)",
+      "Bash(docker compose logs:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
