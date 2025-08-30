@@ -8,11 +8,18 @@ from functools import wraps
 import json
 import mysql.connector # type: ignore
 from mysql.connector import Error # type: ignore
+import base64
+import hashlib
 
 import boto3 # type: ignore
 from werkzeug.utils import secure_filename # type: ignore
 from dotenv import load_dotenv # type: ignore
 from flask import Response # type: ignore
+from webauthn import generate_registration_options, verify_registration_response, generate_authentication_options, verify_authentication_response # type: ignore
+from webauthn.helpers.structs import PublicKeyCredentialDescriptor, AuthenticatorSelectionCriteria, UserVerificationRequirement # type: ignore
+from webauthn.helpers.cose import COSEAlgorithmIdentifier # type: ignore
+from cryptography.hazmat.primitives import serialization # type: ignore
+import cbor2 # type: ignore
 
 load_dotenv()
 
@@ -29,9 +36,15 @@ DB_CONFIG = {
 }
 BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
 SECRET_KEY = os.getenv('SECRET_KEY')
+RP_ID = os.getenv('RP_ID', 'localhost')
+RP_NAME = os.getenv('RP_NAME', 'Themis Administration System')
+ORIGIN = os.getenv('ORIGIN', 'http://localhost:5000')
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+# WebAuthn Configuration
+RP_ID_HASH = hashlib.sha256(RP_ID.encode()).digest()
 
 # --- Rank Authorization Mapping and Decorators ---
 # Rank order: lower number = higher privilege
@@ -634,6 +647,160 @@ def get_db_connection():
         print(f"Error connecting to MySQL: {e}")
         return None
 
+# Passkey Authentication Functions
+def get_user_credentials(user_id):
+    """Get all passkey credentials for a user"""
+    connection = get_db_connection()
+    if not connection:
+        return []
+    
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT credential_id, public_key, counter
+            FROM user_passkeys
+            WHERE user_id = %s
+        """, (user_id,))
+        credentials = cursor.fetchall()
+        
+        # Convert to WebAuthn format
+        webauthn_credentials = []
+        for cred in credentials:
+            webauthn_credentials.append(PublicKeyCredentialDescriptor(
+                id=base64.urlsafe_b64decode(cred['credential_id'] + '=='),
+                type="public-key"
+            ))
+        return webauthn_credentials
+    except Exception as e:
+        print(f"Error fetching user credentials: {e}")
+        return []
+    finally:
+        cursor.close()
+        connection.close()
+
+def save_user_credential(user_id, credential_id, public_key, counter, device_name):
+    """Save a new passkey credential for a user"""
+    connection = get_db_connection()
+    if not connection:
+        return False
+    
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT INTO user_passkeys (user_id, credential_id, public_key, counter, device_name)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (user_id, credential_id, public_key, counter, device_name))
+        connection.commit()
+        return True
+    except Exception as e:
+        print(f"Error saving credential: {e}")
+        connection.rollback()
+        return False
+    finally:
+        cursor.close()
+        connection.close()
+
+def update_user_settings(user_id, settings):
+    """Update user settings in the database"""
+    connection = get_db_connection()
+    if not connection:
+        return False
+    
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            UPDATE staff_members 
+            SET user_settings = %s, updated_at = NOW()
+            WHERE user_id = %s
+        """, (json.dumps(settings), user_id))
+        connection.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Error updating user settings: {e}")
+        connection.rollback()
+        return False
+    finally:
+        cursor.close()
+        connection.close()
+
+def get_user_settings(user_id):
+    """Get user settings from database"""
+    connection = get_db_connection()
+    if not connection:
+        return {}
+    
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT user_settings, theme_preference, language_preference, 
+                   notification_settings, display_name
+            FROM staff_members
+            WHERE user_id = %s
+        """, (user_id,))
+        result = cursor.fetchone()
+        
+        if result:
+            settings = json.loads(result['user_settings'] or '{}')
+            settings.update({
+                'theme': result['theme_preference'] or 'system',
+                'language': result['language_preference'] or 'en',
+                'notifications': json.loads(result['notification_settings'] or '{}'),
+                'display_name': result['display_name']
+            })
+            return settings
+        return {}
+    except Exception as e:
+        print(f"Error getting user settings: {e}")
+        return {}
+    finally:
+        cursor.close()
+        connection.close()
+
+def create_user_session(user_id, ip_address=None, user_agent=None):
+    """Create a new user session"""
+    session_id = secrets.token_urlsafe(32)
+    expires_at = datetime.now() + timedelta(days=30)
+    
+    connection = get_db_connection()
+    if not connection:
+        return None
+    
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT INTO user_sessions (session_id, user_id, expires_at, ip_address, user_agent)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (session_id, user_id, expires_at, ip_address, user_agent))
+        connection.commit()
+        return session_id
+    except Exception as e:
+        print(f"Error creating session: {e}")
+        connection.rollback()
+        return None
+    finally:
+        cursor.close()
+        connection.close()
+
+def log_login_attempt(user_id, username, ip_address, user_agent, method, success, failure_reason=None):
+    """Log a login attempt"""
+    connection = get_db_connection()
+    if not connection:
+        return
+    
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT INTO login_attempts (user_id, username, ip_address, user_agent, method, success, failure_reason)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (user_id, username, ip_address, user_agent, method, success, failure_reason))
+        connection.commit()
+    except Exception as e:
+        print(f"Error logging login attempt: {e}")
+        connection.rollback()
+    finally:
+        cursor.close()
+        connection.close()
+
 def is_staff(discord_id):
     """Check if a Discord ID is authorized staff"""
     try:
@@ -766,7 +933,12 @@ def format_time_until(timestamp):
 # Routes
 @app.route('/')
 def index():
-    """Serve the main landing page"""
+    """Serve the main landing page or redirect to login"""
+    # If user is logged in, redirect to dashboard
+    if 'user' in session:
+        return redirect(url_for('admin_dashboard'))
+    
+    # If not logged in, serve the landing page
     try:
         with open('templates/index.html', 'r') as f:
             html_content = f.read()
@@ -871,7 +1043,422 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('index'))
 
+# Passkey Authentication Routes
+@app.route('/api/passkey/register/begin', methods=['POST'])
+@login_required
+@staff_required
+def passkey_register_begin():
+    """Begin passkey registration for authenticated user"""
+    user = session['user']
+    user_id = user['id']
+    
+    try:
+        # Get existing credentials for this user
+        existing_credentials = get_user_credentials(user_id)
+        
+        # Generate registration options
+        registration_options = generate_registration_options(
+            rp_id=RP_ID,
+            rp_name=RP_NAME,
+            user_id=str(user_id).encode(),
+            user_name=user['username'],
+            user_display_name=user.get('display_name', user['username']),
+            exclude_credentials=existing_credentials,
+            authenticator_selection=AuthenticatorSelectionCriteria(
+                user_verification=UserVerificationRequirement.REQUIRED
+            ),
+            supported_pub_key_algs=[
+                COSEAlgorithmIdentifier.ECDSA_SHA_256,
+                COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,
+            ],
+        )
+        
+        # Store challenge in session
+        session['passkey_challenge'] = registration_options.challenge
+        
+        return jsonify(registration_options.to_dict())
+        
+    except Exception as e:
+        print(f"Error beginning passkey registration: {e}")
+        return jsonify({'error': 'Failed to begin registration'}), 500
+
+@app.route('/api/passkey/register/complete', methods=['POST'])
+@login_required
+@staff_required
+def passkey_register_complete():
+    """Complete passkey registration"""
+    user = session['user']
+    user_id = user['id']
+    
+    try:
+        data = request.get_json()
+        credential = data.get('credential')
+        device_name = data.get('device_name', 'Unnamed Device')
+        
+        if not credential:
+            return jsonify({'error': 'Missing credential data'}), 400
+            
+        challenge = session.get('passkey_challenge')
+        if not challenge:
+            return jsonify({'error': 'No registration in progress'}), 400
+        
+        # Verify registration response
+        verification = verify_registration_response(
+            credential=credential,
+            expected_challenge=challenge,
+            expected_origin=ORIGIN,
+            expected_rp_id=RP_ID,
+        )
+        
+        if verification.verified:
+            # Save credential to database
+            credential_id_b64 = base64.urlsafe_b64encode(verification.credential_id).decode().rstrip('=')
+            public_key_pem = verification.credential_public_key.decode() if isinstance(verification.credential_public_key, bytes) else verification.credential_public_key
+            
+            success = save_user_credential(
+                user_id=user_id,
+                credential_id=credential_id_b64,
+                public_key=public_key_pem,
+                counter=verification.sign_count,
+                device_name=device_name
+            )
+            
+            if success:
+                session.pop('passkey_challenge', None)
+                return jsonify({'success': True, 'message': 'Passkey registered successfully'})
+            else:
+                return jsonify({'error': 'Failed to save credential'}), 500
+        else:
+            return jsonify({'error': 'Registration verification failed'}), 400
+            
+    except Exception as e:
+        print(f"Error completing passkey registration: {e}")
+        return jsonify({'error': 'Failed to complete registration'}), 500
+
+@app.route('/api/passkey/auth/begin', methods=['POST'])
+def passkey_auth_begin():
+    """Begin passkey authentication"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        # Find user by username (Discord username)
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Database connection failed'}), 500
+            
+        try:
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT user_id FROM staff_members WHERE username = %s
+            """, (username,))
+            user_record = cursor.fetchone()
+            
+            if not user_record:
+                return jsonify({'error': 'User not found'}), 404
+            
+            user_id = user_record['user_id']
+            
+            # Get user's credentials
+            credentials = get_user_credentials(user_id)
+            
+            if not credentials:
+                return jsonify({'error': 'No passkeys registered for this user'}), 400
+            
+            # Generate authentication options
+            authentication_options = generate_authentication_options(
+                rp_id=RP_ID,
+                allow_credentials=credentials,
+                user_verification=UserVerificationRequirement.REQUIRED,
+            )
+            
+            # Store challenge in session
+            session['passkey_auth_challenge'] = authentication_options.challenge
+            session['passkey_auth_user_id'] = user_id
+            
+            return jsonify(authentication_options.to_dict())
+            
+        finally:
+            cursor.close()
+            connection.close()
+            
+    except Exception as e:
+        print(f"Error beginning passkey authentication: {e}")
+        return jsonify({'error': 'Failed to begin authentication'}), 500
+
+@app.route('/api/passkey/auth/complete', methods=['POST'])
+def passkey_auth_complete():
+    """Complete passkey authentication"""
+    try:
+        data = request.get_json()
+        credential = data.get('credential')
+        
+        if not credential:
+            return jsonify({'error': 'Missing credential data'}), 400
+            
+        challenge = session.get('passkey_auth_challenge')
+        user_id = session.get('passkey_auth_user_id')
+        
+        if not challenge or not user_id:
+            return jsonify({'error': 'No authentication in progress'}), 400
+        
+        # Get the credential from database
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Database connection failed'}), 500
+            
+        try:
+            cursor = connection.cursor(dictionary=True)
+            credential_id_b64 = base64.urlsafe_b64encode(base64.urlsafe_b64decode(credential['id'] + '==')).decode().rstrip('=')
+            
+            cursor.execute("""
+                SELECT public_key, counter FROM user_passkeys 
+                WHERE user_id = %s AND credential_id = %s
+            """, (user_id, credential_id_b64))
+            
+            stored_credential = cursor.fetchone()
+            if not stored_credential:
+                return jsonify({'error': 'Credential not found'}), 404
+            
+            # Verify authentication response
+            verification = verify_authentication_response(
+                credential=credential,
+                expected_challenge=challenge,
+                expected_origin=ORIGIN,
+                expected_rp_id=RP_ID,
+                credential_public_key=stored_credential['public_key'].encode(),
+                credential_current_sign_count=stored_credential['counter'],
+            )
+            
+            if verification.verified:
+                # Update counter
+                cursor.execute("""
+                    UPDATE user_passkeys 
+                    SET counter = %s, last_used_at = NOW()
+                    WHERE user_id = %s AND credential_id = %s
+                """, (verification.new_sign_count, user_id, credential_id_b64))
+                
+                # Get user info for session
+                cursor.execute("""
+                    SELECT * FROM staff_members WHERE user_id = %s
+                """, (user_id,))
+                user_data = cursor.fetchone()
+                
+                if user_data:
+                    # Log successful login
+                    log_login_attempt(
+                        user_id, user_data['username'], 
+                        request.environ.get('REMOTE_ADDR'),
+                        request.environ.get('HTTP_USER_AGENT'),
+                        'passkey', True
+                    )
+                    
+                    # Update login stats
+                    cursor.execute("""
+                        UPDATE staff_members 
+                        SET last_login_at = NOW(), login_count = login_count + 1
+                        WHERE user_id = %s
+                    """, (user_id,))
+                    
+                    connection.commit()
+                    
+                    # Set session
+                    session['user'] = {
+                        'id': user_data['user_id'],
+                        'username': user_data['username'],
+                        'display_name': user_data.get('display_name'),
+                        'staff_info': {'role': user_data['rank']},
+                        'settings': get_user_settings(user_id)
+                    }
+                    
+                    # Clear auth session data
+                    session.pop('passkey_auth_challenge', None)
+                    session.pop('passkey_auth_user_id', None)
+                    
+                    return jsonify({'success': True, 'redirect': '/admin/dashboard'})
+                else:
+                    return jsonify({'error': 'User data not found'}), 404
+            else:
+                # Log failed login
+                log_login_attempt(
+                    user_id, None,
+                    request.environ.get('REMOTE_ADDR'),
+                    request.environ.get('HTTP_USER_AGENT'),
+                    'passkey', False, 'Authentication verification failed'
+                )
+                return jsonify({'error': 'Authentication verification failed'}), 400
+                
+        finally:
+            cursor.close()
+            connection.close()
+            
+    except Exception as e:
+        print(f"Error completing passkey authentication: {e}")
+        return jsonify({'error': 'Failed to complete authentication'}), 500
+
+# User Settings Routes
+@app.route('/api/user/settings', methods=['GET'])
+@login_required
+@staff_required
+def get_user_settings_api():
+    """Get current user settings"""
+    user = session['user']
+    settings = get_user_settings(user['id'])
+    return jsonify(settings)
+
+@app.route('/api/user/settings', methods=['POST'])
+@login_required
+@staff_required
+def update_user_settings_api():
+    """Update current user settings"""
+    user = session['user']
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'No settings data provided'}), 400
+    
+    success = update_user_settings(user['id'], data)
+    if success:
+        # Update session with new settings
+        user['settings'] = get_user_settings(user['id'])
+        session['user'] = user
+        return jsonify({'success': True, 'message': 'Settings updated successfully'})
+    else:
+        return jsonify({'error': 'Failed to update settings'}), 500
+
+@app.route('/api/user/passkeys', methods=['GET'])
+@login_required
+@staff_required
+def list_user_passkeys():
+    """List user's registered passkeys"""
+    user = session['user']
+    user_id = user['id']
+    
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT id, device_name, created_at, last_used_at
+            FROM user_passkeys
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+        """, (user_id,))
+        
+        passkeys = cursor.fetchall()
+        
+        # Convert datetime objects to strings
+        for passkey in passkeys:
+            passkey['created_at'] = passkey['created_at'].isoformat() if passkey['created_at'] else None
+            passkey['last_used_at'] = passkey['last_used_at'].isoformat() if passkey['last_used_at'] else None
+        
+        return jsonify(passkeys)
+        
+    except Exception as e:
+        print(f"Error listing passkeys: {e}")
+        return jsonify({'error': 'Failed to list passkeys'}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.route('/api/user/passkeys/<int:passkey_id>', methods=['DELETE'])
+@login_required
+@staff_required
+def delete_user_passkey(passkey_id):
+    """Delete a user's passkey"""
+    user = session['user']
+    user_id = user['id']
+    
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            DELETE FROM user_passkeys
+            WHERE id = %s AND user_id = %s
+        """, (passkey_id, user_id))
+        
+        if cursor.rowcount > 0:
+            connection.commit()
+            return jsonify({'success': True, 'message': 'Passkey deleted successfully'})
+        else:
+            return jsonify({'error': 'Passkey not found'}), 404
+            
+    except Exception as e:
+        print(f"Error deleting passkey: {e}")
+        connection.rollback()
+        return jsonify({'error': 'Failed to delete passkey'}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
 from flask import redirect # type: ignore
+
+@app.route('/admin/migrate-db')
+@login_required
+@staff_required
+def migrate_database():
+    """Temporary route to run database migration - REMOVE AFTER USE"""
+    user = session['user']
+    # Only allow Executive Directors to run migrations
+    if user.get('staff_info', {}).get('role') != 'Executive Director':
+        return "Unauthorized - Only Executive Directors can run database migrations", 403
+    
+    connection = get_db_connection()
+    if not connection:
+        return "Database connection failed", 500
+    
+    try:
+        cursor = connection.cursor()
+        results = []
+        
+        # Read and execute migration SQL
+        with open('database_migration.sql', 'r') as f:
+            sql_content = f.read()
+        
+        # Split by semicolon and filter out empty commands
+        sql_commands = [cmd.strip() for cmd in sql_content.split(';') if cmd.strip()]
+        
+        for i, command in enumerate(sql_commands):
+            try:
+                cursor.execute(command)
+                results.append(f"✅ Command {i+1}: Success")
+            except Exception as cmd_error:
+                # Continue with other commands even if one fails
+                results.append(f"⚠️ Command {i+1}: {str(cmd_error)}")
+        
+        connection.commit()
+        
+        # Format results as HTML
+        result_html = "<h2>Database Migration Results</h2><ul>"
+        for result in results:
+            result_html += f"<li>{result}</li>"
+        result_html += "</ul><p><strong>Migration completed! Please remove this route from main.py now.</strong></p>"
+        
+        return result_html
+        
+    except Exception as e:
+        connection.rollback()
+        return f"Migration failed: {str(e)}", 500
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.route('/login')
+def login_page():
+    """Serve the login page"""
+    # If user is already logged in, redirect to dashboard
+    if 'user' in session:
+        return redirect(url_for('admin_dashboard'))
+    
+    return render_template('login.html')
 
 
 @app.route('/admin/dashboard')
@@ -2324,7 +2911,7 @@ def admin_dashboard():
     </html>
     '''
     
-    return render_template_string(html)
+    return render_template('admin_complete.html', user=user, page_title='Dashboard', page_subtitle=f'Welcome back, {user.get("display_name") or user["username"]}')
 
 @app.route('/admin/cases')
 @login_required

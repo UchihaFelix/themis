@@ -4,4 +4,7 @@ authlib
 mysql-connector-python
 requests
 boto3
-dotenv
+python-dotenv
+webauthn
+cryptography
+cbor2

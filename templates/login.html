@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Themis - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --purple-primary: #A977F8;
+            --purple-secondary: rgba(169, 119, 248, 0.2);
+            --purple-accent: rgba(169, 119, 248, 0.1);
+            --purple-border: rgba(169, 119, 248, 0.3);
+            --dark-bg: #0a0a0a;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --success: #4CAF50;
+            --error: #f44336;
+            --warning: #ff9800;
+        }
+
+        canvas#webglCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            display: block;
+            pointer-events: auto;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--dark-bg);
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 450px;
+            padding: 2rem;
+        }
+
+        .login-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 3rem 2.5rem;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--purple-primary), #9966e6);
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .logo-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--purple-primary), #9966e6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 24px;
+            margin: 0 auto 1rem;
+            box-shadow: 0 8px 32px rgba(169, 119, 248, 0.4);
+        }
+
+        .logo-title {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--purple-primary), #9966e6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .auth-methods {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .auth-method {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-method::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .auth-method:hover::before {
+            left: 100%;
+        }
+
+        .auth-method:hover {
+            background: var(--purple-accent);
+            border-color: var(--purple-border);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(169, 119, 248, 0.2);
+        }
+
+        .auth-method-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .auth-method-description {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-discord {
+            background: linear-gradient(135deg, #5865F2, #4752C4);
+            color: white;
+            box-shadow: 0 6px 24px rgba(88, 101, 242, 0.3);
+        }
+
+        .btn-discord:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(88, 101, 242, 0.4);
+        }
+
+        .btn-passkey {
+            background: linear-gradient(135deg, var(--purple-primary), #9966e6);
+            color: white;
+            box-shadow: 0 6px 24px rgba(169, 119, 248, 0.3);
+        }
+
+        .btn-passkey:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(169, 119, 248, 0.4);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--purple-primary);
+            box-shadow: 0 0 0 3px rgba(169, 119, 248, 0.1);
+            background: rgba(169, 119, 248, 0.05);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 1.5rem 0;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        .divider span {
+            padding: 0 1rem;
+        }
+
+        .passkey-section {
+            display: none;
+        }
+
+        .passkey-section.show {
+            display: block;
+        }
+
+        .error-message {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: var(--error);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+        }
+
+        .footer a {
+            color: var(--purple-primary);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .login-container {
+                padding: 1rem;
+            }
+
+            .login-card {
+                padding: 2rem 1.5rem;
+            }
+
+            .logo-title {
+                font-size: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- WebGL Canvas for Particle Background -->
+    <canvas id="webglCanvas"></canvas>
+
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo-section">
+                <div class="logo-icon">T</div>
+                <h1 class="logo-title">Themis</h1>
+                <p class="logo-subtitle">Advanced Administration System</p>
+            </div>
+
+            <div id="errorMessage" class="error-message"></div>
+
+            <div class="auth-methods">
+                <!-- Discord Authentication -->
+                <div class="auth-method">
+                    <div class="auth-method-title">
+                        <span>🎮</span>
+                        <span>Discord Login</span>
+                    </div>
+                    <div class="auth-method-description">
+                        Use your Discord account to authenticate and access the admin panel.
+                    </div>
+                    <a href="/auth/discord" class="btn btn-discord">
+                        <span>Login with Discord</span>
+                    </a>
+                </div>
+
+                <div class="divider">
+                    <span>or</span>
+                </div>
+
+                <!-- Passkey Authentication -->
+                <div class="auth-method">
+                    <div class="auth-method-title">
+                        <span>🔐</span>
+                        <span>Passkey Login</span>
+                    </div>
+                    <div class="auth-method-description">
+                        Use biometrics, PIN, or hardware security key for secure authentication.
+                    </div>
+                    <button class="btn btn-passkey" onclick="togglePasskeySection()">
+                        <span>Login with Passkey</span>
+                    </button>
+
+                    <div class="passkey-section" id="passkeySection">
+                        <div class="divider">
+                            <span></span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-input" id="passkeyUsername" placeholder="Enter your username">
+                        </div>
+                        <button class="btn btn-passkey" onclick="authenticateWithPasskey()" id="passkeyAuthBtn">
+                            <span>Authenticate</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>&copy; 2025 Themis Administration System</p>
+                <p><a href="#">Privacy Policy</a> • <a href="#">Terms of Service</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Background Visualization Manager (simplified version for login page)
+        class BackgroundManager {
+            constructor() {
+                this.canvas = document.getElementById('webglCanvas');
+                this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+                this.currentVisualization = null;
+                
+                if (!this.gl) {
+                    console.warn('WebGL not supported');
+                    return;
+                }
+                
+                this.initVisualization();
+                this.start();
+            }
+            
+            initVisualization() {
+                this.currentVisualization = new ParticleVisualization(this.gl, this.canvas);
+            }
+            
+            start() {
+                this.resizeCanvas();
+                this.currentVisualization.init();
+                
+                window.addEventListener('resize', () => this.resizeCanvas());
+                this.render();
+            }
+            
+            resizeCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+                this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+                
+                if (this.currentVisualization) {
+                    this.currentVisualization.resize();
+                }
+            }
+            
+            render() {
+                if (this.currentVisualization) {
+                    this.currentVisualization.render();
+                }
+                
+                requestAnimationFrame(() => this.render());
+            }
+        }
+
+        // Base Visualization Class
+        class BaseVisualization {
+            constructor(gl, canvas) {
+                this.gl = gl;
+                this.canvas = canvas;
+                this.mouse = { x: 0, y: 0, isMoving: false };
+                this.time = 0;
+                this.programs = {};
+                this.buffers = {};
+                this.isInitialized = false;
+            }
+            
+            init() {
+                if (!this.isInitialized) {
+                    this.createShaders();
+                    this.createBuffers();
+                    this.setupEventListeners();
+                    this.isInitialized = true;
+                }
+                this.reset();
+            }
+            
+            setupEventListeners() {
+                this.canvas.addEventListener('mousemove', (e) => this.updateMouse(e));
+                this.canvas.addEventListener('mouseenter', () => { this.mouse.isMoving = true; });
+                this.canvas.addEventListener('mouseleave', () => { this.mouse.isMoving = false; });
+            }
+            
+            updateMouse(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                this.mouse.x = e.clientX - rect.left;
+                this.mouse.y = e.clientY - rect.top;
+                this.mouse.isMoving = true;
+                
+                clearTimeout(this.mouse.timeout);
+                this.mouse.timeout = setTimeout(() => {
+                    this.mouse.isMoving = false;
+                }, 100);
+            }
+            
+            render() {
+                this.time = Date.now();
+                
+                this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
+                this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+                this.gl.enable(this.gl.BLEND);
+                this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+                
+                this.draw();
+            }
+            
+            createShader(type, source) {
+                const shader = this.gl.createShader(type);
+                this.gl.shaderSource(shader, source);
+                this.gl.compileShader(shader);
+                
+                if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+                    console.error('Shader compilation error:', this.gl.getShaderInfoLog(shader));
+                    this.gl.deleteShader(shader);
+                    return null;
+                }
+                
+                return shader;
+            }
+            
+            createProgram(vertexShader, fragmentShader) {
+                const program = this.gl.createProgram();
+                this.gl.attachShader(program, vertexShader);
+                this.gl.attachShader(program, fragmentShader);
+                this.gl.linkProgram(program);
+                
+                if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
+                    console.error('Program linking error:', this.gl.getProgramInfoLog(program));
+                    this.gl.deleteProgram(program);
+                    return null;
+                }
+                
+                return program;
+            }
+        }
+
+        // Particle Visualization
+        class ParticleVisualization extends BaseVisualization {
+            constructor(gl, canvas) {
+                super(gl, canvas);
+                this.particles = [];
+                this.PARTICLE_COUNT = 80;
+                this.CONNECTION_DISTANCE = 120;
+                this.MOUSE_INFLUENCE_RADIUS = 150;
+            }
+            
+            createShaders() {
+                const vertexShaderSource = `
+                    attribute vec2 a_position;
+                    attribute float a_size;
+                    attribute float a_alpha;
+                    
+                    uniform vec2 u_resolution;
+                    
+                    varying float v_alpha;
+                    
+                    void main() {
+                        vec2 position = a_position / u_resolution * 2.0 - 1.0;
+                        position.y *= -1.0;
+                        
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        gl_PointSize = a_size;
+                        v_alpha = a_alpha;
+                    }
+                `;
+
+                const fragmentShaderSource = `
+                    precision mediump float;
+                    
+                    uniform vec3 u_color;
+                    varying float v_alpha;
+                    
+                    void main() {
+                        float dist = length(gl_PointCoord - vec2(0.5));
+                        float alpha = smoothstep(0.5, 0.0, dist);
+                        gl_FragColor = vec4(u_color, alpha * v_alpha);
+                    }
+                `;
+
+                const lineVertexShaderSource = `
+                    attribute vec2 a_position;
+                    attribute float a_alpha;
+                    
+                    uniform vec2 u_resolution;
+                    
+                    varying float v_alpha;
+                    
+                    void main() {
+                        vec2 position = a_position / u_resolution * 2.0 - 1.0;
+                        position.y *= -1.0;
+                        
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        v_alpha = a_alpha;
+                    }
+                `;
+
+                const lineFragmentShaderSource = `
+                    precision mediump float;
+                    
+                    uniform vec3 u_color;
+                    varying float v_alpha;
+                    
+                    void main() {
+                        gl_FragColor = vec4(u_color, v_alpha);
+                    }
+                `;
+
+                const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexShaderSource);
+                const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+                this.programs.particle = this.createProgram(vertexShader, fragmentShader);
+
+                const lineVertexShader = this.createShader(this.gl.VERTEX_SHADER, lineVertexShaderSource);
+                const lineFragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, lineFragmentShaderSource);
+                this.programs.line = this.createProgram(lineVertexShader, lineFragmentShader);
+
+                // Get locations
+                this.particleLocations = {
+                    position: this.gl.getAttribLocation(this.programs.particle, 'a_position'),
+                    size: this.gl.getAttribLocation(this.programs.particle, 'a_size'),
+                    alpha: this.gl.getAttribLocation(this.programs.particle, 'a_alpha'),
+                    resolution: this.gl.getUniformLocation(this.programs.particle, 'u_resolution'),
+                    color: this.gl.getUniformLocation(this.programs.particle, 'u_color')
+                };
+
+                this.lineLocations = {
+                    position: this.gl.getAttribLocation(this.programs.line, 'a_position'),
+                    alpha: this.gl.getAttribLocation(this.programs.line, 'a_alpha'),
+                    resolution: this.gl.getUniformLocation(this.programs.line, 'u_resolution'),
+                    color: this.gl.getUniformLocation(this.programs.line, 'u_color')
+                };
+            }
+            
+            createBuffers() {
+                this.buffers.particlePosition = this.gl.createBuffer();
+                this.buffers.particleSize = this.gl.createBuffer();
+                this.buffers.particleAlpha = this.gl.createBuffer();
+                this.buffers.linePosition = this.gl.createBuffer();
+                this.buffers.lineAlpha = this.gl.createBuffer();
+            }
+            
+            reset() {
+                this.particles = [];
+                for (let i = 0; i < this.PARTICLE_COUNT; i++) {
+                    this.particles.push(new Particle(this.canvas));
+                }
+            }
+            
+            draw() {
+                // Update particles
+                this.particles.forEach(particle => {
+                    particle.update(this.particles, this.mouse, this.time, this.canvas);
+                    particle.findConnections(this.particles, this.CONNECTION_DISTANCE);
+                });
+
+                // Render connections
+                const linePositions = [];
+                const lineAlphas = [];
+                
+                this.particles.forEach(particle => {
+                    particle.connections.forEach(connection => {
+                        linePositions.push(particle.x, particle.y);
+                        linePositions.push(connection.particle.x, connection.particle.y);
+                        lineAlphas.push(connection.alpha);
+                        lineAlphas.push(connection.alpha);
+                    });
+                });
+
+                if (linePositions.length > 0) {
+                    this.gl.useProgram(this.programs.line);
+                    
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.linePosition);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(linePositions), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.lineLocations.position);
+                    this.gl.vertexAttribPointer(this.lineLocations.position, 2, this.gl.FLOAT, false, 0, 0);
+
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.lineAlpha);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(lineAlphas), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.lineLocations.alpha);
+                    this.gl.vertexAttribPointer(this.lineLocations.alpha, 1, this.gl.FLOAT, false, 0, 0);
+
+                    this.gl.uniform2f(this.lineLocations.resolution, this.canvas.width, this.canvas.height);
+                    this.gl.uniform3f(this.lineLocations.color, 0.663, 0.467, 0.973);
+
+                    this.gl.drawArrays(this.gl.LINES, 0, linePositions.length / 2);
+                }
+
+                // Render particles
+                this.gl.useProgram(this.programs.particle);
+                
+                const positions = [];
+                const sizes = [];
+                const alphas = [];
+                
+                this.particles.forEach(particle => {
+                    positions.push(particle.x, particle.y);
+                    sizes.push(particle.size);
+                    alphas.push(particle.alpha);
+                });
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.particlePosition);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.DYNAMIC_DRAW);
+                this.gl.enableVertexAttribArray(this.particleLocations.position);
+                this.gl.vertexAttribPointer(this.particleLocations.position, 2, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.particleSize);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(sizes), this.gl.DYNAMIC_DRAW);
+                this.gl.enableVertexAttribArray(this.particleLocations.size);
+                this.gl.vertexAttribPointer(this.particleLocations.size, 1, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.particleAlpha);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(alphas), this.gl.DYNAMIC_DRAW);
+                this.gl.enableVertexAttribArray(this.particleLocations.alpha);
+                this.gl.vertexAttribPointer(this.particleLocations.alpha, 1, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.uniform2f(this.particleLocations.resolution, this.canvas.width, this.canvas.height);
+                this.gl.uniform3f(this.particleLocations.color, 0.8, 0.8, 0.9);
+
+                this.gl.drawArrays(this.gl.POINTS, 0, this.particles.length);
+            }
+        }
+
+        // Particle class
+        class Particle {
+            constructor(canvas) {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.3;
+                this.vy = (Math.random() - 0.5) * 0.3;
+                this.size = 2.0 + Math.random() * 1.5;
+                this.alpha = 0.3 + Math.random() * 0.3;
+                this.baseAlpha = this.alpha;
+                this.connections = [];
+            }
+
+            update(particles, mouse, time, canvas) {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (mouse.isMoving) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 150) {
+                        const force = (150 - distance) / 150;
+                        this.vx += dx * force * 0.00005;
+                        this.vy += dy * force * 0.00005;
+                        this.alpha = Math.min(1.0, this.baseAlpha + force * 0.3);
+                    } else {
+                        this.alpha = this.baseAlpha;
+                    }
+                } else {
+                    this.alpha = this.baseAlpha;
+                }
+
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+
+                this.y += Math.sin(time * 0.0008 + this.x * 0.008) * 0.05;
+            }
+
+            findConnections(particles, connectionDistance) {
+                this.connections = [];
+                
+                for (let i = 0; i < particles.length; i++) {
+                    const other = particles[i];
+                    if (other === this) continue;
+                    
+                    const dx = this.x - other.x;
+                    const dy = this.y - other.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < connectionDistance) {
+                        const alpha = 1.0 - (distance / connectionDistance);
+                        this.connections.push({
+                            particle: other,
+                            alpha: alpha * 0.1
+                        });
+                    }
+                }
+            }
+        }
+
+        // UI Functions
+        function togglePasskeySection() {
+            const section = document.getElementById('passkeySection');
+            section.classList.toggle('show');
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        async function authenticateWithPasskey() {
+            const username = document.getElementById('passkeyUsername').value.trim();
+            const btn = document.getElementById('passkeyAuthBtn');
+            
+            if (!username) {
+                showError('Please enter your username');
+                return;
+            }
+
+            // Show loading state
+            btn.innerHTML = '<div class="loading-spinner"></div><span>Authenticating...</span>';
+            btn.disabled = true;
+
+            try {
+                // Begin authentication
+                const beginResponse = await fetch('/api/passkey/auth/begin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username })
+                });
+
+                const options = await beginResponse.json();
+
+                if (!beginResponse.ok) {
+                    throw new Error(options.error || 'Failed to begin authentication');
+                }
+
+                // Get credential
+                const credential = await navigator.credentials.get({
+                    publicKey: {
+                        ...options,
+                        challenge: new Uint8Array(Object.values(options.challenge)),
+                        allowCredentials: options.allowCredentials.map(cred => ({
+                            ...cred,
+                            id: new Uint8Array(Object.values(cred.id))
+                        }))
+                    }
+                });
+
+                // Complete authentication
+                const completeResponse = await fetch('/api/passkey/auth/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        credential: {
+                            id: credential.id,
+                            rawId: Array.from(new Uint8Array(credential.rawId)),
+                            response: {
+                                authenticatorData: Array.from(new Uint8Array(credential.response.authenticatorData)),
+                                clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON)),
+                                signature: Array.from(new Uint8Array(credential.response.signature)),
+                                userHandle: credential.response.userHandle ? Array.from(new Uint8Array(credential.response.userHandle)) : null
+                            },
+                            type: credential.type
+                        }
+                    })
+                });
+
+                const result = await completeResponse.json();
+
+                if (result.success) {
+                    // Success - redirect to dashboard
+                    window.location.href = result.redirect || '/admin/dashboard';
+                } else {
+                    throw new Error(result.error || 'Authentication failed');
+                }
+            } catch (error) {
+                console.error('Error with passkey authentication:', error);
+                showError(error.message || 'Authentication failed');
+            } finally {
+                // Reset button
+                btn.innerHTML = '<span>Authenticate</span>';
+                btn.disabled = false;
+            }
+        }
+
+        // Allow Enter key to trigger passkey authentication
+        document.getElementById('passkeyUsername').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                authenticateWithPasskey();
+            }
+        });
+
+        // Initialize background animation when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            new BackgroundManager();
+        });
+    </script>
+</body>
+</html>

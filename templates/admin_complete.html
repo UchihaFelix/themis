@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Themis - {{ page_title or 'Administration Panel' }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --purple-primary: #A977F8;
+            --purple-secondary: rgba(169, 119, 248, 0.2);
+            --purple-accent: rgba(169, 119, 248, 0.1);
+            --purple-border: rgba(169, 119, 248, 0.3);
+            --dark-bg: #0a0a0a;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --success: #4CAF50;
+            --error: #f44336;
+            --warning: #ff9800;
+        }
+
+        canvas#webglCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            display: block;
+            pointer-events: auto;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--dark-bg);
+            overflow-x: hidden;
+        }
+
+        /* Unified Header */
+        .unified-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--purple-border);
+            height: 70px;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+            height: 100%;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--purple-primary), #9966e6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 4px 16px rgba(169, 119, 248, 0.3);
+        }
+
+        .nav-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-button {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            padding: 0.6rem 1.2rem;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .nav-button:hover::before {
+            left: 100%;
+        }
+
+        .nav-button:hover {
+            background: var(--purple-accent);
+            border-color: var(--purple-border);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(169, 119, 248, 0.2);
+        }
+
+        .nav-button.active {
+            background: var(--purple-secondary);
+            border-color: var(--purple-primary);
+            color: var(--purple-primary);
+            box-shadow: 0 4px 16px rgba(169, 119, 248, 0.3);
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--card-bg);
+            padding: 0.6rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .user-profile:hover {
+            background: var(--purple-accent);
+            border-color: var(--purple-border);
+            transform: translateY(-1px);
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--purple-primary), #9966e6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(169, 119, 248, 0.3);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 12px);
+            right: 0;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            min-width: 220px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-radius: 12px;
+            margin: 4px;
+        }
+
+        .dropdown-item:hover {
+            background: var(--purple-accent);
+            transform: translateX(4px);
+        }
+
+        .dropdown-separator {
+            height: 1px;
+            background: var(--border-color);
+            margin: 8px 12px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-top: 70px;
+            min-height: calc(100vh - 70px);
+            padding: 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--purple-primary), #9966e6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Card Styles */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--purple-primary), #9966e6);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 48px rgba(169, 119, 248, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* Button Styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 16px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--purple-primary), #9966e6);
+            color: white;
+            box-shadow: 0 6px 24px rgba(169, 119, 248, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(169, 119, 248, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--purple-accent);
+            border-color: var(--purple-border);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--error), #d32f2f);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(244, 67, 54, 0.3);
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(12px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            transform: translateY(-30px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal.show .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem 2rem 0;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--purple-primary), #9966e6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .modal-close {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.75rem;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background: var(--purple-accent);
+            color: var(--text-primary);
+            border-color: var(--purple-border);
+        }
+
+        .modal-body {
+            padding: 0 2rem 2rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            padding: 1.5rem 2rem 2rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 2rem;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--purple-primary);
+            box-shadow: 0 0 0 4px rgba(169, 119, 248, 0.1);
+            background: rgba(169, 119, 248, 0.05);
+        }
+
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
+            background: var(--card-bg);
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .form-checkbox:hover {
+            background: var(--purple-accent);
+        }
+
+        .form-checkbox input[type="checkbox"] {
+            accent-color: var(--purple-primary);
+            scale: 1.2;
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--purple-primary), #9966e6);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 16px 48px rgba(169, 119, 248, 0.15);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--purple-primary), #9966e6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Passkey List */
+        .passkey-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s ease;
+        }
+
+        .passkey-item:hover {
+            background: var(--purple-accent);
+            border-color: var(--purple-border);
+        }
+
+        .passkey-info h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .passkey-info small {
+            color: var(--text-secondary);
+        }
+
+        /* Notification Styles */
+        .notification {
+            position: fixed;
+            top: 90px;
+            right: 20px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            max-width: 400px;
+            z-index: 10001;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .notification.error {
+            border-left: 4px solid var(--error);
+        }
+
+        .notification.warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content {
+                padding: 0 1rem;
+            }
+
+            .nav-section {
+                display: none;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 1rem;
+            }
+
+            .modal-body {
+                padding: 1rem;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-title {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- WebGL Canvas for Particle Background -->
+    <canvas id="webglCanvas"></canvas>
+
+    <!-- Unified Header -->
+    <header class="unified-header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="logo-icon">T</div>
+                <span class="logo">Themis</span>
+            </div>
+
+            <nav class="nav-section">
+                <a href="/admin/dashboard" class="nav-button {{ 'active' if request.endpoint == 'admin_dashboard' else '' }}">
+                    <span>🏠</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/admin/coordination" class="nav-button {{ 'active' if 'coordination' in request.endpoint else '' }}">
+                    <span>👥</span>
+                    <span>Coordination</span>
+                </a>
+                <a href="/admin/cases" class="nav-button {{ 'active' if 'cases' in request.endpoint else '' }}">
+                    <span>📋</span>
+                    <span>Cases</span>
+                </a>
+            </nav>
+
+            <div class="user-section">
+                <div class="user-profile" onclick="toggleUserDropdown()">
+                    <div class="user-avatar">{{ user['username'][0].upper() if user['username'] else 'U' }}</div>
+                    <span>{{ user['display_name'] or user['username'] }}</span>
+                    <span>▾</span>
+                    <div class="user-dropdown" id="userDropdown">
+                        <a href="#" class="dropdown-item" onclick="openSettingsModal(event)">
+                            <span>⚙️</span>
+                            <span>Settings</span>
+                        </a>
+                        <a href="#" class="dropdown-item" onclick="openPasskeyModal(event)">
+                            <span>🔐</span>
+                            <span>Passkeys</span>
+                        </a>
+                        <div class="dropdown-separator"></div>
+                        <a href="/logout" class="dropdown-item">
+                            <span>🚪</span>
+                            <span>Logout</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <div class="page-header">
+                <h1 class="page-title">{{ page_title or 'Dashboard' }}</h1>
+                <p class="page-subtitle">{{ page_subtitle or 'Welcome back, ' + (user['display_name'] or user['username']) }}</p>
+            </div>
+
+            <!-- Dynamic Content Area -->
+            {% block content %}
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="activeTicketsCount">-</div>
+                    <div class="stat-label">Active Tickets</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="assignmentsCount">-</div>
+                    <div class="stat-label">Assignments</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="completedTasksCount">-</div>
+                    <div class="stat-label">Completed Tasks</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Recent Activity</h2>
+                    <button class="btn btn-secondary">View All</button>
+                </div>
+                <p style="color: var(--text-secondary);">Activity feed will be displayed here...</p>
+            </div>
+            {% endblock %}
+        </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">User Settings</h2>
+                <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="settingsForm">
+                    <div class="form-group">
+                        <label class="form-label">Display Name</label>
+                        <input type="text" class="form-input" id="displayName" placeholder="Your display name">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Theme Preference</label>
+                        <select class="form-select" id="themePreference">
+                            <option value="system">System</option>
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Language</label>
+                        <select class="form-select" id="languagePreference">
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Notifications</label>
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="emailNotifications">
+                            <label for="emailNotifications">Email notifications</label>
+                        </div>
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="discordNotifications">
+                            <label for="discordNotifications">Discord notifications</label>
+                        </div>
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="inAppNotifications">
+                            <label for="inAppNotifications">In-app notifications</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Passkey Management</label>
+                        <button type="button" class="btn btn-primary" onclick="openPasskeyModal()" style="width: 100%;">
+                            <span>🔐</span>
+                            <span>Manage Passkeys</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSettingsModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Passkey Management Modal -->
+    <div class="modal" id="passkeyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Manage Passkeys</h2>
+                <button class="modal-close" onclick="closePasskeyModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <button class="btn btn-primary" onclick="registerNewPasskey()" style="width: 100%; margin-bottom: 1.5rem;">
+                        <span>🔐</span>
+                        <span>Add New Passkey</span>
+                    </button>
+                    <p style="color: var(--text-secondary); font-size: 0.875rem; text-align: center;">
+                        Add a new passkey using your device's biometrics, PIN, or hardware security key
+                    </p>
+                </div>
+
+                <div id="passkeyList">
+                    <!-- Passkeys will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closePasskeyModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Background Visualization Manager
+        class BackgroundManager {
+            constructor() {
+                this.canvas = document.getElementById('webglCanvas');
+                this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+                this.currentVisualization = null;
+                this.visualizations = {};
+                this.currentType = 'particles';
+                
+                if (!this.gl) {
+                    console.warn('WebGL not supported');
+                    return;
+                }
+                
+                this.initVisualizations();
+                this.start();
+            }
+            
+            initVisualizations() {
+                // Register all visualization types
+                this.visualizations = {
+                    particles: new ParticleVisualization(this.gl, this.canvas)
+                };
+            }
+            
+            start() {
+                this.resizeCanvas();
+                this.switchVisualization(this.currentType);
+                
+                window.addEventListener('resize', () => this.resizeCanvas());
+                this.render();
+            }
+            
+            switchVisualization(type) {
+                if (this.currentVisualization) {
+                    this.currentVisualization.cleanup();
+                }
+                
+                this.currentType = type;
+                this.currentVisualization = this.visualizations[type];
+                
+                if (this.currentVisualization) {
+                    this.currentVisualization.init();
+                }
+            }
+            
+            resizeCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+                this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Notify current visualization of resize
+                if (this.currentVisualization) {
+                    this.currentVisualization.resize();
+                }
+            }
+            
+            render() {
+                if (this.currentVisualization) {
+                    this.currentVisualization.render();
+                }
+                
+                requestAnimationFrame(() => this.render());
+            }
+        }
+
+        // Base Visualization Class
+        class BaseVisualization {
+            constructor(gl, canvas) {
+                this.gl = gl;
+                this.canvas = canvas;
+                this.mouse = { x: 0, y: 0, isMoving: false };
+                this.time = 0;
+                this.programs = {};
+                this.buffers = {};
+                this.isInitialized = false;
+            }
+            
+            init() {
+                if (!this.isInitialized) {
+                    this.createShaders();
+                    this.createBuffers();
+                    this.setupEventListeners();
+                    this.isInitialized = true;
+                }
+                this.reset();
+            }
+            
+            createShaders() {
+                // Override in subclasses
+            }
+            
+            createBuffers() {
+                // Override in subclasses  
+            }
+            
+            setupEventListeners() {
+                this.canvas.addEventListener('mousemove', (e) => this.updateMouse(e));
+                this.canvas.addEventListener('mouseenter', () => { this.mouse.isMoving = true; });
+                this.canvas.addEventListener('mouseleave', () => { this.mouse.isMoving = false; });
+            }
+            
+            updateMouse(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                this.mouse.x = e.clientX - rect.left;
+                this.mouse.y = e.clientY - rect.top;
+                this.mouse.isMoving = true;
+                
+                clearTimeout(this.mouse.timeout);
+                this.mouse.timeout = setTimeout(() => {
+                    this.mouse.isMoving = false;
+                }, 100);
+            }
+            
+            reset() {
+                // Override in subclasses
+            }
+            
+            resize() {
+                // Override in subclasses
+            }
+            
+            render() {
+                this.time = Date.now();
+                
+                this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
+                this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+                this.gl.enable(this.gl.BLEND);
+                this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+                
+                this.draw();
+            }
+            
+            draw() {
+                // Override in subclasses
+            }
+            
+            cleanup() {
+                // Override in subclasses
+            }
+            
+            createShader(type, source) {
+                const shader = this.gl.createShader(type);
+                this.gl.shaderSource(shader, source);
+                this.gl.compileShader(shader);
+                
+                if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+                    console.error('Shader compilation error:', this.gl.getShaderInfoLog(shader));
+                    this.gl.deleteShader(shader);
+                    return null;
+                }
+                
+                return shader;
+            }
+            
+            createProgram(vertexShader, fragmentShader) {
+                const program = this.gl.createProgram();
+                this.gl.attachShader(program, vertexShader);
+                this.gl.attachShader(program, fragmentShader);
+                this.gl.linkProgram(program);
+                
+                if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
+                    console.error('Program linking error:', this.gl.getProgramInfoLog(program));
+                    this.gl.deleteProgram(program);
+                    return null;
+                }
+                
+                return program;
+            }
+        }
+
+        // Particle Visualization
+        class ParticleVisualization extends BaseVisualization {
+            constructor(gl, canvas) {
+                super(gl, canvas);
+                this.particles = [];
+                this.PARTICLE_COUNT = 120;
+                this.CONNECTION_DISTANCE = 120;
+                this.MOUSE_INFLUENCE_RADIUS = 150;
+                this.PARTICLE_SIZE = 2.0;
+                this.SEPARATION_DISTANCE = 45;
+                this.SEPARATION_FORCE = 0.002;
+            }
+            
+            createShaders() {
+                const vertexShaderSource = `
+                    attribute vec2 a_position;
+                    attribute float a_size;
+                    attribute float a_alpha;
+                    
+                    uniform vec2 u_resolution;
+                    uniform float u_time;
+                    
+                    varying float v_alpha;
+                    
+                    void main() {
+                        vec2 position = a_position / u_resolution * 2.0 - 1.0;
+                        position.y *= -1.0;
+                        
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        gl_PointSize = a_size;
+                        v_alpha = a_alpha;
+                    }
+                `;
+
+                const fragmentShaderSource = `
+                    precision mediump float;
+                    
+                    uniform vec3 u_color;
+                    varying float v_alpha;
+                    
+                    void main() {
+                        float dist = length(gl_PointCoord - vec2(0.5));
+                        float alpha = smoothstep(0.5, 0.0, dist);
+                        gl_FragColor = vec4(u_color, alpha * v_alpha);
+                    }
+                `;
+
+                const lineVertexShaderSource = `
+                    attribute vec2 a_position;
+                    attribute float a_alpha;
+                    
+                    uniform vec2 u_resolution;
+                    
+                    varying float v_alpha;
+                    
+                    void main() {
+                        vec2 position = a_position / u_resolution * 2.0 - 1.0;
+                        position.y *= -1.0;
+                        
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        v_alpha = a_alpha;
+                    }
+                `;
+
+                const lineFragmentShaderSource = `
+                    precision mediump float;
+                    
+                    uniform vec3 u_color;
+                    varying float v_alpha;
+                    
+                    void main() {
+                        gl_FragColor = vec4(u_color, v_alpha);
+                    }
+                `;
+
+                const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexShaderSource);
+                const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+                this.programs.particle = this.createProgram(vertexShader, fragmentShader);
+
+                const lineVertexShader = this.createShader(this.gl.VERTEX_SHADER, lineVertexShaderSource);
+                const lineFragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, lineFragmentShaderSource);
+                this.programs.line = this.createProgram(lineVertexShader, lineFragmentShader);
+
+                // Get locations
+                this.particleLocations = {
+                    position: this.gl.getAttribLocation(this.programs.particle, 'a_position'),
+                    size: this.gl.getAttribLocation(this.programs.particle, 'a_size'),
+                    alpha: this.gl.getAttribLocation(this.programs.particle, 'a_alpha'),
+                    resolution: this.gl.getUniformLocation(this.programs.particle, 'u_resolution'),
+                    color: this.gl.getUniformLocation(this.programs.particle, 'u_color'),
+                    time: this.gl.getUniformLocation(this.programs.particle, 'u_time')
+                };
+
+                this.lineLocations = {
+                    position: this.gl.getAttribLocation(this.programs.line, 'a_position'),
+                    alpha: this.gl.getAttribLocation(this.programs.line, 'a_alpha'),
+                    resolution: this.gl.getUniformLocation(this.programs.line, 'u_resolution'),
+                    color: this.gl.getUniformLocation(this.programs.line, 'u_color')
+                };
+            }
+            
+            createBuffers() {
+                this.buffers.particlePosition = this.gl.createBuffer();
+                this.buffers.particleSize = this.gl.createBuffer();
+                this.buffers.particleAlpha = this.gl.createBuffer();
+                this.buffers.linePosition = this.gl.createBuffer();
+                this.buffers.lineAlpha = this.gl.createBuffer();
+            }
+            
+            reset() {
+                this.particles = [];
+                for (let i = 0; i < this.PARTICLE_COUNT; i++) {
+                    this.particles.push(new Particle(this.canvas));
+                }
+            }
+            
+            draw() {
+                // Update particles
+                this.particles.forEach(particle => {
+                    particle.update(this.particles, this.mouse, this.time, this.canvas, {
+                        CONNECTION_DISTANCE: this.CONNECTION_DISTANCE,
+                        MOUSE_INFLUENCE_RADIUS: this.MOUSE_INFLUENCE_RADIUS,
+                        SEPARATION_DISTANCE: this.SEPARATION_DISTANCE,
+                        SEPARATION_FORCE: this.SEPARATION_FORCE
+                    });
+                    particle.findConnections(this.particles, this.CONNECTION_DISTANCE);
+                });
+
+                // Render connections
+                const linePositions = [];
+                const lineAlphas = [];
+                
+                this.particles.forEach(particle => {
+                    particle.connections.forEach(connection => {
+                        linePositions.push(particle.x, particle.y);
+                        linePositions.push(connection.particle.x, connection.particle.y);
+                        lineAlphas.push(connection.alpha);
+                        lineAlphas.push(connection.alpha);
+                    });
+                });
+
+                if (linePositions.length > 0) {
+                    this.gl.useProgram(this.programs.line);
+                    
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.linePosition);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(linePositions), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.lineLocations.position);
+                    this.gl.vertexAttribPointer(this.lineLocations.position, 2, this.gl.FLOAT, false, 0, 0);
+
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.lineAlpha);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(lineAlphas), this.gl.DYNAMIC_DRAW);
+                    this.gl.enableVertexAttribArray(this.lineLocations.alpha);
+                    this.gl.vertexAttribPointer(this.lineLocations.alpha, 1, this.gl.FLOAT, false, 0, 0);
+
+                    this.gl.uniform2f(this.lineLocations.resolution, this.canvas.width, this.canvas.height);
+                    this.gl.uniform3f(this.lineLocations.color, 0.663, 0.467, 0.973);
+
+                    this.gl.drawArrays(this.gl.LINES, 0, linePositions.length / 2);
+                }
+
+                // Render particles
+                this.gl.useProgram(this.programs.particle);
+                
+                const positions = [];
+                const sizes = [];
+                const alphas = [];
+                
+                this.particles.forEach(particle => {
+                    positions.push(particle.x, particle.y);
+                    sizes.push(particle.size);
+                    alphas.push(particle.alpha);
+                });
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.particlePosition);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.DYNAMIC_DRAW);
+                this.gl.enableVertexAttribArray(this.particleLocations.position);
+                this.gl.vertexAttribPointer(this.particleLocations.position, 2, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.particleSize);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(sizes), this.gl.DYNAMIC_DRAW);
+                this.gl.enableVertexAttribArray(this.particleLocations.size);
+                this.gl.vertexAttribPointer(this.particleLocations.size, 1, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.particleAlpha);
+                this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(alphas), this.gl.DYNAMIC_DRAW);
+                this.gl.enableVertexAttribArray(this.particleLocations.alpha);
+                this.gl.vertexAttribPointer(this.particleLocations.alpha, 1, this.gl.FLOAT, false, 0, 0);
+
+                this.gl.uniform2f(this.particleLocations.resolution, this.canvas.width, this.canvas.height);
+                this.gl.uniform3f(this.particleLocations.color, 0.8, 0.8, 0.9);
+                this.gl.uniform1f(this.particleLocations.time, this.time);
+
+                this.gl.drawArrays(this.gl.POINTS, 0, this.particles.length);
+            }
+        }
+
+        // Particle class
+        class Particle {
+            constructor(canvas) {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.size = 2.0 + Math.random() * 2;
+                this.alpha = 0.3 + Math.random() * 0.4;
+                this.baseAlpha = this.alpha;
+                this.connections = [];
+            }
+
+            update(particles, mouse, time, canvas, config) {
+                let separationForceX = 0;
+                let separationForceY = 0;
+                let separationCount = 0;
+
+                for (let i = 0; i < particles.length; i++) {
+                    const other = particles[i];
+                    if (other === this) continue;
+                    
+                    const dx = this.x - other.x;
+                    const dy = this.y - other.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < config.SEPARATION_DISTANCE && distance > 0) {
+                        const force = (config.SEPARATION_DISTANCE - distance) / config.SEPARATION_DISTANCE;
+                        const normalizedX = dx / distance;
+                        const normalizedY = dy / distance;
+                        
+                        separationForceX += normalizedX * force;
+                        separationForceY += normalizedY * force;
+                        separationCount++;
+                    }
+                }
+
+                if (separationCount > 0) {
+                    separationForceX = (separationForceX / separationCount) * config.SEPARATION_FORCE;
+                    separationForceY = (separationForceY / separationCount) * config.SEPARATION_FORCE;
+                    
+                    this.vx += separationForceX;
+                    this.vy += separationForceY;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (mouse.isMoving) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < config.MOUSE_INFLUENCE_RADIUS) {
+                        const force = (config.MOUSE_INFLUENCE_RADIUS - distance) / config.MOUSE_INFLUENCE_RADIUS;
+                        this.vx += dx * force * 0.0001;
+                        this.vy += dy * force * 0.0001;
+                        this.alpha = Math.min(1.0, this.baseAlpha + force * 0.5);
+                    } else {
+                        this.alpha = this.baseAlpha;
+                    }
+                } else {
+                    this.alpha = this.baseAlpha;
+                }
+
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+
+                this.y += Math.sin(time * 0.001 + this.x * 0.01) * 0.1;
+            }
+
+            findConnections(particles, connectionDistance) {
+                this.connections = [];
+                
+                for (let i = 0; i < particles.length; i++) {
+                    const other = particles[i];
+                    if (other === this) continue;
+                    
+                    const dx = this.x - other.x;
+                    const dy = this.y - other.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < connectionDistance) {
+                        const alpha = 1.0 - (distance / connectionDistance);
+                        this.connections.push({
+                            particle: other,
+                            alpha: alpha * 0.15
+                        });
+                    }
+                }
+            }
+        }
+
+        // User dropdown functionality
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const userProfile = document.querySelector('.user-profile');
+            const dropdown = document.getElementById('userDropdown');
+            
+            if (!userProfile.contains(event.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Settings Modal Functions
+        function openSettingsModal(event = null) {
+            if (event) event.preventDefault();
+            document.getElementById('settingsModal').classList.add('show');
+            loadUserSettings();
+            // Close user dropdown
+            document.getElementById('userDropdown').classList.remove('show');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.remove('show');
+        }
+
+        async function loadUserSettings() {
+            try {
+                const response = await fetch('/api/user/settings');
+                const settings = await response.json();
+                
+                document.getElementById('displayName').value = settings.display_name || '';
+                document.getElementById('themePreference').value = settings.theme || 'system';
+                document.getElementById('languagePreference').value = settings.language || 'en';
+                
+                const notifications = settings.notifications || {};
+                document.getElementById('emailNotifications').checked = notifications.email !== false;
+                document.getElementById('discordNotifications').checked = notifications.discord !== false;
+                document.getElementById('inAppNotifications').checked = notifications.in_app !== false;
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                showNotification('Failed to load settings', 'error');
+            }
+        }
+
+        async function saveSettings() {
+            const settings = {
+                display_name: document.getElementById('displayName').value,
+                theme: document.getElementById('themePreference').value,
+                language: document.getElementById('languagePreference').value,
+                notifications: {
+                    email: document.getElementById('emailNotifications').checked,
+                    discord: document.getElementById('discordNotifications').checked,
+                    in_app: document.getElementById('inAppNotifications').checked
+                }
+            };
+
+            try {
+                const response = await fetch('/api/user/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Settings saved successfully', 'success');
+                    closeSettingsModal();
+                    // Refresh page to reflect changes
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showNotification(result.error || 'Failed to save settings', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                showNotification('Failed to save settings', 'error');
+            }
+        }
+
+        // Passkey Modal Functions
+        function openPasskeyModal(event = null) {
+            if (event) event.preventDefault();
+            document.getElementById('passkeyModal').classList.add('show');
+            loadPasskeys();
+            // Close user dropdown
+            document.getElementById('userDropdown').classList.remove('show');
+        }
+
+        function closePasskeyModal() {
+            document.getElementById('passkeyModal').classList.remove('show');
+        }
+
+        async function loadPasskeys() {
+            try {
+                const response = await fetch('/api/user/passkeys');
+                const passkeys = await response.json();
+                
+                const listElement = document.getElementById('passkeyList');
+                listElement.innerHTML = '';
+                
+                if (passkeys.length === 0) {
+                    listElement.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No passkeys registered yet.</p>';
+                    return;
+                }
+                
+                passkeys.forEach(passkey => {
+                    const item = document.createElement('div');
+                    item.className = 'passkey-item';
+                    item.innerHTML = `
+                        <div class="passkey-info">
+                            <h4>🔐 ${passkey.device_name}</h4>
+                            <small>Created: ${new Date(passkey.created_at).toLocaleDateString()}</small>
+                            ${passkey.last_used_at ? `<br><small>Last used: ${new Date(passkey.last_used_at).toLocaleDateString()}</small>` : '<br><small>Never used</small>'}
+                        </div>
+                        <button class="btn btn-danger" onclick="deletePasskey(${passkey.id})">Delete</button>
+                    `;
+                    listElement.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Error loading passkeys:', error);
+                showNotification('Failed to load passkeys', 'error');
+            }
+        }
+
+        async function registerNewPasskey() {
+            const deviceName = prompt('Enter a name for this passkey (e.g., "iPhone Touch ID", "YubiKey", "Windows Hello"):');
+            if (!deviceName) return;
+
+            try {
+                // Begin registration
+                const beginResponse = await fetch('/api/passkey/register/begin', {
+                    method: 'POST'
+                });
+                const options = await beginResponse.json();
+
+                if (!beginResponse.ok) {
+                    throw new Error(options.error || 'Failed to begin registration');
+                }
+
+                // Create credential
+                const credential = await navigator.credentials.create({
+                    publicKey: {
+                        ...options,
+                        challenge: new Uint8Array(Object.values(options.challenge)),
+                        user: {
+                            ...options.user,
+                            id: new Uint8Array(Object.values(options.user.id))
+                        }
+                    }
+                });
+
+                // Complete registration
+                const completeResponse = await fetch('/api/passkey/register/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        credential: {
+                            id: credential.id,
+                            rawId: Array.from(new Uint8Array(credential.rawId)),
+                            response: {
+                                attestationObject: Array.from(new Uint8Array(credential.response.attestationObject)),
+                                clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON))
+                            },
+                            type: credential.type
+                        },
+                        device_name: deviceName
+                    })
+                });
+
+                const result = await completeResponse.json();
+
+                if (result.success) {
+                    showNotification('Passkey registered successfully', 'success');
+                    loadPasskeys();
+                } else {
+                    throw new Error(result.error || 'Failed to complete registration');
+                }
+            } catch (error) {
+                console.error('Error registering passkey:', error);
+                showNotification(error.message || 'Failed to register passkey', 'error');
+            }
+        }
+
+        async function deletePasskey(passkeyId) {
+            if (!confirm('Are you sure you want to delete this passkey?')) return;
+
+            try {
+                const response = await fetch(`/api/user/passkeys/${passkeyId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification('Passkey deleted successfully', 'success');
+                    loadPasskeys();
+                } else {
+                    throw new Error(result.error || 'Failed to delete passkey');
+                }
+            } catch (error) {
+                console.error('Error deleting passkey:', error);
+                showNotification(error.message || 'Failed to delete passkey', 'error');
+            }
+        }
+
+        // Notification System
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type} show`;
+            notification.innerHTML = `
+                <div>
+                    <strong>${type.charAt(0).toUpperCase() + type.slice(1)}</strong>
+                    <p>${message}</p>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+
+        // Load dashboard stats (if on dashboard)
+        async function loadDashboardStats() {
+            try {
+                // These would be actual API calls in a real implementation
+                document.getElementById('activeTicketsCount').textContent = '12';
+                document.getElementById('assignmentsCount').textContent = '8';
+                document.getElementById('completedTasksCount').textContent = '24';
+            } catch (error) {
+                console.error('Error loading dashboard stats:', error);
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize background animation
+            new BackgroundManager();
+            
+            // Load dashboard stats if elements exist
+            if (document.getElementById('activeTicketsCount')) {
+                loadDashboardStats();
+            }
+        });
+
+        // Close modals with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                document.querySelectorAll('.modal.show').forEach(modal => {
+                    modal.classList.remove('show');
+                });
+            }
+        });
+    </script>
+</body>
+</html>
