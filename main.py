@@ -2,7 +2,7 @@ import os
 import secrets
 import requests # type: ignore
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, redirect, url_for, session, render_template_string # type: ignore
+from flask import Flask, request, jsonify, redirect, url_for, session, render_template_string, render_template # type: ignore
 from authlib.integrations.flask_client import OAuth # type: ignore
 from functools import wraps
 import json
