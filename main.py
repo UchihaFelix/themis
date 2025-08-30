@@ -1076,7 +1076,23 @@ def passkey_register_begin():
         # Store challenge in session
         session['passkey_challenge'] = registration_options.challenge
         
-        return jsonify(registration_options.to_dict())
+        # Convert registration options to dict format
+        registration_dict = {
+            'challenge': list(registration_options.challenge),
+            'rp': {'id': registration_options.rp.id, 'name': registration_options.rp.name},
+            'user': {
+                'id': list(registration_options.user.id),
+                'name': registration_options.user.name,
+                'displayName': registration_options.user.display_name
+            },
+            'pubKeyCredParams': [{'alg': param.alg, 'type': param.type} for param in registration_options.pub_key_cred_params],
+            'authenticatorSelection': {
+                'userVerification': registration_options.authenticator_selection.user_verification.value if registration_options.authenticator_selection else 'preferred'
+            },
+            'excludeCredentials': [{'id': list(cred.id), 'type': cred.type} for cred in registration_options.exclude_credentials] if registration_options.exclude_credentials else []
+        }
+        
+        return jsonify(registration_dict)
         
     except Exception as e:
         print(f"Error beginning passkey registration: {e}")
@@ -1179,7 +1195,15 @@ def passkey_auth_begin():
             session['passkey_auth_challenge'] = authentication_options.challenge
             session['passkey_auth_user_id'] = user_id
             
-            return jsonify(authentication_options.to_dict())
+            # Convert authentication options to dict format
+            authentication_dict = {
+                'challenge': list(authentication_options.challenge),
+                'rpId': authentication_options.rp_id,
+                'allowCredentials': [{'id': list(cred.id), 'type': cred.type} for cred in authentication_options.allow_credentials] if authentication_options.allow_credentials else [],
+                'userVerification': authentication_options.user_verification.value if authentication_options.user_verification else 'preferred'
+            }
+            
+            return jsonify(authentication_dict)
             
         finally:
             cursor.close()
@@ -1420,7 +1444,7 @@ def migrate_database():
         results = []
         
         # Read and execute migration SQL
-        with open('database_migration.sql', 'r') as f:
+        with open('database_migration_fixed.sql', 'r') as f:
             sql_content = f.read()
         
         # Split by semicolon and filter out empty commands
